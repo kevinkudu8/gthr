@@ -1,26 +1,624 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------
+   GTHR tokens. Light — warm paper with airbrushed colour behind it.
+   Ink is one RGB triple with an opacity scale, so retuning the
+   palette is a four-line change at the top of this file.
+   --------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f4f3ee;
+  --paper-elevated: #e9e7df;
+  --ink-rgb: 11, 16, 14;
+  --brand: #04ea98;
+  --accent: #e2603c;
+
+  --ink-1: rgba(var(--ink-rgb), 1);
+  --ink-2: rgba(var(--ink-rgb), 0.6);
+  --ink-3: rgba(var(--ink-rgb), 0.32);
+  --ink-4: rgba(var(--ink-rgb), 0.18);
+  --line: rgba(var(--ink-rgb), 0.12);
+  /* Polaroid frame. Neutral, not the warm off-white it started as — against
+     the photos that read as a sand cast. Painted into the WebGL copy too
+     (three/BendImages.tsx reads this property), so the two must agree. */
+  --frame: #f7f7f6;
+  /* The platform UI face — SF Pro on Apple hardware. Used by the business
+     wordmark; see `.hero-lockup`. */
+  --font-system:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  --ease-66: cubic-bezier(0.66, 0, 0.01, 1);
+}
+
+/* ---------------------------------------------------------------
+   Business face. Same layout, corporate finish: clean white ground,
+   everything else in one dark green. Set by ModeProvider as a
+   `data-mode` attribute on <html>.
+   --------------------------------------------------------------- */
+:root[data-mode="business"] {
+  /* Not pure white: a faint grey gives the dot terrain a ground to sit on,
+     and it is what the reference engraving is printed on. */
+  --paper: #f4f4f3;
+  --paper-elevated: #eaeae8;
+  --ink-rgb: 0, 0, 0;
+  --brand: #000000;
+  --accent: #000000;
+  --frame: #ffffff;
+
+  --ink-2: rgba(var(--ink-rgb), 0.62);
+  --ink-3: rgba(var(--ink-rgb), 0.38);
+  --ink-4: rgba(var(--ink-rgb), 0.2);
+  --line: rgba(var(--ink-rgb), 0.16);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-paper-elevated: var(--paper-elevated);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+
+  --font-display: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-martian-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-geometric: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
+  --ease-66: var(--ease-66);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    color-scheme: light;
+    background: var(--paper);
+    /* Viewport-sized display type can poke past the edge by a few px;
+       `clip` (not `hidden`) stops that without breaking position: sticky. */
+    overflow-x: clip;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink-1);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    transition:
+      background-color 0.7s var(--ease-66),
+      color 0.7s var(--ease-66);
+  }
+
+  ::selection {
+    background: var(--brand);
+    color: var(--paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Giant type: Syne 800, uppercase, viewport-sized by the caller. */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Small mono label above a section. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* Hover-outlined box, as on the reference's footer links. */
+  .outline-box {
+    position: relative;
+    display: block;
+    padding: 0.5rem;
+  }
+
+  .outline-box::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid transparent;
+    transition: border-color 0.3s var(--ease-66);
+    pointer-events: none;
+  }
+
+  .outline-box:hover::before,
+  .outline-box:focus-visible::before {
+    border-color: var(--ink-1);
+  }
+
+  .outline-box--dotted::before {
+    border-style: dotted;
+  }
+
+  /* The page scrolls inside this fixed wrapper (see SmoothScroll.tsx). */
+  .scroll-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
+  .scroll-wrapper.lenis-smooth {
+    scroll-behavior: auto;
+  }
+
+  /* Header links: plain ink, a hairline that draws in on hover. */
+  .link-min {
+    position: relative;
+    display: inline-block;
+    padding: 0.25rem 0;
+  }
+
+  .link-min::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s var(--ease-66);
+  }
+
+  .link-min:hover::after,
+  .link-min:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Statement panels: caps, but narrower and lighter than .display. */
+  .statement {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 7svw;
+    line-height: 1.02;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  @media (min-width: 64rem) {
+    .statement {
+      font-size: 4.6svw;
+    }
+  }
+
+  /* Pixel cursor replaces the OS cursor once JS has mounted it. Everything
+     except the text fields, which keep the I-beam (PixelCursor hides itself
+     over those). Listing tags one by one missed anything that sets its own
+     `cursor` — the mode toggle's labels showed the OS hand on top of ours. */
+  @media (pointer: fine) {
+    html.has-cursor,
+    html.has-cursor *:not(input):not(textarea):not(select) {
+      cursor: none;
+    }
+  }
+
+  .pixel-cursor__arrow {
+    transform-origin: 0 0;
+    transition: transform 0.2s var(--ease-66);
+  }
+
+  .pixel-cursor[data-hover] .pixel-cursor__arrow {
+    transform: scale(1.5);
+  }
+
+  /* --- Scroll reveals (see components/ui/Reveal.tsx) ---------------- */
+  .reveal-word {
+    display: inline-block;
+    clip-path: inset(-0.15em 0 -0.3em 0);
+  }
+
+  .reveal-word-inner {
+    display: inline-block;
+  }
+
+  .reveal[data-armed] .reveal-word-inner {
+    transform: translateY(115%);
+    transition: transform 1s var(--ease-66);
+    transition-delay: calc(var(--d, 0ms) + var(--i, 0) * 90ms);
+  }
+
+  .reveal[data-armed].is-in .reveal-word-inner {
+    transform: none;
+  }
+
+  .reveal-block[data-armed] {
+    opacity: 0;
+    transform: translateY(1.5rem);
+    transition:
+      opacity 0.8s var(--ease-66),
+      transform 0.9s var(--ease-66);
+    transition-delay: var(--d, 0ms);
+  }
+
+  .reveal-block[data-armed].is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Liquid glass card: heavy blur, bright rim, a sheen sweeping from the
+     top-left, and a soft inner glow — for anything dense over colour. */
+  .glass {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 2rem;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.62) 0%,
+      rgba(255, 255, 255, 0.34) 55%,
+      rgba(255, 255, 255, 0.5) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+      inset 0 0 48px rgba(255, 255, 255, 0.3),
+      0 40px 90px -40px rgba(var(--ink-rgb), 0.4);
+    backdrop-filter: blur(32px) saturate(1.7) brightness(1.04);
+    -webkit-backdrop-filter: blur(32px) saturate(1.7) brightness(1.04);
+  }
+
+  .glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background:
+      radial-gradient(120% 80% at 8% 0%, rgba(255, 255, 255, 0.75), transparent 55%),
+      radial-gradient(80% 60% at 100% 100%, rgba(255, 255, 255, 0.35), transparent 60%);
+    pointer-events: none;
+  }
+
+  /* --- Team polaroids (see sections/TeamCard.tsx) --------------------- */
+  /* Frame only: borders paint the card, the photo well stays transparent so
+     the WebGL copy of the photo (which bends with scroll) shows through. */
+  .polaroid {
+    position: relative;
+    border: 0.5rem solid var(--frame);
+    border-bottom-width: 2rem;
+    border-radius: 4px;
+    background: transparent;
+    box-shadow:
+      0 30px 60px -24px rgba(var(--ink-rgb), 0.5),
+      0 4px 12px -4px rgba(var(--ink-rgb), 0.25);
+    animation: polaroid-bob 7s ease-in-out infinite;
+  }
+
+  .polaroid__caption {
+    position: absolute;
+    inset-inline: 0;
+    bottom: -1.6rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  /* DOM image under a bending WebGL copy: keep layout + alt, hide pixels. */
+  .bend-source {
+    opacity: 0;
+  }
+
+  /* Whole polaroid painted by WebGL: keep layout + shadow, hide the paint. */
+  .polaroid--bent {
+    border-color: transparent;
+  }
+
+  .polaroid--bent .polaroid__caption {
+    opacity: 0;
+  }
+
+  @keyframes polaroid-bob {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    50% {
+      translate: 0 -8px;
+    }
+  }
+
+  /* --- Business lockup (sections/Hero.tsx) ---------------------------- */
+  /* The name spelled out, over the dot field. Present in both faces so it can
+     fade, but only visible — and only reachable — in the business one. */
+  .hero-lockup {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* SF Pro. Not a webfont — on Apple hardware the system stack *is* SF Pro
+       Display, which is closer than any lookalike we could serve, and the
+       fallbacks (Segoe, Roboto, Helvetica) are the right neighbours elsewhere.
+       SF Display tightens its tracking at display sizes, hence the negative
+       letter-spacing and the heavier weight. */
+    font-family: var(--font-system);
+    font-weight: 600;
+    font-size: 9.4svw;
+    line-height: 1;
+    letter-spacing: -0.035em;
+    /* Ink on paper: the dot field is the horizon *below* this, not a ground
+       behind it, so there is nothing for white type to knock out of. */
+    color: var(--brand);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.6s var(--ease-66),
+      visibility 0.6s var(--ease-66);
+  }
+
+  @media (min-width: 64rem) {
+    .hero-lockup {
+      font-size: 5.5svw;
+    }
+  }
+
+  :root[data-mode="business"] .hero-lockup {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .hero-lockup__word {
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    /* The lockup itself is inert, but this span has to be hoverable: it is the
+       target that gathers the dot field into the letterforms and fades the
+       sheen in (sections/WordSheen.tsx owns the listener). Shrink-to-fit, so
+       the target is the word only. */
+    pointer-events: auto;
+  }
+
+  /* The spectral sweep (sections/WordSheen.tsx): a second copy of the word laid
+     exactly over the first. The base word underneath is never touched — it
+     stays plain ink — and this layer fades in on top of it, which is what makes
+     the onset gradual. `background-clip: text` paints the blobs into the
+     glyphs; `background-position` is driven per frame from JS, because the
+     blobs answer to the pointer as well as to the clock and the two cannot
+     share the property through a CSS animation. */
+  .hero-lockup__sheen {
+    position: absolute;
+    /* Inset and padded so the background box is *larger* than the glyph ink.
+       With negative letter-spacing the last character's advance is short, so
+       the R's corner sat outside the box — and outside the box there is no
+       background to clip into the text, which is why it vanished. */
+    top: -0.12em;
+    left: -0.15em;
+    padding: 0.12em 0.15em;
+    opacity: 0;
+    white-space: nowrap;
+    pointer-events: none;
+    /* Five spectral blobs over an ink base, each on its own track — they cross
+       at different rates and in different directions, so the colour never
+       resolves into a clean band. A single linear sweep read as far too
+       mechanical.
+
+       Each blob is centred in its own layer with radii at 48%, and reaches
+       fully transparent by 100%. That matters: a blob whose fade is still
+       running when it meets the edge of its background box gets cut off square,
+       which is what put the hard horizontal breaks across the H and the T. */
+    background-image:
+      radial-gradient(48% 48% at 50% 50%, rgba(255, 71, 51, 0.96) 0%, rgba(255, 71, 51, 0.72) 42%, rgba(255, 71, 51, 0) 100%),
+      radial-gradient(48% 48% at 50% 50%, rgba(255, 158, 44, 0.96) 0%, rgba(255, 158, 44, 0.72) 42%, rgba(255, 158, 44, 0) 100%),
+      radial-gradient(48% 48% at 50% 50%, rgba(255, 214, 64, 0.94) 0%, rgba(255, 214, 64, 0.7) 42%, rgba(255, 214, 64, 0) 100%),
+      radial-gradient(48% 48% at 50% 50%, rgba(45, 212, 160, 0.96) 0%, rgba(45, 212, 160, 0.72) 42%, rgba(45, 212, 160, 0) 100%),
+      radial-gradient(48% 48% at 50% 50%, rgba(30, 120, 255, 0.96) 0%, rgba(30, 120, 255, 0.72) 42%, rgba(30, 120, 255, 0) 100%),
+      linear-gradient(var(--brand), var(--brand));
+    background-repeat: no-repeat;
+    background-size:
+      190% 220%,
+      150% 260%,
+      210% 200%,
+      130% 240%,
+      170% 230%,
+      100% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* The bit that escapes the glyphs: a prismatic fringe just outside the
+       letterform. Kept tight — the letters themselves have to stay crisp. */
+    filter:
+      drop-shadow(0.012em 0 0.02em rgba(70, 190, 255, 0.5))
+      drop-shadow(-0.012em 0 0.02em rgba(255, 80, 170, 0.45));
+    will-change: opacity, background-position;
+  }
+
+  /* --- Mode toggle (chrome/ModeToggle.tsx) ---------------------------- */
+  .mode-toggle {
+    position: relative;
+    /* Equal columns: the sliding thumb is a fixed 50%, so options of unequal
+       label width ("party" vs "business") would slide out of register. */
+    display: inline-grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    align-items: stretch;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    background: rgba(var(--ink-rgb), 0.03);
+  }
+
+  @media (min-width: 64rem) {
+    .mode-toggle {
+      font-size: 11px;
+    }
+
+    .mode-toggle__option {
+      padding: 0.42rem 0.72rem;
+    }
+  }
+
+  /* The sliding indicator. Half the control wide, moved by the checked index
+     (ModeToggle sets the transform inline). */
+  .mode-toggle__thumb {
+    position: absolute;
+    z-index: 0;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: calc(50% - 2px);
+    border-radius: 999px;
+    background: var(--ink-1);
+    transition: transform 0.45s var(--ease-66);
+  }
+
+  .mode-toggle__option {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 0.36rem 0.5rem;
+    cursor: pointer;
+    color: var(--ink-2);
+    transition: color 0.45s var(--ease-66);
+    white-space: nowrap;
+  }
+
+  .mode-toggle__option:has(:checked) {
+    color: var(--paper);
+  }
+
+  /* A frosted white card is invisible on the business face's white ground, so
+     it inverts to a faint ink wash instead. */
+  :root[data-mode="business"] .glass {
+    background: rgba(var(--ink-rgb), 0.035);
+    border-color: rgba(var(--ink-rgb), 0.14);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      0 30px 70px -45px rgba(var(--ink-rgb), 0.5);
+    backdrop-filter: blur(18px) saturate(1.1);
+    -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  }
+
+  :root[data-mode="business"] .glass::before {
+    background: none;
+  }
+
+  .side-scrollbar {
+    opacity: 0.6;
+    transition: opacity 0.3s var(--ease-66);
+  }
+
+  .side-scrollbar:hover {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Business hero layout. Deliberately UNLAYERED.
+
+   Tailwind declares `@layer theme, base, components, utilities`, and layer
+   order beats specificity — so a `display` set inside `@layer components`
+   loses to the `grid` utility class on the section however specific the
+   selector is. These rules sat in that layer and never applied: the hero
+   stayed a grid, and the wordmark stayed in row 1 rather than on the middle of
+   the frame. Unlayered styles outrank every layer, which is what makes them
+   stick.
+   --------------------------------------------------------------- */
+:root[data-mode="business"] #hero {
+  display: block;
+  position: relative;
+  text-align: center;
+  /* Half the lockup's own height (font-size at line-height 1), for placing the
+     line directly under it. */
+  --lockup-half: 4.7svw;
+  /* The middle of the *viewport*. The grid behind this is painted on the fixed
+     canvas at thirds of the viewport, so the wordmark only lands in the centre
+     square if it measures the same thing — a percentage of this section's own
+     box is a different number the moment its height is not exactly one screen.
+     The section starts at the top of the page, so at rest the two coincide. */
+  --hero-middle: 50dvh;
+}
+
+:root[data-mode="business"] .hero-lockup {
+  position: absolute;
+  inset-inline: 0;
+  top: var(--hero-middle);
+  /* Zero-height flex line: the word overflows it equally above and below, so
+     its box centre lands exactly on `top` without a transform, and without
+     depending on the element's own measured height. */
+  height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:root[data-mode="business"] .hero-line {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(var(--hero-middle) + var(--lockup-half) + 1.2rem);
+  margin-inline: auto;
+  max-width: 44ch;
+  color: rgba(var(--ink-rgb), 0.55);
+}
+
+@media (min-width: 64rem) {
+  :root[data-mode="business"] #hero {
+    --lockup-half: 2.75svw;
+    /* The canvas is `h-screen` at this breakpoint, so the grid is drawn over
+       100vh — match it exactly. */
+    --hero-middle: 50vh;
+  }
+
+  :root[data-mode="business"] .hero-line {
+    top: calc(var(--hero-middle) + var(--lockup-half) + 1.4rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* No spectral sweep on the wordmark — and it must be switched off properly,
+     not just frozen: the blanket rule above would stop the animation on an
+     arbitrary frame of the gradient. */
+  .hero-lockup__sheen {
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+    filter: none;
+    opacity: 0 !important;
+  }
+
+  /* Reveals: show everything immediately, nothing waits to be scrolled to. */
+  .reveal[data-armed] .reveal-word-inner,
+  .reveal-block[data-armed] {
+    transform: none !important;
+    opacity: 1 !important;
+  }
 }

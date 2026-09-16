@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the template, which is all placeholders and is what tells a new
+# clone which variables the contact form needs.
+!.env.example
 
 # vercel
 .vercel
