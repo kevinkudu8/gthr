@@ -14,6 +14,7 @@ import { HeroLetters } from "./HeroLetters";
 import { Lighting } from "./Lighting";
 import { scrollState, updateScrollState } from "./scrollState";
 import { Stickers } from "./Stickers";
+import { Ticket } from "./Ticket";
 
 export function Scene() {
   const mobile = useIsMobile();
@@ -38,7 +39,13 @@ export function Scene() {
       <Suspense fallback={null}>
         <HeroLetters reducedMotion={reducedMotion} mobile={mobile} />
         <Stickers reducedMotion={reducedMotion} />
-        <Badge reducedMotion={reducedMotion} />
+        {/* One prop per face for the statements block: the lanyard badge on
+            business, the tearing ticket on party. */}
+        {business ? (
+          <Badge reducedMotion={reducedMotion} />
+        ) : (
+          <Ticket reducedMotion={reducedMotion} />
+        )}
         <BendImages />
       </Suspense>
     </Canvas>

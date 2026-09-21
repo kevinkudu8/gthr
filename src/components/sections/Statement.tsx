@@ -14,14 +14,24 @@ type Props = {
 };
 
 export function Statement({ children, variant }: Props) {
+  // Two copies in one grid cell: the statement, and a white one over it that
+  // three/Badge.tsx clips to the badge's on-screen outline, so the words stay
+  // legible where the black badge passes behind them (business face only).
   const text = (
-    <Reveal
-      as="p"
-      lines
-      className="statement col-span-12 mx-auto max-w-[20ch] self-center text-center"
-    >
-      {children}
-    </Reveal>
+    <div className="col-span-12 grid self-center">
+      <Reveal
+        as="p"
+        lines
+        className="statement mx-auto max-w-[20ch] text-center [grid-area:1/1]"
+      >
+        {children}
+      </Reveal>
+      <div aria-hidden="true" className="statement-invert [grid-area:1/1]">
+        <Reveal as="p" lines className="statement mx-auto max-w-[20ch] text-center">
+          {children}
+        </Reveal>
+      </div>
+    </div>
   );
 
   if (variant === "sticky") {

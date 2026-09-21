@@ -364,7 +364,38 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     They **fade out** over the first half of the hero's scroll (opacity on
     every sticker material) rather than riding up and vanishing, and cannot
     be grabbed once mostly faded.
-  - `Badge` — the one 3D prop for the statements block: a lanyard badge
+  - `Ticket` — the **party** face's prop for the statements block (Scene
+    mounts `Ticket` on party, `Badge` on business). An event ticket after the
+    client's reference: a holographic stub (the thermal field's bright middle,
+    `paintThermal` lo/hi 0.4–0.8, plus `iridescence`) over a printed paper
+    body. Copy is `ticket` in `site.ts`. Centred, 0.667 of the viewport tall.
+    **It is ripped, not split.** Each piece is a subdivided plane rather than
+    an extrusion, because the tear has to bend the paper and an extruded face
+    has no interior vertices. So `tearMaterial` splices into the stock
+    materials: the die-cut outline (per-corner radii, perforation notches,
+    punched holes) and the **perforation** are a signed distance cut in the
+    fragment shader. It parts *along the perforation*, not like free paper (a
+    ragged, fibrous edge was tried first and rejected): real holes run the
+    line (each piece cuts its half of every circle, so it reads as one row
+    before the tear), and behind the tear front each snapped bridge leaves a
+    small nub on one side — complementary between the pieces — with a white
+    hairline of bare stock; the **curl** is a vertex lift near the torn edge, only behind the
+    tear front, kept small because ticket stock lifts rather than rolls.
+    **One continuous motion** over `statement` 0 → 0.69, never parked (a
+    rise / stop / rip / leave version read as three moves): it rises turned
+    ~15° and unwinding, on an ease-out that lands on a slow constant drift so
+    it never stops; `uFront` runs right to left along the perforation *while
+    it is still rising*; the halves hinge open about the point still
+    attached (position = P − R(a)P), fold toward the viewer, and before the
+    rip is done start flying (eased *in*) past opposite corners — stub
+    top-left, body bottom-right — and 4 units back, crossing the frame edge
+    just before services comes up (~0.667). The sideways travel (2.4
+    half-extents) has to outrun the frame widening with depth or the halves
+    shrink into the middle instead of leaving. The back face
+    is plain stock (`gl_FrontFacing`).
+  - `canvasPaint.ts` — shared by the baked textures: `pageFonts`, the thermal
+    ramp on the CPU (`rampAt`, `paintThermal`), `paintPaper`, `hash2`.
+  - `Badge` — the **business** face's prop for the statements block: a lanyard badge
     (canvas-painted face, printed strap). The clasp follows the client's
     reference photo, in black metal on both faces: strap folded round the bar
     of a D-ring, a swivel eye and barrel, and a snap hook (one tube loop,
@@ -376,15 +407,23 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     `ExtrudeGeometry` — rounded outline + hole — with the face art UV-mapped
     onto its front cap (texture repeat 1/W, 1/H, offset 0.5), so corner radius
     and hole come from the geometry, never the art. A RoundedBox + textured
-    plane before it had two radii that disagreed and showed at the corners.. **Two faces**: the party one is cut from the page's own ground — the card
-    is painted per pixel from `CloudBackdrop`'s exported `RAMP` and blob profile
-    (with hashed grain), white Syne/mono over it, on black tape lettered in the
-    ramp's hot end with gunmetal hardware (the hot-pink pass it replaced
-    belonged to the old light party face); the
-    business one is a credential — card stock, a black header with the wordmark
-    reversed out, mono credential rows, hairline rules, a data-matrix block and
-    a serial, on black woven tape with steel hardware. Both textures are
-    *baked*, so the paint effect re-runs on the mode rather than recolouring.
+    plane before it had two radii that disagreed and showed at the corners. The face follows the client's reference ID card: black stock printed in
+    speckled off-white — `GTHR.` mark, a large mono ALL-ACCESS, two label
+    columns, a rule, handle and name, a hashed QR block and reference lines
+    (copy is `badge` in `site.ts`) — with a slot punch rather than a round
+    hole, on black woven tape. Textures are *baked* once.
+    **The statement type stays legible over it by inversion.** Statement ink
+    is black on this face, so it would vanish over the card. Each statement
+    carries a white twin (`.statement-invert`, same grid cell, business only)
+    and Badge's frame loop projects the card outline (rounded corners
+    sampled) and the strap to viewport pixels and sets them as the twin's
+    `clip-path: path(...)` — so letters turn white exactly where they cross
+    the badge. CSS `mix-blend-mode` cannot do this: the page scrolls inside a
+    fixed wrapper, a separate stacking context, so blending never sees the
+    canvas. The twin's reveal is keyed off the base copy
+    (`.reveal.is-in + .statement-invert`): Chrome counts the clip against
+    IntersectionObserver, so its own reveal only fired once the badge
+    overlapped it.
     The matrix pattern is hashed from the cell index, not `Math.random()`, or it
     would shimmer on every repaint. Placeholder artwork until the client's own
     lands. whose pivot travels upper-left -> close past the camera -> lower
@@ -437,7 +476,8 @@ src/components/
   chrome/           TopBar, BottomBar, Clock, Socials, SmoothScroll, ModeToggle, SideScrollbar, PixelCursor
   sections/         Hero, WordSheen, Statement, StickyFade, Services, About, TeamCard, Contact, ContactForm
   three/            SceneCanvas → Scene (Canvas + tracker), CloudBackdrop (+ the grid),
-                    HeroLetters, DotTerrain, Stickers + stickerDefs, Badge, BendImages,
+                    HeroLetters, DotTerrain, Stickers + stickerDefs, Badge, Ticket,
+                    canvasPaint, BendImages,
                     Lighting, noise, scrollState
   ui/               Reveal
 src/app/actions/    contact.ts — server action for the form

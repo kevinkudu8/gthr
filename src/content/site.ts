@@ -79,6 +79,55 @@ export const about = {
   ],
 } as const;
 
+/**
+ * The business face's lanyard badge (three/Badge.tsx), painted into its
+ * texture. Set in caps on the card.
+ */
+export const badge = {
+  mark: "GTHR.",
+  access: "All-access",
+  columns: [
+    ["Focus", "Blockchain &", "technology events"],
+    ["Web", "gthr.com", "hello@gthr.com"],
+  ],
+  handle: "@gthr",
+  name: "Your team",
+  reference: ["Reference ID", "20260001"],
+  agency: ["Events & experiential", "marketing agency"],
+} as const;
+
+/**
+ * The party face's torn ticket (three/Ticket.tsx), painted into its textures.
+ * Set in caps on the ticket, so the case here does not matter. Rows mirror the
+ * services list by number, plus the hero line's promise as the last cell.
+ */
+export const ticket = {
+  stub: {
+    kicker: "GTHR — Event pass 2026",
+    title: "GTHR",
+    tagline: "Events & Experiences",
+    label: "All access",
+  },
+  body: {
+    eyebrow: "GTHR event operations",
+    headline: ["Your events team,", "without building one"],
+    date: ["24", "/7"],
+    startLabel: "Starts",
+    start: "Day one",
+    rows: [
+      ["Fractional", "01"],
+      ["Production", "02"],
+      ["VIP", "03"],
+      ["Activations", "04"],
+      ["Strategy", "05"],
+      ["New hires", "0"],
+    ],
+    fine: ["Session: GTHR-26    Price level: bespoke", "Pass type: all access    Services: 05"],
+    stamp: "gthr",
+    footer: "Non-transferable — designed to be remembered",
+  },
+} as const;
+
 /** Contact section copy. Headline and messages are DRAFTS. */
 export const contact = {
   eyebrow: "Contact",

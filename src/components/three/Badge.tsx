@@ -13,10 +13,11 @@ import {
   TubeGeometry,
   Vector3,
   type Group,
+  type Mesh,
   type Texture,
 } from "three";
-import { useMode } from "@/components/mode/ModeProvider";
-import { RAMP } from "./CloudBackdrop";
+import { badge } from "@/content/site";
+import { hash2, pageFonts, paintPaper, type Fonts } from "./canvasPaint";
 import { scrollState } from "./scrollState";
 
 const W = 1.7; // badge width, world units
@@ -26,7 +27,8 @@ const STRAP_W = 0.34;
 const STRAP_L = 7;
 const CARD_R = 0.11; // corner radius — the card's own outline, so it cannot disagree with the art
 const HOLE_Y = H / 2 - 0.15; // punched hole centre, card-local
-const HOLE_R = 0.065;
+const SLOT_W = 0.36; // slot punch, width and height
+const SLOT_H = 0.085;
 
 /* The clasp, after the client's reference photo: strap folded round the flat
    bar of a D-ring, a swivel eye and barrel under it, and a snap hook whose
@@ -71,8 +73,15 @@ function cardGeometry() {
   shape.quadraticCurveTo(x, y + H, x, y + H - r);
   shape.lineTo(x, y + r);
   shape.quadraticCurveTo(x, y, x + r, y);
+  // A slot punch, as on a real ID card: a stadium, cut clockwise so the
+  // extrusion reads it as a hole.
   const hole = new Path();
-  hole.absarc(0, HOLE_Y, HOLE_R, 0, Math.PI * 2, true);
+  const sw = SLOT_W / 2 - SLOT_H / 2;
+  hole.moveTo(-sw, HOLE_Y + SLOT_H / 2);
+  hole.absarc(-sw, HOLE_Y, SLOT_H / 2, Math.PI / 2, (3 * Math.PI) / 2, false);
+  hole.lineTo(sw, HOLE_Y - SLOT_H / 2);
+  hole.absarc(sw, HOLE_Y, SLOT_H / 2, -Math.PI / 2, Math.PI / 2, false);
+  hole.lineTo(-sw, HOLE_Y + SLOT_H / 2);
   shape.holes.push(hole);
   const bevel = 0.008;
   const geometry = new ExtrudeGeometry(shape, {
@@ -127,202 +136,139 @@ function dRingGeometry() {
   return new TubeGeometry(curve, 96, D_TUBE, 10, true);
 }
 
-/** Fonts as the page loaded them (next/font hashes the family names). */
-function pageFonts() {
-  const sans = getComputedStyle(document.body).fontFamily;
-  const mono = getComputedStyle(document.querySelector("time") ?? document.body).fontFamily;
-  return { sans, mono };
+/**
+ * The badge face, after the client's reference: a black card printed in
+ * off-white — mark, a large mono ALL-ACCESS, two small label columns, a rule,
+ * handle and name, then a QR block and reference lines. The ink carries a fine
+ * speckle, as screen print on black stock does. Copy is `badge` in site.ts.
+ */
+function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRenderingContext2D) {
+  paintPaper(ctx, w, h, [13, 13, 14], 12);
+  const ink = "#e9e8e4";
+  const pad = 64;
+  const c = badge;
+  ctx.fillStyle = ink;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  // Mark, in the business wordmark's own face.
+  ctx.font = `600 64px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
+  ctx.fillText(c.mark, pad, 232);
+
+  ctx.font = `400 58px ${fonts.mono}`;
+  ctx.fillText(c.access.toUpperCase(), pad, 392);
+
+  ctx.font = `400 17px ${fonts.mono}`;
+  c.columns.forEach((col, i) => {
+    const x = pad + i * ((w - pad * 2) / 2 + 12);
+    col.forEach((line, j) => ctx.fillText(line.toUpperCase(), x, 452 + j * 26));
+  });
+
+  ctx.fillStyle = "rgba(233,232,228,0.55)";
+  ctx.fillRect(pad, 556, w - pad * 2, 1.5);
+  ctx.fillStyle = ink;
+
+  ctx.font = `400 17px ${fonts.mono}`;
+  ctx.fillText(c.handle.toUpperCase(), pad, 612);
+  ctx.font = `400 50px ${fonts.mono}`;
+  ctx.fillText(c.name.toUpperCase(), pad, 668);
+
+  // QR block: three finder squares and hashed modules, so it is identical on
+  // every repaint.
+  const cell = 7;
+  const n = 25;
+  const qx = pad;
+  const qy = h - 64 - cell * n;
+  const finder = (fx: number, fy: number) =>
+    (fx < 7 && fy < 7) || (fx > n - 8 && fy < 7) || (fx < 7 && fy > n - 8);
+  const finderBit = (fx: number, fy: number) => {
+    const lx = fx > n - 8 ? fx - (n - 7) : fx;
+    const ly = fy > n - 8 ? fy - (n - 7) : fy;
+    const ring = lx === 0 || ly === 0 || lx === 6 || ly === 6;
+    const core = lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4;
+    return ring || core;
+  };
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const on = finder(x, y) ? finderBit(x, y) : hash2(x + 11, y + 29) > 0.52;
+      if (on) ctx.fillRect(qx + x * cell, qy + y * cell, cell - 1, cell - 1);
+    }
+  }
+
+  const rx = pad + (w - pad * 2) / 2 + 12;
+  ctx.font = `400 17px ${fonts.mono}`;
+  [...c.reference, "", ...c.agency].forEach((line, i) => {
+    if (line) ctx.fillText(line.toUpperCase(), rx, qy + 18 + i * 26);
+  });
+
+  // Speckle the ink: pinholes knocked back out of the print.
+  ctx.fillStyle = "rgb(13,13,14)";
+  for (let i = 0; i < 2600; i++) {
+    const x = hash2(i, 3) * w;
+    const y = hash2(i, 5) * h;
+    ctx.fillRect(x, y, 1.5, 1.5);
+  }
 }
 
 /**
- * The business face's badge: a credential, not a party pass. Card stock, a
- * black header with the wordmark reversed out, mono credential rows, hairline
- * rules and a data-matrix block — the language of an access pass at a
- * technology conference. Placeholder artwork until the client's own lands.
+ * The card's outline in card-local units — rounded corners sampled — for
+ * projecting onto the screen. See `clipStatements`.
  */
-function paintBusinessBadge(fonts: { sans: string; mono: string }, w: number, h: number, ctx: CanvasRenderingContext2D) {
-  const ink = "#0a0a0a";
-  ctx.fillStyle = "#f4f4f3";
-  ctx.fillRect(0, 0, w, h);
-
-  // Header bar, wordmark knocked out of it.
-  const headerH = h * 0.2;
-  ctx.fillStyle = ink;
-  ctx.fillRect(0, 0, w, headerH);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `600 ${Math.round(headerH * 0.46)}px ${fonts.sans}`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText("GTHR.", 44, headerH / 2 + 2);
-  ctx.font = `500 ${Math.round(headerH * 0.2)}px ${fonts.mono}`;
-  ctx.textAlign = "right";
-  ctx.fillText("EVENT OPS", w - 44, headerH / 2 + 2);
-
-  // Credential rows — label over value, the way a real pass is set.
-  const rows: [string, string][] = [
-    ["CREDENTIAL", "FULL ACCESS"],
-    ["HOLDER", "—"],
-    ["ISSUED", "2026"],
+const CARD_OUTLINE: Vector3[] = (() => {
+  const pts: Vector3[] = [];
+  const corners: [number, number, number][] = [
+    [W / 2 - CARD_R, H / 2 - CARD_R, 0],
+    [-W / 2 + CARD_R, H / 2 - CARD_R, Math.PI / 2],
+    [-W / 2 + CARD_R, -H / 2 + CARD_R, Math.PI],
+    [W / 2 - CARD_R, -H / 2 + CARD_R, (3 * Math.PI) / 2],
   ];
-  let y = headerH + 54;
-  ctx.textAlign = "left";
-  for (const [label, value] of rows) {
-    ctx.fillStyle = "rgba(10,10,10,0.45)";
-    ctx.font = `500 17px ${fonts.mono}`;
-    ctx.fillText(label, 44, y);
-    ctx.fillStyle = ink;
-    ctx.font = `600 34px ${fonts.sans}`;
-    ctx.fillText(value, 44, y + 38);
-    ctx.fillStyle = "rgba(10,10,10,0.14)";
-    ctx.fillRect(44, y + 62, w - 88, 1);
-    y += 96;
-  }
-
-  // Data-matrix block, bottom right. Deterministic so it does not shimmer
-  // between repaints — a hash of the cell index, not Math.random().
-  const cell = 11;
-  const grid = 11;
-  const mx = w - 44 - cell * grid;
-  const my = h - 56 - cell * grid;
-  ctx.fillStyle = ink;
-  for (let gy = 0; gy < grid; gy++) {
-    for (let gx = 0; gx < grid; gx++) {
-      const corner = (gx < 3 && gy < 3) || (gx > grid - 4 && gy < 3) || (gx < 3 && gy > grid - 4);
-      const bit = corner ? (gx === 1 && gy === 1) || gx === 0 || gy === 0 || gx === 2 || gy === 2 : ((gx * 7 + gy * 13 + gx * gy * 3) % 5) < 2;
-      if (bit) ctx.fillRect(mx + gx * cell, my + gy * cell, cell - 2, cell - 2);
+  for (const [cx, cy, a0] of corners) {
+    for (let i = 0; i <= 4; i++) {
+      const a = a0 + (i / 4) * (Math.PI / 2);
+      pts.push(new Vector3(cx + CARD_R * Math.cos(a), cy + CARD_R * Math.sin(a), D / 2));
     }
   }
+  return pts;
+})();
 
-  // Serial, bottom left.
-  ctx.fillStyle = "rgba(10,10,10,0.55)";
-  ctx.font = `500 19px ${fonts.mono}`;
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText("NO. 0001", 44, h - 52);
-  ctx.fillStyle = "rgba(10,10,10,0.3)";
-  ctx.font = `500 15px ${fonts.mono}`;
-  ctx.fillText("GTHR.COM", 44, h - 28);
-}
-
-/** `RAMP` as numbers, for sampling on the CPU. */
-const RAMP_RGB = RAMP.map(([at, hex]) => [
-  at,
-  parseInt(hex.slice(0, 2), 16),
-  parseInt(hex.slice(2, 4), 16),
-  parseInt(hex.slice(4, 6), 16),
-]);
-
-function rampAt(h: number): [number, number, number] {
-  for (let i = 1; i < RAMP_RGB.length; i++) {
-    const [b, br, bg, bb] = RAMP_RGB[i];
-    if (h <= b || i === RAMP_RGB.length - 1) {
-      const [a, ar, ag, ab] = RAMP_RGB[i - 1];
-      const k = Math.min(1, Math.max(0, (h - a) / (b - a)));
-      return [ar + (br - ar) * k, ag + (bg - ag) * k, ab + (bb - ab) * k];
-    }
-  }
-  return [0, 0, 0];
-}
-
-/** Card-space blobs, same profile as the backdrop: x, y, rx, ry, angle, amp, core. */
-const BADGE_BLOBS = [
-  [0.32, 1.0, 0.5, 0.3, 0.2, 1, 1.15], // the mass, rising from the bottom
-  [1.0, 0.27, 0.45, 0.1, 0.25, 0.55, 0.5], // tongue in from the right
-  [0.24, 0.28, 0.05, 0.1, -0.3, 0.5, 0.3], // small flame
-  [0.78, 0.44, 0.3, 0.045, 0.3, -0.7, 0.9], // dark wedge
+/** The strap plane's corners, in its own local space (it is rotated upright). */
+const STRAP_OUTLINE: Vector3[] = [
+  new Vector3(-STRAP_L / 2, -STRAP_W / 2, 0),
+  new Vector3(STRAP_L / 2, -STRAP_W / 2, 0),
+  new Vector3(STRAP_L / 2, STRAP_W / 2, 0),
+  new Vector3(-STRAP_L / 2, STRAP_W / 2, 0),
 ];
 
 /**
- * The party face's badge: a piece of the page's own ground. The card is
- * painted from the backdrop's thermal ramp and blob profile, with film grain,
- * so it reads as cut from the same stuff the site is set on — the pastel pink
- * pass it replaced belonged to the old, light party face. White Syne and mono
- * over it, as on the page.
+ * Keeps the statement type legible over the black badge. The statement is
+ * black ink on the business face, so where the card passes behind it the words
+ * would vanish; each statement carries a white copy (`.statement-invert`) and
+ * this clips that copy to the badge's on-screen outline — card and strap —
+ * every frame, so the letters turn white exactly where they cross it.
+ *
+ * Done by hand because CSS blending cannot reach the canvas: the page scrolls
+ * inside a fixed wrapper, which is its own stacking context, so a
+ * `mix-blend-mode` on the text only ever sees the transparent wrapper.
  */
-function paintPartyBadge(fonts: { sans: string; mono: string }, w: number, h: number, ctx: CanvasRenderingContext2D) {
-  const img = ctx.createImageData(w, h);
-  const blobs = BADGE_BLOBS.map(([x, y, rx, ry, a, amp, core]) => ({
-    x, y, irx: 1 / rx, iry: 1 / ry, c: Math.cos(a), s: Math.sin(a), amp, core,
-  }));
-  const aspect = h / w;
-  for (let py = 0; py < h; py++) {
-    const v = py / h;
-    for (let px = 0; px < w; px++) {
-      const u = px / w;
-      let heat = 0;
-      for (const b of blobs) {
-        const dx = u - b.x;
-        const dy = (v - b.y) * aspect;
-        const bu = (b.c * dx + b.s * dy) * b.irx;
-        const bv = (-b.s * dx + b.c * dy) * b.iry;
-        const r = Math.max(Math.hypot(bu, bv) - b.core, 0);
-        heat += b.amp * Math.exp(-r * r);
-      }
-      const [r, g, bl] = rampAt(Math.min(1, Math.max(0, heat)));
-      // Grain: an integer hash, so the card is identical on every repaint.
-      let n = Math.imul(px * 374761393 + py * 668265263, 1274126177);
-      n = ((n ^ (n >>> 13)) >>> 0) / 4294967296;
-      const grain = (n - 0.5) * 22;
-      const o = (py * w + px) * 4;
-      img.data[o] = r + grain;
-      img.data[o + 1] = g + grain;
-      img.data[o + 2] = bl + grain;
-      img.data[o + 3] = 255;
+function clipStatements(outlines: [number, number][][] | null) {
+  document.querySelectorAll<HTMLElement>(".statement-invert").forEach((el) => {
+    if (!outlines) {
+      el.style.clipPath = "inset(50%)";
+      return;
     }
-  }
-  ctx.putImageData(img, 0, 0);
-
-  const white = "#ffffff";
-  const soft = "rgba(255,255,255,0.62)";
-  const pad = 44;
-
-  // Header row either side of the hole.
-  ctx.fillStyle = white;
-  ctx.font = `500 21px ${fonts.mono}`;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "left";
-  ctx.fillText("ALL ACCESS", pad, 66);
-  ctx.textAlign = "right";
-  ctx.fillText("#GTHR26", w - pad, 66);
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
-  ctx.fillRect(pad, 104, w - pad * 2, 1);
-
-  // The wordmark, set large across the card on the dark core of the mass.
-  ctx.fillStyle = white;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
-  // Sized to the card's inner width rather than a fixed size — Syne 800 caps
-  // run wide, and at 186px the word ran off both edges.
-  ctx.font = `800 100px ${fonts.sans}`;
-  const fit = Math.min(170, (100 * (w - pad * 2.4)) / ctx.measureText("GTHR").width);
-  ctx.font = `800 ${Math.floor(fit)}px ${fonts.sans}`;
-  ctx.shadowColor = "rgba(0,0,0,0.35)";
-  ctx.shadowBlur = 24;
-  ctx.fillText("GTHR", w / 2, h * 0.7);
-  ctx.shadowBlur = 0;
-
-  // Pass rows and footer.
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
-  ctx.fillRect(pad, h * 0.76, w - pad * 2, 1);
-  ctx.textAlign = "left";
-  ctx.fillStyle = soft;
-  ctx.font = `500 17px ${fonts.mono}`;
-  ctx.fillText("PASS", pad, h * 0.76 + 44);
-  ctx.textAlign = "right";
-  ctx.fillText("NO. 0026", w - pad, h * 0.76 + 44);
-  ctx.fillStyle = white;
-  ctx.font = `700 34px ${fonts.sans}`;
-  ctx.textAlign = "left";
-  ctx.fillText("PARTY", pad, h * 0.76 + 88);
-  ctx.textAlign = "right";
-  ctx.fillText("2026", w - pad, h * 0.76 + 88);
-  ctx.fillStyle = soft;
-  ctx.font = `500 15px ${fonts.mono}`;
-  ctx.textAlign = "center";
-  ctx.fillText("GTHR.COM", w / 2, h - 34);
+    // path() is in the element's own pixels, so offset from the viewport.
+    const r = el.getBoundingClientRect();
+    const d = outlines
+      .map((pts) =>
+        pts.map(([x, y], i) => `${i ? "L" : "M"}${(x - r.left).toFixed(1)} ${(y - r.top).toFixed(1)}`).join(" ") + " Z",
+      )
+      .join(" ");
+    el.style.clipPath = `path("${d}")`;
+  });
 }
 
-/** The badge face for either mode, full bleed. */
-function paintBadge(fonts: { sans: string; mono: string }, business = false) {
+/** The badge face, full bleed. */
+function paintBadge(fonts: Fonts) {
   const w = 680;
   const h = Math.round(w * (H / W));
   const canvas = document.createElement("canvas");
@@ -331,8 +277,7 @@ function paintBadge(fonts: { sans: string; mono: string }, business = false) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
   // Full bleed: the card geometry supplies the corners and the hole.
-  if (business) paintBusinessBadge(fonts, w, h, ctx);
-  else paintPartyBadge(fonts, w, h, ctx);
+  paintBusinessBadge(fonts, w, h, ctx);
   return canvas;
 }
 
@@ -344,7 +289,7 @@ function paintBadge(fonts: { sans: string; mono: string }, business = false) {
 /** Strap length covered by one repeat of the strap texture, world units. */
 const STRAP_TILE = 2.2;
 
-function paintStrap(fonts: { sans: string; mono: string }, business = false) {
+function paintStrap(fonts: Fonts) {
   // Same proportions as the strip of strap one tile covers, so the lettering
   // is not squashed. It used to be 1600 x 160 on a 2.2 x 0.34 tile, which
   // compressed the type to ~65% of its width.
@@ -355,46 +300,18 @@ function paintStrap(fonts: { sans: string; mono: string }, business = false) {
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
-  if (business) {
-    // Woven black tape, the wordmark repeating small in mono with a hairline
-    // above and below — how a conference lanyard is actually printed.
-    ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(255,255,255,0.22)";
-    ctx.fillRect(0, h * 0.2, w, 2);
-    ctx.fillRect(0, h * 0.8 - 2, w, 2);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `500 40px ${fonts.mono}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    for (let i = 0; i < 4; i++) ctx.fillText("GTHR.", (w / 4) * (i + 0.5), h / 2 + 2);
-    return canvas;
-  }
-  // Party: black tape, the wordmark repeating in the thermal ramp's hot end,
-  // orange hairlines along both edges.
-  ctx.fillStyle = "#07090c";
+  // Woven black tape, the wordmark repeating small in mono with a hairline
+  // above and below — how a conference lanyard is actually printed.
+  ctx.fillStyle = "#0a0a0a";
   ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = "#fb4811";
-  ctx.fillRect(0, h * 0.14, w, 3);
-  ctx.fillRect(0, h * 0.86 - 3, w, 3);
-  // Two labels per tile, each sized to leave a clear gap in its slot — at a
-  // fixed 80px they ran wider than the slot and into each other.
-  const slot = w / 2;
-  ctx.font = `800 100px ${fonts.sans}`;
-  const fit = Math.min(76, (100 * slot * 0.72) / ctx.measureText("GTHR 26").width);
-  ctx.font = `800 ${Math.floor(fit)}px ${fonts.sans}`;
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillRect(0, h * 0.2, w, 2);
+  ctx.fillRect(0, h * 0.8 - 2, w, 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `500 40px ${fonts.mono}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const half = ctx.measureText("GTHR 26").width / 2;
-  for (let x = 0; x < w; x += slot) {
-    const g = ctx.createLinearGradient(x + slot / 2 - half, 0, x + slot / 2 + half, 0);
-    g.addColorStop(0, "#e8180c");
-    g.addColorStop(0.45, "#f76f1c");
-    g.addColorStop(0.75, "#de8330");
-    g.addColorStop(1, "#317068");
-    ctx.fillStyle = g;
-    ctx.fillText("GTHR 26", x + slot / 2, h / 2 + 4);
-  }
+  for (let i = 0; i < 4; i++) ctx.fillText("GTHR.", (w / 4) * (i + 0.5), h / 2 + 2);
   return canvas;
 }
 
@@ -404,13 +321,15 @@ function paintStrap(fonts: { sans: string; mono: string }, business = false) {
  * up the strap as a real pendulum, driven by its own acceleration.
  */
 export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
-  // `useMode` is a module store, so it reads correctly from inside the Canvas.
-  const business = useMode().mode === "business";
   const root = useRef<Group>(null);
   const pivot = useRef<Group>(null);
   const physics = useRef({ theta: 0, omega: 0, lastX: 0, lastVx: 0, warm: 0, primed: false });
   const [textures, setTextures] = useState<{ face: Texture; strap: Texture } | null>(null);
-  const { viewport } = useThree();
+  const { viewport, camera, size } = useThree();
+  const cardMesh = useRef<Mesh>(null);
+  const strapMesh = useRef<Mesh>(null);
+  const clipped = useRef(false);
+  const scratch = useRef(new Vector3());
   const card = useMemo(() => cardGeometry(), []);
   const hook = useMemo(() => hookGeometry(), []);
   const dRing = useMemo(() => dRingGeometry(), []);
@@ -420,13 +339,13 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     document.fonts.ready.then(() => {
       if (!alive) return;
       const fonts = pageFonts();
-      const face = new CanvasTexture(paintBadge(fonts, business));
+      const face = new CanvasTexture(paintBadge(fonts));
       face.colorSpace = SRGBColorSpace;
       // Onto the card's front cap, whose UVs are its x/y in world units.
       face.repeat.set(1 / W, 1 / H);
       face.offset.set(0.5, 0.5);
       face.anisotropy = 8;
-      const strap = new CanvasTexture(paintStrap(fonts, business));
+      const strap = new CanvasTexture(paintStrap(fonts));
       strap.colorSpace = SRGBColorSpace;
       strap.wrapS = strap.wrapT = RepeatWrapping;
       strap.repeat.set(STRAP_L / STRAP_TILE, 1);
@@ -435,9 +354,9 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     return () => {
       alive = false;
     };
-    // Repainted when the face changes: both textures are baked, so the badge
-    // has to be redrawn rather than recoloured.
-  }, [business]);
+    // Painted once: the badge is the business face's only — the party face
+    // has the torn ticket (Ticket.tsx) in this slot instead.
+  }, []);
 
   useFrame(({ clock }, rawDelta) => {
     const g = root.current;
@@ -451,6 +370,10 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     g.visible = thermal > 0.02;
     if (!g.visible) {
       ph.primed = false;
+      if (clipped.current) {
+        clipStatements(null);
+        clipped.current = false;
+      }
       return;
     }
     const halfW = viewport.width / 2;
@@ -504,6 +427,23 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     pv.rotation.z = ph.theta;
     // A little turn with motion so the card reads as an object.
     pv.rotation.y = (p - 0.5) * 0.7 + Math.max(-0.25, Math.min(0.25, ph.omega * 0.12));
+
+    // Project the card and strap outlines to viewport pixels for the
+    // statement inversion. The canvas is fixed at the viewport's top left, so
+    // its pixels are viewport pixels.
+    const cm = cardMesh.current;
+    const sm = strapMesh.current;
+    if (cm && sm) {
+      g.updateWorldMatrix(true, true);
+      const v = scratch.current;
+      const toScreen = (mesh: Mesh) => (local: Vector3): [number, number] => {
+        v.copy(local);
+        mesh.localToWorld(v).project(camera);
+        return [((v.x + 1) / 2) * size.width, ((1 - v.y) / 2) * size.height];
+      };
+      clipStatements([CARD_OUTLINE.map(toScreen(cm)), STRAP_OUTLINE.map(toScreen(sm))]);
+      clipped.current = true;
+    }
   });
 
   if (!textures) return null;
@@ -514,7 +454,7 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
         <group position={[0, -PIVOT, 0]}>
           {/* Strap: from the crimp up past the pivot and out of frame.
               A plane rotated upright: text reads from the clip upward. */}
-          <mesh position={[0, D_BAR + 0.2 + STRAP_L / 2, -0.012]} rotation={[0, 0, Math.PI / 2]}>
+          <mesh ref={strapMesh} position={[0, D_BAR + 0.2 + STRAP_L / 2, -0.012]} rotation={[0, 0, Math.PI / 2]}>
             <planeGeometry args={[STRAP_L, STRAP_W]} />
             <meshStandardMaterial map={textures.strap} roughness={0.85} />
           </mesh>
@@ -522,7 +462,7 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
               slightly thicker band with the crimp across its top. */}
           <mesh position={[0, D_BAR + 0.09, 0]}>
             <boxGeometry args={[STRAP_W, 0.24, 0.03]} />
-            <meshStandardMaterial color={business ? "#141414" : "#07090c"} roughness={0.85} />
+            <meshStandardMaterial color="#141414" roughness={0.85} />
           </mesh>
           <mesh position={[0, D_BAR + 0.2, 0]}>
             <boxGeometry args={[STRAP_W + 0.02, 0.05, 0.04]} />
@@ -550,7 +490,7 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
           {/* Card: face art on the front cap (group 0), plain stock on the
               sides (group 1). The back cap shares group 0, but the swing never
               turns it to the camera. */}
-          <mesh geometry={card}>
+          <mesh ref={cardMesh} geometry={card}>
             <meshPhysicalMaterial
               attach="material-0"
               map={textures.face}
@@ -560,9 +500,9 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
             />
             <meshPhysicalMaterial
               attach="material-1"
-              color={business ? "#e8e8e6" : "#0b0d10"}
-              roughness={business ? 0.5 : 0.35}
-              clearcoat={business ? 0.25 : 0.8}
+              color="#141415"
+              roughness={0.5}
+              clearcoat={0.25}
             />
           </mesh>
         </group>

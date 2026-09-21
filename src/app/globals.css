@@ -223,6 +223,30 @@
     }
   }
 
+  /* The statement's white twin, clipped per frame to the business badge's
+     outline (three/Badge.tsx, clipStatements) so the type reads over the
+     black card. Hidden until clipped, and off entirely on the party face,
+     where the statement is already white. */
+  .statement-invert {
+    display: none;
+    color: #ffffff;
+    pointer-events: none;
+    clip-path: inset(50%);
+  }
+
+  :root[data-mode="business"] .statement-invert {
+    display: block;
+  }
+
+  /* The twin rises with the statement it copies, not on its own: its own
+     reveal waits for an IntersectionObserver, and Chrome counts the clip-path
+     above against intersection — so the twin only "entered view" once the
+     badge overlapped it, and its words were still sunk when the badge first
+     crossed them. Keyed off the base copy (its previous sibling) instead. */
+  .reveal[data-armed].is-in + .statement-invert .reveal-word-inner {
+    transform: none;
+  }
+
   /* Pixel cursor replaces the OS cursor once JS has mounted it. Everything
      except the text fields, which keep the I-beam (PixelCursor hides itself
      over those). Listing tags one by one missed anything that sets its own
