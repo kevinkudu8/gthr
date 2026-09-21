@@ -31,11 +31,26 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: site.name,
   description: site.description,
-  metadataBase: new URL(site.url),
+  // Absolute URLs for the link preview are built from this, so it has to be
+  // where the site actually lives. It is NOT `site.url`: gthr.com is someone
+  // else's site. Vercel supplies the production domain to every build (a
+  // custom domain, once one is attached); locally it falls back to the dev
+  // server.
+  metadataBase: new URL(
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "http://localhost:3000",
+  ),
+  // The preview image itself is app/opengraph-image.tsx.
   openGraph: {
     title: site.name,
     description: site.description,
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: site.name,
+    description: site.description,
   },
 };
 
