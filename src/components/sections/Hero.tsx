@@ -23,8 +23,8 @@ export function Hero() {
       <h1 className="sr-only">{hero.wordmark}</h1>
       <div className="hero-lockup col-span-12 row-start-1" aria-hidden="true">
         <span className="hero-lockup__word">
-          {hero.wordmark}
-          <WordSheen text={hero.wordmark} />
+          {hero.businessWordmark}
+          <WordSheen text={hero.businessWordmark} />
         </span>
       </div>
       <Reveal

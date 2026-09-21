@@ -14,39 +14,51 @@ export const site = {
   email: "hello@gthr.com",
 } as const;
 
-/** The two faces of the site; see components/mode/ModeProvider.tsx. */
-export const modes = [
-  { id: "party", label: "party", short: "party" },
-  { id: "business", label: "business", short: "biz" },
+/** Bottom-right links. PLACEHOLDER handles — confirm the real accounts. */
+export const socials = [
+  { id: "telegram", label: "GTHR on Telegram", href: "https://t.me/gthr" },
+  { id: "x", label: "GTHR on X", href: "https://x.com/gthr" },
 ] as const;
 
-/** Top bar links. `href` is an in-page anchor; TopBar smooth-scrolls to it. */
+/** The two faces of the site; see components/mode/ModeProvider.tsx. */
+export const modes = [
+  { id: "business", label: "business", short: "biz" },
+  { id: "party", label: "party", short: "party" },
+] as const;
+
+/**
+ * Top bar links. `href` is an in-page anchor; TopBar smooth-scrolls to it.
+ * `short` is what a phone-width header shows — the full label overflows it.
+ */
 export const nav = [
-  { href: "#services", label: "Services" },
-  { href: "#about", label: "About" },
-  { href: "#contact", label: "Contact" },
+  { href: "#about", label: "Who are we", short: "About" },
+  { href: "#services", label: "Services", short: "Services" },
+  { href: "#contact", label: "Contact", short: "Contact" },
 ] as const;
 
 export const hero = {
+  /** The name itself — used for the accessible heading on both faces. */
   wordmark: "GTHR",
-  /** DRAFT — awaiting approval. */
-  line: "End-to-end creative collaborators. Pitch to post.",
+  /**
+   * What the business face sets in type. The full stop is deliberate and
+   * belongs to that face only: the party face's wordmark is the cursive
+   * lowercase mark drawn in WebGL, which has no punctuation.
+   */
+  businessWordmark: "GTHR.",
+  line: "Your events team, without building one.",
 } as const;
-
-export const intro =
-  "We work as your end-to-end creative collaborators — handling everything from pitch to post, embedded closely with your team at every step. We turn brand strategy into experiences people remember.";
 
 /** Rendered in caps by `.statement`. */
 export const statements = {
-  first: "No two events should be the same",
-  second: "Every project we build is one of one",
+  first: "Events built to scale,",
+  second: "designed to be remembered",
 } as const;
 
-/** About section. Roles and bios are PLACEHOLDERS; the description is client copy. */
+/** "Who are we" section (id `about`). Roles and bios are PLACEHOLDERS; the description is client copy. */
 export const about = {
-  eyebrow: "About",
+  eyebrow: "Who are we",
   description:
-    "GTHR is a Korean and European based event agency. Since 2026, we have focused fully on events in the blockchain and technology space.",
+    "GTHR is an events and experiential marketing agency. Since 2026, we have focused fully on events in the blockchain and technology space.",
   team: [
     {
       id: "polly",
@@ -72,9 +84,28 @@ export const contact = {
   eyebrow: "Contact",
   heading: "Tell us what you're planning.",
   email: site.email,
-  fields: { name: "Name", email: "Email", message: "The event" },
-  submit: "Send",
+  fields: {
+    name: { label: "Name", placeholder: "Your name" },
+    email: { label: "Email", placeholder: "you@company.com" },
+    company: { label: "Company (optional)", placeholder: "Company name" },
+    location: { label: "Location", placeholder: "City or region" },
+    message: {
+      label: "Tell us what you need",
+      placeholder:
+        "Tell us about your goals, timeline, audience, or anything else we should know.",
+    },
+  },
+  submit: "Send inquiry",
   sending: "Sending…",
   sent: "Got it. We'll be in touch.",
-  orEmail: "Or write to",
+  /** Client copy. The email and "Telegram" are links. */
+  orEmail: {
+    before: "Or write to us by email:",
+    after: "and we will respond within 48 hours.",
+  },
+  urgent: {
+    before: "Need something more urgent? Send us a DM on",
+    link: "Telegram",
+    after: ".",
+  },
 } as const;

@@ -4,6 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { BufferAttribute, BufferGeometry, Float32BufferAttribute, Raycaster, Vector2, Vector3 } from "three";
 import type { Points, ShaderMaterial } from "three";
+import { useMode } from "@/components/mode/ModeProvider";
 import { valueNoise } from "./noise";
 import { scrollState } from "./scrollState";
 
@@ -354,6 +355,15 @@ function sampleWordmark(el: HTMLElement, count: number, worldPerPx: number, vw: 
   const rect = el.getBoundingClientRect();
   if (rect.width < 1) return null;
 
+  // `getBoundingClientRect` is viewport-relative, so a measurement taken while
+  // the page is scrolled bakes that scroll into the target — and the frame loop
+  // then adds `scrollState.y` on top of it, counting the scroll twice and
+  // throwing the gathered word far above the screen. Measuring against #hero,
+  // whose unscrolled top is the top of the document, makes the result the same
+  // wherever the page happens to be.
+  const heroTop = document.getElementById("hero")?.getBoundingClientRect().top ?? 0;
+  const restTop = rect.top - heroTop;
+
   const style = getComputedStyle(el);
   const probe = document.createElement("canvas").getContext("2d");
   if (!probe) return null;
@@ -395,7 +405,7 @@ function sampleWordmark(el: HTMLElement, count: number, worldPerPx: number, vw: 
   // canvas against `baselineInBox` down the box — so both origins step back by
   // exactly those offsets.
   const originX = rect.left - pad;
-  const originY = rect.top + baselineInBox - inkAscent;
+  const originY = restTop + baselineInBox - inkAscent;
 
   const out = new Float32Array(count * 3);
   let placed = 0;
@@ -532,10 +542,14 @@ const fragmentShader = /* glsl */ `
 `;
 
 export function DotTerrain({ mobile }: { mobile: boolean }) {
+  // `useMode` is a module store, so it reads correctly from inside the Canvas.
+  const business = useMode().mode === "business";
   const material = useRef<ShaderMaterial>(null);
   const points = useRef<Points>(null);
   const { gl, camera, viewport, size } = useThree();
   const morph = useRef(0);
+  /** `scrollState.hero`, speed-limited — see the frame loop. */
+  const heroLag = useRef(0);
   const touch = useRef(0);
   const scratch = useRef({
     ndc: new Vector2(),
@@ -590,9 +604,25 @@ export function DotTerrain({ mobile }: { mobile: boolean }) {
     const el = document.querySelector<HTMLElement>(WORD_SELECTOR);
     if (!el) return;
 
+    // Only measure on the business face. The lockup is absolutely placed at the
+    // middle of the viewport there, but sits in the section's grid on the party
+    // face — and the party face is the default, so measuring on mount would
+    // bake the *other* layout's position and the dots would gather to a spot
+    // the type does not occupy.
+    if (!business) {
+      ready.current = false;
+      return;
+    }
+
     const measure = () => {
+      // WordSheen scales this element as the hero scrolls away, and
+      // `getBoundingClientRect` reports the *transformed* box — measuring
+      // mid-scroll would bake a shrunken word. Neutralised for the read.
+      const held = el.style.transform;
+      el.style.transform = "none";
       const worldPerPx = viewport.height / size.height;
       const sampled = sampleWordmark(el, terrain.count, worldPerPx, size.width, size.height);
+      el.style.transform = held;
       if (!sampled) return;
       const attribute = geometry.getAttribute("aText") as BufferAttribute;
       attribute.copyArray(sampled.points);
@@ -608,15 +638,44 @@ export function DotTerrain({ mobile }: { mobile: boolean }) {
     document.fonts?.ready.then(measure).catch(() => {});
     const observer = new ResizeObserver(measure);
     observer.observe(el);
+    // The lockup rises into place when the business face arrives (a short
+    // transform transition on `.hero-lockup`), and the read above includes
+    // ancestor transforms — so measure again once it has settled.
+    const lockup = el.closest(".hero-lockup");
+    const onSettled = (event: Event) => {
+      if ((event as TransitionEvent).propertyName === "transform") measure();
+    };
+    lockup?.addEventListener("transitionend", onSettled);
 
-    return () => observer.disconnect();
-  }, [geometry, terrain.count, viewport.height, size.width, size.height]);
+    return () => {
+      observer.disconnect();
+      lockup?.removeEventListener("transitionend", onSettled);
+    };
+  }, [geometry, terrain.count, viewport.height, size.width, size.height, business]);
 
   useFrame(({ clock }, delta) => {
     const m = material.current;
     const field = points.current;
     if (!m || !field) return;
-    const { businessMix, hero, reducedMotion, pointerActive } = scrollState;
+    const { businessMix, reducedMotion, pointerActive } = scrollState;
+
+    /* The gather follows the scroll, but no faster than a set rate. Tied to
+       the raw scroll position, a fast flick took the field from range to word
+       in a frame or two — the flight is the whole point and it vanished. The
+       lag is only in *how far* the gather has got; where the word is still
+       tracks the live scroll (uTextShift below), so the dots never aim at a
+       stale spot. The fade reads the same lagged value, so the field cannot
+       disappear before it has visibly gathered. Full range in ~0.8s at the
+       least, then a soft landing on the target. */
+    const heroTarget = scrollState.hero;
+    if (reducedMotion) heroLag.current = heroTarget;
+    else {
+      const gap = heroTarget - heroLag.current;
+      const maxStep = delta * 1.25;
+      const eased = gap * (1 - Math.exp(-delta * 6));
+      heroLag.current += Math.max(-maxStep, Math.min(maxStep, eased));
+    }
+    const hero = heroLag.current;
 
     const fade = businessMix * (1 - smoothstep(0.42, 0.88, hero));
     m.uniforms.uFade.value = fade;
@@ -644,13 +703,15 @@ export function DotTerrain({ mobile }: { mobile: boolean }) {
     const scrolled = smoothstep(0.03, 0.4, hero);
     const wantMorph = ready.current ? Math.max(hovering ? 1 : 0, scrolled) : 0;
     morph.current += (wantMorph - morph.current) * (1 - Math.exp(-delta * (wantMorph > morph.current ? 3.4 : 2.6)));
-    // Scroll wins outright once it is ahead: easing toward a target that is
-    // itself following the scroll would always lag behind the type.
+    // Scroll wins outright once it is ahead. It is already speed-limited
+    // above, so easing it a second time would only add drag.
     m.uniforms.uMorph.value = Math.max(morph.current, scrolled * (ready.current ? 1 : 0));
 
     // The word rides up with the document and draws back as it goes, so the
-    // gathered positions track it.
-    const drift = smoothstep(0.12, 0.75, hero);
+    // gathered positions track it. The *live* scroll here, not the lagged
+    // one: this has to agree with the DOM word, which WordSheen scales from
+    // the real scroll position.
+    const drift = smoothstep(0.12, 0.75, heroTarget);
     m.uniforms.uTextCenter.value = textCenter.current;
     m.uniforms.uTextScale.value = 1 - drift * 0.3;
     m.uniforms.uTextShift.value = [0, scrollState.y * perPx.current, -drift * 2.2];

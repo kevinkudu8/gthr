@@ -37,18 +37,6 @@ export const services: Service[] = [
   },
   {
     number: "05",
-    title: "Conference Week Support",
-    description:
-      "Turn any conference week attendance into measurable business opportunities — before, during, and long after the event.",
-  },
-  {
-    number: "06",
-    title: "Offsites & Retreats",
-    description:
-      "Intentional time away from the day-to-day — designed to align teams, spark ideas, and strengthen the relationships that make the work better when everyone's back at their desks.",
-  },
-  {
-    number: "07",
     title: "Strategy & Advisory",
     description:
       "Clear thinking before the first RSVP goes out. We help define what success actually looks like for your event, then build the plan to get there — from objectives and audience to format and follow-through.",

@@ -43,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      data-mode="business"
       // The boot script stamps `data-mode` before hydration, so React sees an
       // attribute it did not render. That is the intent, not a bug.
       suppressHydrationWarning

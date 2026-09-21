@@ -34,17 +34,18 @@ export function TopBar() {
         {/* Dropped on narrow headers, where the mode toggle needs the room. */}
         <span className="hidden sm:inline">{site.wordmarkSuffix}</span>
       </Link>
-      <div className="flex items-center gap-x-3 lg:gap-x-6">
+      <div className="flex items-center gap-x-2.5 sm:gap-x-3 lg:gap-x-6">
         <nav aria-label="Sections">
-          <ul className="pointer-events-auto flex items-center gap-x-3 lg:gap-x-7">
+          <ul className="pointer-events-auto flex items-center gap-x-2.5 sm:gap-x-3 lg:gap-x-7">
             {nav.map((item) => (
               <li key={item.href}>
                 <a
                   href={item.href}
                   onClick={(event) => scrollTo(event, item.href)}
-                  className="link-min text-[11px] tracking-[0.06em] text-ink-1 lg:text-xs"
+                  className="link-min whitespace-nowrap text-[11px] tracking-[0.06em] text-ink-1 lg:text-xs"
                 >
-                  {item.label}
+                  <span className="sm:hidden">{item.short}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
                 </a>
               </li>
             ))}

@@ -8,13 +8,12 @@ export type Mode = "party" | "business";
 const STORAGE_KEY = "gthr:mode";
 
 /**
- * The site has two faces: `party` (the default — colour field, stickers,
- * cursive glass wordmark) and `business` (white, corporate green, the logo as
- * a metal object). The layout and copy are identical; only the finish changes.
+ * The site has two faces: `business` (the default — white, black ink, the
+ * dot terrain) and `party` (colour field, stickers, cursive glass wordmark). The layout and copy are identical; only the finish changes.
  *
  * The choice lives in a module-level store rather than React state so that
  * (a) it can be seeded synchronously on the client, before the first render,
- * with no setState-in-effect, and (b) the server snapshot stays `party`, which
+ * with no setState-in-effect, and (b) the server snapshot stays `business`, which
  * `useSyncExternalStore` reconciles after hydration without a mismatch.
  * It is published three ways: this hook for components, a `data-mode`
  * attribute on <html> for the CSS tokens, and `scrollState` for the WebGL
@@ -22,16 +21,22 @@ const STORAGE_KEY = "gthr:mode";
  */
 function readStored(): Mode {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "business" ? "business" : "party";
+    return window.localStorage.getItem(STORAGE_KEY) === "party" ? "party" : "business";
   } catch {
-    return "party"; // private browsing or blocked storage
+    return "business"; // private browsing or blocked storage
   }
 }
 
-let current: Mode = "party";
-if (typeof window !== "undefined") current = readStored();
+let current: Mode = "business";
+if (typeof window !== "undefined") {
+  current = readStored();
+  // Seed the scene too, un-eased, so it starts on the right face rather than
+  // crossfading into it on load.
+  scrollState.business = scrollState.businessMix = current === "business" ? 1 : 0;
+}
 
 const listeners = new Set<() => void>();
+let switchTimer = 0;
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -40,6 +45,12 @@ const subscribe = (listener: () => void) => {
 export function setMode(next: Mode) {
   if (next === current) return;
   current = next;
+  // Marks the switch itself for CSS (see `[data-switching]` in globals.css):
+  // the hero line hides across the layout change and fades back in after.
+  const root = document.documentElement;
+  root.dataset.switching = "";
+  window.clearTimeout(switchTimer);
+  switchTimer = window.setTimeout(() => delete root.dataset.switching, 900);
   try {
     window.localStorage.setItem(STORAGE_KEY, next);
   } catch {
@@ -52,7 +63,7 @@ export function useMode(): { mode: Mode; setMode: (mode: Mode) => void } {
   const mode = useSyncExternalStore(
     subscribe,
     () => current,
-    () => "party" as Mode,
+    () => "business" as Mode,
   );
   return { mode, setMode };
 }
@@ -71,8 +82,8 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 
 /**
  * Applies the stored mode before first paint, so a returning visitor never
- * sees the party palette flash before the business one takes over.
+ * sees the business palette flash before the party one takes over.
  */
 export const modeBootScript = `try{document.documentElement.dataset.mode=localStorage.getItem(${JSON.stringify(
   STORAGE_KEY,
-)})==="business"?"business":"party"}catch(e){}`;
+)})==="party"?"party":"business"}catch(e){document.documentElement.dataset.mode="business"}`;

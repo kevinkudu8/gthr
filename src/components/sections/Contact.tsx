@@ -1,6 +1,8 @@
 import { Reveal } from "@/components/ui/Reveal";
-import { contact } from "@/content/site";
+import { contact, socials } from "@/content/site";
 import { ContactForm } from "./ContactForm";
+
+const telegram = socials.find((s) => s.id === "telegram")!.href;
 
 export function Contact() {
   return (
@@ -9,7 +11,7 @@ export function Contact() {
       className="flex min-h-dvh w-full scroll-mt-16 flex-col items-center justify-center px-4 py-24 lg:min-h-screen lg:scroll-mt-24 lg:px-14 lg:py-32"
       aria-labelledby="contact-heading"
     >
-      <div className="w-full max-w-xl">
+      <div className="w-full max-w-2xl">
         <Reveal as="h2" id="contact-heading" className="eyebrow mb-4 text-center">
           {contact.eyebrow}
         </Reveal>
@@ -27,12 +29,24 @@ export function Contact() {
         <Reveal
           as="p"
           delay={240}
-          className="mt-12 text-center font-mono text-sm text-ink-2"
+          className="mt-12 text-center font-mono text-sm leading-relaxed text-ink-2"
         >
-          {contact.orEmail}{" "}
+          {contact.orEmail.before}{" "}
           <a href={`mailto:${contact.email}`} className="text-ink-1 underline underline-offset-4">
             {contact.email}
+          </a>{" "}
+          {contact.orEmail.after}
+          <br />
+          {contact.urgent.before}{" "}
+          <a
+            href={telegram}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-ink-1 underline underline-offset-4"
+          >
+            {contact.urgent.link}
           </a>
+          {contact.urgent.after}
         </Reveal>
       </div>
     </section>

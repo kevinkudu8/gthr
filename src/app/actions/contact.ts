@@ -20,12 +20,14 @@ export async function sendInquiry(
 ): Promise<ContactState> {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
+  const company = String(formData.get("company") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
   const message = String(formData.get("message") ?? "").trim();
 
-  if (!name || !EMAIL.test(email) || message.length < 10) {
+  if (!name || !EMAIL.test(email) || !location || message.length < 10) {
     return {
       status: "error",
-      message: "A name, a real email, and a few words about the event, please.",
+      message: "A name, a real email, a location, and a few words about what you need, please.",
     };
   }
 
@@ -47,8 +49,16 @@ export async function sendInquiry(
       from: process.env.CONTACT_FROM ?? "GTHR <onboarding@resend.dev>",
       to: [process.env.CONTACT_TO ?? site.email],
       reply_to: email,
-      subject: `Inquiry from ${name}`,
-      text: `${name} <${email}>\n\n${message}`,
+      subject: `Inquiry from ${name}${company ? ` (${company})` : ""}`,
+      text: [
+        `${name} <${email}>`,
+        company ? `Company: ${company}` : null,
+        `Location: ${location}`,
+        "",
+        message,
+      ]
+        .filter((line) => line !== null)
+        .join("\n"),
     }),
   });
 

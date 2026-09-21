@@ -38,6 +38,26 @@ const LAYERS = [
   { ax: 72, fx: 0.07, px: 60, ay: 48, fy: 0.1, py: 50, phase: 1.2 },
 ];
 
+/**
+ * The colour's timeline, in seconds from the start of a hover. It is a moment,
+ * not a hover state: it washes across the word left to right as the dots
+ * arrive (SHEEN_IN is early on purpose — the sweep takes REVEAL to cross, so
+ * it finishes about when the gather lands), holds, then clears left to right
+ * back to black, even if the pointer stays. Leaving early starts the clearing
+ * sweep at once. Hover again to replay.
+ */
+const SHEEN_IN = 0.2;
+const REVEAL = 0.8;
+const HOLD = 1.8;
+const CLEAR = 1.1;
+/** Width of the soft edge on each sweep, as a share of the word. */
+const SOFT = 0.3;
+
+const ease = (x: number) => {
+  const t = Math.min(1, Math.max(0, x));
+  return t * t * (3 - 2 * t);
+};
+
 export function WordSheen({ text }: { text: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const reducedMotion = usePrefersReducedMotion();
@@ -49,7 +69,10 @@ export function WordSheen({ text }: { text: string }) {
 
     let frame = 0;
     let hovering = false;
-    let strength = 0;
+    let hoverStart = -1e9;
+    /** When the clearing sweep starts, seconds from hoverStart. */
+    let clearAt = SHEEN_IN + REVEAL + HOLD;
+    let active = false;
     let last = performance.now();
     const pointer = { x: 0.5, y: 0.5 };
     const eased = { x: 0.5, y: 0.5 };
@@ -63,13 +86,25 @@ export function WordSheen({ text }: { text: string }) {
       const delta = Math.min(0.05, (now - last) / 1000);
       last = now;
 
-      // Eased in and out, so the colour arrives and leaves rather than snaps.
-      const target = hovering ? 1 : 0;
-      strength += (target - strength) * (1 - Math.exp(-delta * (hovering ? 3.2 : 5)));
+      // Two soft edges crossing the word left to right: the leading one brings
+      // the colour in, the trailing one takes it back to black. The sheen is
+      // shown only between them, through a moving mask.
+      const since = (now - hoverStart) / 1000;
+      const lead = ease((since - SHEEN_IN) / REVEAL);
+      const trail = ease((since - clearAt) / CLEAR);
+      active = lead > 0 && trail < 1;
+      if (active) {
+        const span = 1 + SOFT * 2;
+        const b = (lead * span - SOFT) * 100;
+        const a = (trail * span - SOFT) * 100;
+        const mask = `linear-gradient(90deg, transparent ${a.toFixed(1)}%, #000 ${(a + SOFT * 100).toFixed(1)}%, #000 ${b.toFixed(1)}%, transparent ${(b + SOFT * 100).toFixed(1)}%)`;
+        el.style.maskImage = mask;
+        el.style.setProperty("-webkit-mask-image", mask);
+      }
+      el.style.opacity = active ? "1" : "0";
       eased.x += (pointer.x - eased.x) * (1 - Math.exp(-delta * 6));
       eased.y += (pointer.y - eased.y) * (1 - Math.exp(-delta * 6));
 
-      el.style.opacity = `${strength}`;
 
       // The word draws back as the page leaves it, while the dot field gathers
       // into it (three/DotTerrain.tsx mirrors this with uTextScale/uTextShift,
@@ -94,7 +129,7 @@ export function WordSheen({ text }: { text: string }) {
       // out, and through the hero's own scroll range so the recession above
       // stays in step with the field.
       const scrolling = scrollState.hero > 0.001 && scrollState.hero < 0.999;
-      if (hovering || strength > 0.002 || scrolling) {
+      if (hovering || active || scrolling) {
         frame = requestAnimationFrame(tick);
       } else {
         frame = 0;
@@ -110,11 +145,21 @@ export function WordSheen({ text }: { text: string }) {
 
     const onEnter = () => {
       hovering = true;
+      // Replays from the top — unless the last sweep is still on the word, in
+      // which case it is left to finish rather than cut.
+      if (!active) {
+        hoverStart = performance.now();
+        clearAt = SHEEN_IN + REVEAL + HOLD;
+      }
       scrollState.wordmark = 1;
       start();
     };
     const onLeave = () => {
       hovering = false;
+      // Leaving early clears straight away (never before the reveal has had a
+      // moment to start, or the two edges would cross on nothing).
+      const since = (performance.now() - hoverStart) / 1000;
+      clearAt = Math.min(clearAt, Math.max(since, SHEEN_IN + 0.15));
       scrollState.wordmark = 0;
       start();
     };

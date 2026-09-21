@@ -3,7 +3,7 @@
 import { ScreenQuad } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { Color, type ShaderMaterial } from "three";
+import { Color, Vector3, Vector4, type ShaderMaterial } from "three";
 import { scrollState } from "./scrollState";
 
 const vertexShader = /* glsl */ `
@@ -12,118 +12,122 @@ const vertexShader = /* glsl */ `
   }
 `;
 
-// Soft airbrushed blobs, after the poster: several low-frequency noise fields,
-// each driving one hue with a wide, feathered edge. Three octaves is plenty.
+// The party ground is a procedural thermal field (see below); the business
+// ground is clean paper. Everything else here is the hairline grid and the film grain,
+// both of which have to live in this shader because it is the only thing that
+// draws behind the 3D objects.
 const fragmentShader = /* glsl */ `
   precision highp float;
   uniform float uTime;
   uniform vec2 uResolution;
-  uniform vec2 uPointer;
   uniform float uIntensity;
-  uniform float uWarm;
-  uniform float uThermal;
-  uniform float uSwirl;
   uniform float uBusiness;
   uniform vec3 uPaper;
   uniform vec3 uBusinessPaper;
-  uniform vec3 uTeal;
-  uniform vec3 uMint;
-  uniform vec3 uTerra;
-  uniform vec3 uSun;
-  uniform vec3 uPink;
-  uniform vec3 uSky;
-  uniform vec3 uLime;
   uniform float uGrid;
   uniform float uDpr;
+  uniform float uGrain;
+  uniform float uScroll;
+  uniform vec4 uBlobA[BLOBS];
+  uniform vec4 uBlobB[BLOBS];
+  uniform float uTaper[BLOBS];
+  uniform vec3 uRamp[STOPS];
+  uniform float uRampAt[STOPS];
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
   }
 
-  float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(
-      mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-      mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
-      f.y
-    );
-  }
+  // The reference artwork's width, in units of its height.
+  const float REF_W = 1.736;
+  // Below the reference's own bottom edge the field is held constant in y...
+  const float EXTEND = 0.95;
+  // ...and the page folds back on itself (a vertical mirror) every FOLD.
+  const float FOLD = 1.6;
 
-  float fbm(vec2 p) {
-    float v = 0.0;
-    float a = 0.55;
-    mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
-    for (int i = 0; i < 3; i++) {
-      v += a * noise(p);
-      p = m * p;
-      a *= 0.5;
+  /* One copy of the composition, in reference space: x across 0..REF_W,
+     y down 0..1. Each blob is a flat-topped gaussian — elliptical, rotated,
+     optionally tapered along its long axis (that is what gives the black wedge
+     and the orange tongue their points) — and they simply sum, clamped. */
+  float composition(vec2 p, float t) {
+    float h = 0.0;
+    for (int i = 0; i < BLOBS; i++) {
+      vec4 a = uBlobA[i];
+      vec4 b = uBlobB[i];
+      float fi = float(i);
+      // A slow wander per blob, so the field breathes rather than sits.
+      vec2 c = a.xy + vec2(sin(t * 0.11 + fi * 1.7), cos(t * 0.09 + fi * 2.3)) * 0.018;
+      vec2 d = p - c;
+      float u = (b.x * d.x + b.y * d.y) * a.z;
+      float v = (-b.y * d.x + b.x * d.y) * a.w / clamp(1.0 + uTaper[i] * u, 0.15, 4.0);
+      float r = max(length(vec2(u, v)) - b.w, 0.0);
+      h += b.z * exp(-r * r);
     }
-    return v;
+    return h;
   }
 
-  // Thermal-camera bands: pale → pink → blue → orange → white, then back to
-  // paper. Applied to a soft field, it draws rainbow rims around each blob.
-  vec3 thermal(float x) {
-    vec3 pale = vec3(0.90, 0.96, 0.80);
-    vec3 white = vec3(1.0);
-    vec3 c = mix(uPaper, pale, smoothstep(0.00, 0.30, x));
-    c = mix(c, uPink,  smoothstep(0.30, 0.44, x));
-    c = mix(c, uSky,   smoothstep(0.44, 0.56, x));
-    c = mix(c, uTerra, smoothstep(0.56, 0.68, x));
-    c = mix(c, white,  smoothstep(0.68, 0.80, x));
-    c = mix(c, pale,   smoothstep(0.80, 0.92, x));
-    return c;
+  /* The scalar field goes through a thermal ramp that runs black -> red ->
+     orange -> amber -> teal -> navy -> back to black, sampled from the
+     reference. The ramp returning to black is why the core of the big mass is
+     dark again: it is the *hottest* point, not an absence. */
+  vec3 thermal(float h) {
+    vec3 col = uRamp[0];
+    for (int i = 1; i < STOPS; i++) {
+      float k = clamp((h - uRampAt[i - 1]) / (uRampAt[i] - uRampAt[i - 1]), 0.0, 1.0);
+      col = mix(col, uRamp[i], k);
+    }
+    return col;
   }
 
   void main() {
     float aspect = uResolution.x / uResolution.y;
     vec2 uv = (gl_FragCoord.xy / uResolution) * 2.0 - 1.0;
     uv.x *= aspect;
-    vec2 ptr = uPointer * vec2(aspect, 1.0);
-    float pd = distance(uv, ptr);
 
-    // The field leans toward the pointer and swirls around it, so the blobs
-    // visibly follow the hand.
-    vec2 p = uv * 0.75;
-    float near = smoothstep(1.7, 0.0, pd);
-    float angle = near * 0.35 * uSwirl;
-    vec2 rel = uv - ptr;
-    rel = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * rel;
-    p = (ptr + rel) * 0.75;
-    p += (ptr - uv) * near * 0.22;
 
-    float t = uTime * 0.07;
-    float n1 = fbm(p * 0.9 + vec2(t, -t * 0.6));
-    float n2 = fbm(p * 0.8 + vec2(4.1, 2.3) + vec2(-t * 0.8, t * 0.5));
-    float n3 = fbm(p * 1.0 + vec2(9.4, 5.7) + vec2(t * 0.5, t * 0.9));
-    float n4 = fbm(p * 0.7 + vec2(2.2, 8.8) + vec2(-t * 0.4, -t * 0.7));
-    float n5 = fbm(p * 1.1 + vec2(6.6, 1.1) + vec2(t * 0.9, -t * 0.3));
-    float n6 = fbm(p * 0.85 + vec2(3.3, 7.7) + vec2(-t * 0.6, t * 0.4));
 
-    // Airbrush on white: each hue is a soft-edged blob; later ones sit on top.
-    vec3 col = uPaper;
-    col = mix(col, uSky,   smoothstep(0.34, 0.76, n1));
-    col = mix(col, uLime,  smoothstep(0.42, 0.80, n6) * 0.95);
-    col = mix(col, uMint,  smoothstep(0.46, 0.84, n2) * 0.9);
-    col = mix(col, uTerra, smoothstep(0.42, 0.80, n3) * uWarm);
-    col = mix(col, uSun,   smoothstep(0.40, 0.78, n4) * uWarm);
-    col = mix(col, uPink,  smoothstep(0.42, 0.80, n5) * uWarm * 0.95);
-    col = mix(col, uPink,  smoothstep(0.7, 0.0, pd) * 0.08);
+    /* The party ground: the client's reference artwork, rebuilt as a field so
+       it is sharp at any resolution and runs the full length of the page.
 
-    // In the statements block, remap a warped field through the thermal bands.
-    if (uThermal > 0.001) {
-      float field = fbm(p * 1.15 + vec2(n2, n4) * 1.6 + vec2(t * 0.7, -t * 0.5));
-      float x = smoothstep(0.28, 0.78, field);
-      col = mix(col, thermal(x), uThermal);
-    }
+       Page space: x is the reference's width stretched to the viewport (a
+       narrow screen shows the middle of it, squeezed at most ~2x, rather than
+       a sliver), y is viewport heights down the page. The first screen is
+       the reference composition.
+
+       Below it, the page is a vertical mirror fold of that composition —
+       reference, upside-down reference, reference — because a fold is
+       continuous by construction. Stacked copies were tried first and read as
+       tiles: the fitted mass closes just under the frame (the fit never saw
+       past it), so every copy became an island with a black gap under it.
+       Folding naively had the same problem as a visible seam, so past EXTEND
+       the field is held constant in y (a soft clamp) and the fold lines sit
+       inside that zone, where a mirror has nothing to crease. A meander that
+       only grows in below the hero keeps that zone from reading as vertical
+       streaks, and makes each fold differ from the last. */
+    vec2 sv = vec2(gl_FragCoord.x, uResolution.y - gl_FragCoord.y) / uResolution;
+    float span = REF_W * clamp(aspect / REF_W, 0.5, 1.0);
+    vec2 p = vec2(0.5 * REF_W + (sv.x - 0.5) * span, sv.y + uScroll);
+    // A slow, low-amplitude warp so edges stay organic as they drift.
+    p += vec2(sin(p.y * 5.1 + p.x * 2.3 + uTime * 0.07),
+              sin(p.x * 4.3 - p.y * 1.7 - uTime * 0.05)) * 0.022;
+
+    p.x += 0.25 * smoothstep(0.9, 1.8, p.y)
+      * (sin(p.y * 1.9 + 0.8 + uTime * 0.03) + 0.5 * sin(p.y * 3.7 - p.x * 1.1));
+    float fy = mod(p.y, 2.0 * FOLD);
+    fy = fy < FOLD ? fy : 2.0 * FOLD - fy;
+    fy = EXTEND - log(1.0 + exp((EXTEND - fy) / 0.1)) * 0.1;
+    float heat = composition(vec2(p.x, fy), uTime);
+    vec3 col = thermal(clamp(heat, 0.0, 1.0));
 
     // Hold the edges near paper so the chrome and gutters stay legible.
     float vig = smoothstep(1.4, 0.35, length(uv / vec2(aspect, 1.0)));
     // The business face is a clean white ground: the colour field fades out
     // and the paper itself goes to white.
-    float strength = uIntensity * (0.15 + 0.85 * vig) * (1.0 - uBusiness);
+    // Held high everywhere: the ramp is the party face's ground now, so
+    // section intensity only trims it rather than fading it back to flat.
+    // The vignette still darkens the gutters, which is what keeps the chrome
+    // and the hairline grid legible over the warm band.
+    float strength = (0.88 + 0.12 * uIntensity) * mix(0.80, 1.0, vig) * (1.0 - uBusiness);
     vec3 paper = mix(uPaper, uBusinessPaper, uBusiness);
     // Opaque output: blended toward paper here rather than via alpha, so the
     // quad stays in the opaque pass and is drawn *under* the letters.
@@ -161,20 +165,69 @@ const fragmentShader = /* glsl */ `
         line = max(line, 1.0 - smoothstep(0.0, 1.0, abs(px.y - h * float(j) / 3.0)));
       }
 
-      // Matches the --ink-rgb tokens either side of the toggle.
-      vec3 ink = mix(vec3(11.0, 16.0, 14.0) / 255.0, vec3(0.0), uBusiness);
+      // Matches the --ink-rgb tokens either side of the toggle. The party face
+      // is dark now, so its hairlines are white — dark ones were invisible.
+      vec3 ink = mix(vec3(1.0), vec3(0.0), uBusiness);
       col2 = mix(col2, ink, line * 0.1 * uGrid);
       col2 = mix(col2, ink, cross * 0.45 * uGrid);
     }
+
+    /* Film grain. Applied last, over everything including the grid, and at a
+       constant amplitude rather than one scaled by brightness — grain that
+       fades out of the shadows is what makes a dark gradient look like a flat
+       fill. Sized in device pixels so it stays fine on a retina screen, and
+       reseeded each frame so it shimmers the way real grain does rather than
+       sitting on the image as a fixed pattern. */
+    float g = hash(floor(gl_FragCoord.xy / max(1.0, uDpr * 0.5)) + fract(uTime) * 91.7);
+    col2 += (g - 0.5) * uGrain;
 
     gl_FragColor = vec4(col2, 1.0);
   }
 `;
 
+/*
+ * The composition, fitted to the client's reference artwork (colour-space
+ * least squares against a blurred copy — the ramp below is sampled from it
+ * too). Rows: centre x, centre y (reference space: x 0..1.736, y 0..1 down),
+ * radius along / across the long axis, angle, amplitude (negative carves),
+ * flat-core radius, taper along the long axis.
+ */
+const BLOB_PARAMS = [
+  [0.764, 0.970, 0.914, 0.230, 0.100, 0.798, 0.100, -0.297], // main mass
+  [0.409, 0.550, 0.360, 0.164, 0.202, 0.397, 0.193, -0.113], // its left shoulder
+  [0.544, 0.331, 0.054, 0.100, -0.328, 0.378, 0.147, 0.024], // small flame
+  [1.548, 0.290, 0.288, 0.123, 0.050, 0.461, 0.344, 0.452], // upper-right tongue
+  [1.683, 0.761, 0.119, 0.331, -1.128, 0.321, 0.567, 0.311], // right edge
+  [1.500, 0.819, 0.297, 0.132, -1.130, 0.320, 0.125, -0.814], // right pocket + crease
+  [1.195, 0.433, 0.271, 0.055, -0.016, -0.422, 0.671, -0.013], // black wedge
+  [0.390, 0.973, 0.461, 0.281, -0.203, 0.212, 0.617, 0.11], // core, left
+  [1.056, 0.700, 0.439, 0.163, -0.017, 0.412, 0.085, 0.341], // core, right
+];
+
+// Raw sRGB — this ShaderMaterial writes straight to the sRGB framebuffer.
+// Exported: the party badge is painted from the same ramp.
+export const RAMP: [number, string][] = [
+  [0, "05090c"], [0.12, "27090a"], [0.22, "670809"], [0.32, "ab0609"],
+  [0.4, "e8180c"], [0.46, "fb4811"], [0.52, "f76f1c"], [0.58, "de8330"],
+  [0.64, "b98640"], [0.7, "6e7d56"], [0.76, "317068"], [0.81, "0b5d6d"],
+  [0.86, "02445f"], [0.91, "022c42"], [0.95, "031624"], [1, "060a0e"],
+];
+
+const defines = { BLOBS: BLOB_PARAMS.length, STOPS: RAMP.length };
+
+const hex = (s: string) =>
+  new Vector3(
+    parseInt(s.slice(0, 2), 16) / 255,
+    parseInt(s.slice(2, 4), 16) / 255,
+    parseInt(s.slice(4, 6), 16) / 255,
+  );
+
+/** How fast the ground travels against the page: below 1 it sits behind it. */
+const PARALLAX = 0.75;
+
 /**
- * Full-screen airbrushed colour field behind everything. Strength and warmth
- * follow the section on screen (see scrollState); the field drifts toward
- * the pointer.
+ * Full-screen thermal colour field behind everything, scrolling with the page.
+ * The business face fades it to clean paper.
  */
 export function CloudBackdrop() {
   const material = useRef<ShaderMaterial>(null);
@@ -184,15 +237,26 @@ export function CloudBackdrop() {
     () => ({
       uTime: { value: 0 },
       uResolution: { value: [1, 1] },
-      uPointer: { value: [0, 0] },
       uIntensity: { value: 1 },
-      uWarm: { value: 1 },
-      uThermal: { value: 0 },
-      uSwirl: { value: 1 },
       uBusiness: { value: 0 },
       uGrid: { value: 1 },
       uDpr: { value: 1 },
-      uPaper: { value: new Color("#f4f3ee") },
+      uGrain: { value: 0 },
+      uScroll: { value: 0 },
+      uBlobA: {
+        value: BLOB_PARAMS.map(([x, y, rx, ry]) => new Vector4(x, y, 1 / rx, 1 / ry)),
+      },
+      uBlobB: {
+        value: BLOB_PARAMS.map(
+          ([, , , , a, amp, core]) => new Vector4(Math.cos(a), Math.sin(a), amp, core),
+        ),
+      },
+      uTaper: { value: BLOB_PARAMS.map((b) => b[7]) },
+      uRamp: { value: RAMP.map(([, c]) => hex(c)) },
+      uRampAt: { value: RAMP.map(([at]) => at) },
+      // The party face's ground. Dark: the hues below are mixed *onto* it,
+      // so over a deep base they read as glow rather than as airbrush.
+      uPaper: { value: new Color("#0a0b0e") },
       // This quad is opaque and covers the viewport, so it *is* the page
       // background — the `--paper` token never shows through it, and the two
       // must be kept in step with globals.css.
@@ -202,13 +266,6 @@ export function CloudBackdrop() {
       // into linear working space on the way in and land several shades darker.
       // It matters here because this is a near-white the eye can measure.
       uBusinessPaper: { value: [0xf4 / 255, 0xf4 / 255, 0xf3 / 255] },
-      uTeal: { value: new Color("#1d6b58") },
-      uMint: { value: new Color("#04ea98") },
-      uTerra: { value: new Color("#ff7a3d") },
-      uSun: { value: new Color("#ffd640") },
-      uPink: { value: new Color("#ff62b8") },
-      uSky: { value: new Color("#3d8dff") },
-      uLime: { value: new Color("#9beb3c") },
     }),
     [],
   );
@@ -216,18 +273,20 @@ export function CloudBackdrop() {
   useFrame(({ clock }) => {
     const m = material.current;
     if (!m) return;
-    const { backdrop, warm, thermal, pointer, pointerActive, reducedMotion } = scrollState;
+    // `thermal` is still published for the Badge, but the backdrop no longer
+    // reacts to it — the statements block keeps the same ground as everywhere
+    // else now.
+    const { backdrop, reducedMotion } = scrollState;
     const dpr = gl.getPixelRatio();
     m.uniforms.uResolution.value = [size.width * dpr, size.height * dpr];
     m.uniforms.uDpr.value = dpr;
     m.uniforms.uGrid.value = scrollState.grid;
+    // Party face only — the business ground is clean stock.
+    m.uniforms.uGrain.value = 0.075 * (1 - scrollState.businessMix);
     m.uniforms.uTime.value = reducedMotion ? 12 : clock.elapsedTime;
     m.uniforms.uIntensity.value = backdrop;
-    m.uniforms.uWarm.value = warm;
-    m.uniforms.uThermal.value = thermal;
-    m.uniforms.uSwirl.value = reducedMotion ? 0 : 1;
+    m.uniforms.uScroll.value = (scrollState.y / Math.max(1, scrollState.vh)) * PARALLAX;
     m.uniforms.uBusiness.value = scrollState.businessMix;
-    m.uniforms.uPointer.value = pointerActive ? [pointer.x, pointer.y] : [0.3, 0.2];
   });
 
   return (
@@ -235,6 +294,7 @@ export function CloudBackdrop() {
       <shaderMaterial
         ref={material}
         uniforms={uniforms}
+        defines={defines}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         depthTest={false}

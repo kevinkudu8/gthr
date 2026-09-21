@@ -16,7 +16,13 @@ export const scrollState = {
   warm: 1,
   /** Progress through the #statements block: 0 as it enters → 1 as it leaves. */
   statement: 0,
-  /** How much of the viewport the statements block covers, 0..1. */
+  /**
+   * How much of the viewport the statements block covers, 0..1.
+   *
+   * No longer tints the backdrop — that section keeps the same ground as the
+   * rest of the page now — but Badge still gates its visibility on it and
+   * BendImages fades the polaroids out with it, so it stays published.
+   */
   thermal: 0,
   /**
    * Hairline grid opacity, 1..0. Fades out as services arrives and stays off
@@ -40,23 +46,34 @@ export const scrollState = {
    */
   wordmark: 0,
   /** Target face: 0 = party, 1 = business. Written by ModeProvider. */
-  business: 0,
+  business: 1,
   /** `business`, eased — everything in the scene crossfades on this. */
-  businessMix: 0,
+  businessMix: 1,
   reducedMotion: false,
 };
 
 /** Per-section backdrop look. Sections tile the page, so overlaps sum to 1. */
 const SECTIONS: { id: string; intensity: number; warm: number; thermal: number }[] = [
   { id: "hero", intensity: 0.42, warm: 0.9, thermal: 0 },
-  { id: "intro", intensity: 0.35, warm: 0.7, thermal: 0 },
+  { id: "about", intensity: 0.4, warm: 0.9, thermal: 0 },
   { id: "statements", intensity: 0.6, warm: 0.6, thermal: 0.55 },
   { id: "services", intensity: 0.28, warm: 0.6, thermal: 0 },
-  { id: "about", intensity: 0.4, warm: 0.9, thermal: 0 },
   { id: "contact", intensity: 0.75, warm: 1, thermal: 0 },
 ];
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/**
+ * How present the party face's 3D props (glass word, stickers) are, 1..0.
+ * Eased off `businessMix` and done by the time it reaches 0.55, so they have
+ * left before the business wordmark fades up in their place (its CSS fade is
+ * delayed to match) rather than shrinking underneath it. Symmetric, so the way
+ * back grows them in over the same stretch.
+ */
+export function partyPresence() {
+  const t = clamp01(scrollState.businessMix / 0.55);
+  return 1 - t * t * (3 - 2 * t);
+}
 const elements = new Map<string, HTMLElement>();
 
 function sectionElement(id: string) {

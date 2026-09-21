@@ -7,7 +7,7 @@ import { toCreasedNormals } from "three-stdlib";
 import { DataTexture, LinearFilter, RepeatWrapping } from "three";
 import type { Group, Mesh, MeshPhysicalMaterial, WebGLProgramParametersWithUniforms } from "three";
 import { fbm } from "./noise";
-import { scrollState } from "./scrollState";
+import { partyPresence, scrollState } from "./scrollState";
 import partyFontData from "./pacifico-gthr.typeface.json";
 
 /**
@@ -171,12 +171,13 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
   useFrame(({ clock }, delta) => {
     const g = group.current;
     if (!g) return;
-    const { hero, pointer, pointerActive, businessMix } = scrollState;
+    const { hero, pointer, pointerActive } = scrollState;
     const t = clock.elapsedTime;
 
     // Gentle: a connected script stops reading as a word if it turns too far.
-    const tiltX = pointerActive && !reducedMotion ? -pointer.y * 0.12 : 0;
-    const tiltY = pointerActive && !reducedMotion ? pointer.x * 0.16 : 0;
+    // (Raised 15% from 0.12 / 0.16 at the client's request.)
+    const tiltX = pointerActive && !reducedMotion ? -pointer.y * 0.138 : 0;
+    const tiltY = pointerActive && !reducedMotion ? pointer.x * 0.184 : 0;
     const k = 1 - Math.exp(-delta * 4);
     g.rotation.x += (tiltX - g.rotation.x) * k;
     g.rotation.y += (tiltY - g.rotation.y) * k;
@@ -196,7 +197,8 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
     // to nothing: `MeshTransmissionMaterial` renders the scene into its own
     // buffer every frame regardless of how small the mesh is, and that pass is
     // the expensive part. A zero-scale word was still paying for it.
-    g.visible = hero < 0.98 && businessMix < 0.985;
+    const presence = partyPresence();
+    g.visible = hero < 0.98 && presence > 0.001;
 
     const w = word.current;
     if (w) {
@@ -204,7 +206,9 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
       // (whose wordmark is flat DOM type) takes over.
       const progress = reducedMotion ? 1 : (t - 0.2) / 1.1;
       w.position.y = (1 - Math.min(1, Math.max(0, progress))) * -size * 1.2;
-      w.scale.setScalar(Math.max(0.0001, easeOutBack(progress) * (1 - businessMix)));
+      w.scale.setScalar(Math.max(0.0001, easeOutBack(progress) * presence));
+      // Sinks a touch as it goes, so it reads as leaving rather than deflating.
+      w.position.y -= (1 - presence) * size * 0.25;
     }
   });
 
@@ -238,25 +242,29 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
                 // invisible and the letterforms read flat. 0.9 is as clear as
                 // the word goes while the self-shadow still reads.
                 transmission={0.9}
-                // Small thickness on purpose: this is the refraction ray
-                // length, and a large value samples the pale backdrop far from
-                // the letter instead of the sticker right behind it.
-                thickness={size * 0.22}
+                // The refraction ray length. It was held small while the ground
+                // was pale, because a long ray just sampled more flat paper;
+                // against the dark field there is structure to reach for, so it
+                // can run much further and the letters actually bend what is
+                // behind them.
+                // (0.52 -> 0.442: refraction eased 15% at the client's request.)
+                thickness={size * 0.442}
                 roughness={0}
                 // Lower ior = less Fresnel reflection at glancing angles, which
                 // is what was whiting out a rounded tube and hiding the
                 // background. Still bends enough to read as a lens.
-                ior={1.5}
+                ior={1.62}
                 // Dispersion: the R/G/B refraction rays are spread by this, so
                 // it is what paints the rainbow along the bevels where the
                 // surface turns away. Needs the sample count below to stay
                 // smooth — too few samples and the spread bands.
-                chromaticAberration={0.3}
+                // (0.85 -> 0.72: the smear eased 15% with the refraction.)
+                chromaticAberration={0.72}
                 anisotropicBlur={0}
                 distortion={0}
                 distortionScale={0}
                 temporalDistortion={0}
-                samples={mobile ? 8 : 14}
+                samples={mobile ? 10 : 18}
                 resolution={mobile ? 512 : 1024}
                 backside={false}
                 // No clearcoat: at roughness 0 it is a mirror layer, and it
@@ -286,10 +294,9 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
                 // edge. This is the ceiling before that happens.
                 specularIntensity={1.45}
                 metalness={0}
-                // Near-clear body: the tint that used to carry the shading is
-                // mostly gone, so what shapes the word now is its own shadow
-                // and the dispersed edges.
-                color="#eef5ff"
+                // Near-clear, and darker than the old paper-face value: a
+                // near-white diffuse term sat as milk over the dark ground.
+                color="#c2ccda"
                 // Long distance: only a whisper of blue, so the backdrop comes
                 // through rather than being absorbed.
                 attenuationColor="#d8ebff"

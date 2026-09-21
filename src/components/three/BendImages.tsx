@@ -8,32 +8,19 @@ import { scrollState } from "./scrollState";
 
 /**
  * Every `[data-bend]` element in the DOM (with `data-src`) gets a WebGL plane
- * drawn exactly over it, textured with the same image, that bows with scroll
- * velocity — the reference's bending thumbnails. The DOM image is kept for
+ * drawn exactly over it, textured with the same image. It used to bow onto a
+ * curved screen with scroll velocity (the reference's bending thumbnails);
+ * that was removed at the client's request, so the planes are flat now and
+ * this only exists for the painted polaroid frame and the statements fade. The DOM image is kept for
  * layout and accessibility but made invisible (see .bend-source in CSS).
  * `data-gray` renders it black-and-white; `data-radius` rounds the corners.
  */
 
 const vertexShader = /* glsl */ `
-  uniform float uBend;
-  uniform float uCurve;
   varying vec2 vUv;
   void main() {
     vUv = uv;
-    vec3 p = position;
-    // A little bow of the top/bottom edges in the direction of travel.
-    float s = sin(uv.x * 3.14159265);
-    p.y += s * uBend;
-    vec4 wp = modelMatrix * vec4(p, 1.0);
-    // The curved screen, concave: wrap world space onto a cylinder whose
-    // axis runs across the viewport, with the viewer inside it — images near
-    // the top and bottom edges lean in toward the camera while the centre
-    // sits back. Radius shrinks with scroll speed; flat again at rest.
-    float r = 1.0 / max(uCurve, 1e-4);
-    float a = wp.y / r;
-    wp.y = r * sin(a);
-    wp.z += r * (1.0 - cos(a));
-    gl_Position = projectionMatrix * viewMatrix * wp;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
@@ -170,8 +157,6 @@ function BendPlane({ source }: { source: Source }) {
   const mesh = useRef<Mesh>(null);
   const material = useRef<ShaderMaterial>(null);
   const [texture, setTexture] = useState<Texture | null>(null);
-  const bend = useRef(0);
-  const curve = useRef(0);
   const { viewport, size } = useThree();
 
   useEffect(() => {
@@ -198,8 +183,6 @@ function BendPlane({ source }: { source: Source }) {
   const uniforms = useMemo(
     () => ({
       uMap: { value: null as Texture | null },
-      uBend: { value: 0 },
-      uCurve: { value: 0 },
       uGray: { value: source.gray },
       uSize: { value: [1, 1] },
       uRadius: { value: source.radius },
@@ -210,7 +193,7 @@ function BendPlane({ source }: { source: Source }) {
     [source.gray, source.radius],
   );
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     const m = mesh.current;
     const mat = material.current;
     if (!m || !mat || !texture) return;
@@ -248,23 +231,12 @@ function BendPlane({ source }: { source: Source }) {
     mat.uniforms.uOpacity.value = source.fadeOnStatements
       ? 1 - Math.min(1, scrollState.thermal / 0.22)
       : 1;
-
-    // Both follow smoothed scroll velocity. uBend is plane-local (a 1×1 plane
-    // before scale); uCurve is 1/radius in world units — 0 means flat.
-    const v = scrollState.reducedMotion ? 0 : scrollState.velocity;
-    const bendTarget = Math.max(-0.09, Math.min(0.09, v * 0.0012));
-    const curveTarget = Math.min(0.315, Math.abs(v) * 0.00525);
-    const k = 1 - Math.exp(-delta * 7);
-    bend.current += (bendTarget - bend.current) * k;
-    curve.current += (curveTarget - curve.current) * k;
-    mat.uniforms.uBend.value = bend.current;
-    mat.uniforms.uCurve.value = curve.current;
   });
 
   if (!texture) return null;
   return (
     <mesh ref={mesh} visible={false}>
-      <planeGeometry args={[1, 1, 32, 32]} />
+      <planeGeometry args={[1, 1]} />
       <shaderMaterial
         ref={material}
         uniforms={uniforms}
