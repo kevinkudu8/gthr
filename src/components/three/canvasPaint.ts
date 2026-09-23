@@ -1,6 +1,6 @@
 /**
  * Canvas painting shared by the baked prop textures (Badge, Ticket): the page's
- * fonts, and the party face's thermal field — the same ramp and blob profile
+ * fonts, and the party face's colour field — the same ramp and blob profile
  * CloudBackdrop draws on the GPU, sampled here on the CPU so a prop can be cut
  * from the same stuff the site is set on.
  */
@@ -46,8 +46,8 @@ export function hash2(x: number, y: number) {
 export type Blob = readonly [number, number, number, number, number, number, number];
 
 /**
- * Fill the whole canvas with the thermal field. `lo`/`hi` remap the summed heat
- * onto a slice of the ramp — the full 0..1 runs black -> hot -> teal -> black;
+ * Fill the whole canvas with the colour field. `lo`/`hi` remap the summed heat
+ * onto a slice of the ramp — the full 0..1 runs black -> colour -> black;
  * a foil wants only the bright middle. `grain` is the film-grain amplitude.
  */
 export function paintThermal(

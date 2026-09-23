@@ -20,8 +20,8 @@ export const scrollState = {
    * How much of the viewport the statements block covers, 0..1.
    *
    * No longer tints the backdrop — that section keeps the same ground as the
-   * rest of the page now — but Badge still gates its visibility on it and
-   * BendImages fades the polaroids out with it, so it stays published.
+   * rest of the page now — but Badge still gates its visibility on it, so it
+   * stays published.
    */
   thermal: 0,
   /**
@@ -41,7 +41,7 @@ export const scrollState = {
   velocity: 0,
   /**
    * 1 while the business wordmark is hovered. Written by sections/WordSheen.tsx
-   * (which owns the DOM listener); read by three/DotTerrain.tsx, which gathers
+   * (which owns the DOM listener); read by three/GrassField.tsx, which gathers
    * the dot field into the letterforms.
    */
   wordmark: 0,

@@ -13,15 +13,16 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   over the first ~0.55 of `businessMix`; the business wordmark's CSS fade-up is
   quick (0.1s delay, ~0.4s) and starts as they finish (and leaves fast the other way); and
   `ModeProvider` sets `data-switching` on `<html>` for 0.9s so the hero line
-  hides across its layout jump. DotTerrain re-measures the word on the
-  lockup's `transitionend`, because the rise is a transform.
+  hides across its layout jump.
 - **Two faces, one page.** A toggle in the top bar switches between `business`
   (the default, listed first) and `party`. Sections and copy are **identical**;
-  the business finish is: white ground, **black** ink (it was a corporate green `#1D3A2E`
-  until the client asked for black), a `GTHR` wordmark set in the platform UI
-  face (`--font-system`, which *is* SF Pro on Apple hardware — closer than any
-  webfont lookalike), no stickers, no marque beside the wordmark, and a centred
-  hero over the dot terrain. A `GATHER` spelling with 8-bit `A`/`E`
+  the business finish is: a plain light-grey ground (`--paper` `#e7e7e7`, kept
+  in step with CloudBackdrop's `uBusinessPaper`), very dark neutral ink rather
+  than pure black, a `GTHR` wordmark set in the platform UI face
+  (`--font-system`, which *is* SF Pro on Apple hardware — closer than any
+  webfont lookalike), no stickers, no marque beside the wordmark, and a hero
+  laid out as a poster after the client's NVIDIA reference (see the business
+  hero layout, below). A `GATHER` spelling with 8-bit `A`/`E`
   glyphs was tried here and reverted. The mode lives in a module store
   (`mode/ModeProvider.tsx`) rather than context, so it can be seeded
   synchronously on the client and still be read from *inside* the R3F Canvas —
@@ -36,8 +37,8 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   client's request.
   Nav links are in-page anchors. Don't add routes or sections without asking.
 - **Copy lives in `src/content/`** (`site.ts`, `services.ts`). Components never
-  hard-code user-facing strings. Client-supplied and verbatim: both statements
-  the line under the contact form, and `hero.line`.
+  hard-code user-facing strings. Client-supplied and verbatim: both statements,
+  the line under the contact form, `hero.line`, and everything in `about`.
 - **Services** are client copy (`services.ts`). The VIP Experiences description
   is a draft. Keep the `{ number, title, description }` shape; rows stay compact.
 - **Business tokens** live in one `:root[data-mode="business"]` block in
@@ -48,9 +49,14 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   **rebuilt as a field** in `CloudBackdrop`, not the image itself: the source is
   low-res, and the ground has to run the length of the page. It is nine
   flat-topped, rotated, tapered gaussian blobs summed into one scalar, pushed
-  through a thermal ramp sampled from the reference (black → red → orange →
-  amber → teal → navy → *back to black*, so the mass's dark core is its
-  hottest point). The blob parameters were **fitted**, not eyeballed:
+  through a ramp whose **hues** come from the client's second reference image
+  (black → green → teal → blue → violet → magenta → coral) and whose
+  **luminance curve is the first ramp's**: it peaks mid-way and then runs a
+  long dark tail *back to black*, so the mass's dark core is its hottest
+  point. Both halves matter — taking the new reference's own luminance (it
+  ends at cream) kept the hues but lit up the middle of every screen, and the
+  statements, the about copy and the contact form lost the dark ground they
+  are set on. Match the curve, swap the hues. The blob parameters were **fitted**, not eyeballed:
   colour-space least squares against a blurred copy of the reference. That is
   the fix for the first procedural attempt, which matched the image's
   statistics and missed its composition. (Those statistics misled for another
@@ -73,11 +79,10 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   faces: they used to be one value, which only worked while ink was dark — with
   white ink every box-shadow became a glow. `color-scheme` is set per face
   there too, so native fields and the OS scrollbar follow.
-  Three things had to invert with the face, and will again if the palette
+  Two things had to invert with the face, and will again if the palette
   moves: `.glass` (a white wash blew out and took the white type with it — it
-  is smoked now, with a light rim for the edge), the polaroid `--frame` (the
-  caption is painted in `--ink-2` straight onto it, so a light card hid it),
-  and the backdrop's grid hairlines (white on this face, black on business).
+  is smoked now, with a light rim for the edge) and the backdrop's grid
+  hairlines (white on this face, black on business).
   No `dark:` variants and no theme toggle — the two faces *are* the toggle.
   **Legibility rule:** the vignette holds the gutters darker, and anything
   dense over colour goes in a `.glass` card.
@@ -102,26 +107,23 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   that same shader. Before blaming layering or z-index when something WebGL
   disappears, check the shader compiles: duplicate declarations in a scope,
   stray backticks, and uniforms declared but not supplied.
+  A third trap, in full-screen shaders: **`uResolution` must be in device
+  pixels**, because `gl_FragCoord` is. Divided by the CSS size, uv spans
+  0..dpr and on a retina screen the drawing lands off-centre at half size —
+  invisible in any test at dpr 1, which is how a centred ring survived three
+  rounds of "still not centred". CloudBackdrop does it right (`size * dpr`).
+  **Test full-screen shaders at dpr 2.**
 - **WebGL layer:** one fixed full-viewport R3F `<Canvas>` behind the page
   (`components/three/`), like the reference. Every section is transparent so
   it shows through the whole page. Scenes read the
   mutable `scrollState` each frame — never React state at 60fps. Reduced motion
   freezes time-based motion but keeps scroll-driven placement.
-  - `CloudBackdrop` — full-screen thermal field shader (see the party face,
-    above).
-    **Opaque** so it stays in the opaque pass — that also means Three's
-    transmission pass captures it, which is what the glass letters refract.
-    Strength/warmth per section from `scrollState`.
-    It also draws the **hairline grid** (a line at each gutter and at the
-    thirds, an 11px + at every crossing, fading out as services arrives). That
-    lives here rather than in the DOM because the grid has to sit *behind* the
-    3D objects — the glass letters, the badge — and this backdrop is the only
-    thing in the scene that renders before them. A DOM layer cannot get behind
-    it either: the quad is opaque and covers the viewport, which also means
-    **this quad is the page background**. `uBusinessPaper` and the `--paper`
-    token have to be kept in step, and it is passed as raw sRGB, not a
-    `THREE.Color` — a near-white converted into linear working space lands
-    several shades darker, which is visible.
+  - `CloudBackdrop` — full-screen colour field shader (see the party face,
+    above). On the business face it paints the poster's ground in
+    the hero (`businessRoom`: a deep green glow top-right, fading through
+    mint to near-white at the bottom, after the NVIDIA reference), settling to
+    one calm grey below it (`uRoom`, hero 0.3–0.85 → `uBusinessPaper` /
+    `--paper` `#e7e7e7`), and the grid over it.
   - `HeroLetters` — the wordmark as one connected cursive word, lowercase
     `gthr` in Pacifico. `pacifico-gthr.typeface.json` holds the four glyphs
     **unioned into one outline** (glyph key `w`; rebuild with the scratch
@@ -164,149 +166,23 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     darken and the letterforms render flat, so 0.9 is the clarity ceiling. A stack of offset flat-ink copies
     behind the word was tried first and rejected: the transmission pass
     captures them, so they refracted through the strokes as grey streaks.
-  - `BendImages` — every `[data-bend]` element with `data-src` gets a flat
-    WebGL plane drawn over its DOM rect, textured with the same image. It used
-    to wrap the planes onto a velocity-driven curved screen (after the
-    reference); **that was removed at the client's request**, so don't add it
-    back. The DOM `<img>` keeps `.bend-source` (opacity 0) for layout and alt
-    text. `data-gray` → mono, `data-radius` → rounded corners in px;
-    `data-frame` paints the whole polaroid (frame, photo, caption, measured from
-    the DOM); `data-fade-statements` fades the plane out as the statements block
-    arrives. Used by both polaroids.
-  - `DotTerrain` — the business face's hero image, and it is two things at once.
-    At rest it is a **digital mountain range**, drawn as a *stipple* the way the
-    reference engraving is. Three things make it read as 3D, and it looked flat
-    until all three were right:
-      * **Depth.** The points render with `depthTest` and `depthWrite` on, so
-        near ridges occlude the ground behind them. Safe because nothing else
-        here writes depth (the cloud backdrop runs with both off) and the
-        lattice is emitted near-row-first, so dots arrive front to back. The
-        fragment discard has to stay *low* — a surviving fragment writes depth,
-        but cutting high deletes the far half of the range, which is faint by
-        design.
-      * **Tone as density.** Dots are near solid and tone is carried by how
-        many there are and how big — a dropout probability and a size scale,
-        both driven by shading. Carrying tone in *alpha* is what forced the
-        depth buffer off in the first place.
-        **`aScale` is a fraction of the lattice spacing, not a size in pixels**,
-        and `uSize` is one cell projected to CSS pixels at unit distance,
-        derived per frame from the live viewport and camera. So 1.0 is dots
-        exactly touching: the top of the range overlaps them into solid ink and
-        the bottom is an open stipple. With a *tuned constant* instead, the dots
-        covered ~5.7% of their cell at every distance and every tone — the range
-        could not be darker than 6% grey however the shading was tuned, which is
-        why it read as a pale haze. If it ever looks washed out again, check
-        this ratio before touching the lighting.
-      * **Ink is darkness.** Bare paper where the sun lands, dense ink where it
-        does not — the opposite of the halftone globe's "ink stands in for
-        light". Reading it the other way round was most of why it looked flat.
-    Lighting is a sky term plus a **low sun** with **real cast shadows**,
-    marched over the heightfield (8 samples, stride 3) and thresholded against
-    the sun's own slope. The sun has to be low: at the original 0.74 elevation
-    nothing in a range this broad was steep enough to block it and the shadow
-    pass found *precisely nothing*. The sky term is the surface's upward-facing
-    fraction, which reaches 0 on a vertical wall — floored at 0.5 (the usual
-    `0.5 + 0.5 * up` wrap) nothing could ever go dark.
-    Height is big massifs carrying fine detail, the detail scaled *by* the
-    massif. The detail band runs at a high frequency (0.5, four octaves) because
-    it sets how **steep** the ground gets, and slope is all the shading has to
-    work with — at a gentler 0.19 the range was near enough upward-facing
-    everywhere. Four octaves, not six: the finest would land under the lattice
-    spacing and turn to noise.
-    Shading is differenced from each dot's *neighbours* in the lattice rather
-    than by re-sampling the noise. ~460k lattice, ~265k dots kept, ~110ms — of
-    which the shadow march is about a third. `noise.ts` hashes with an integer
-    bit-mix rather than `fract(sin(...))` for this: same job, ~1.6x faster, and
-    at this density that is the difference between a dense field and a hitch.
-    **`pass()` carves a valley where the type sits**, and it is what lets the
-    mountains be tall at all. Holding the whole field below the wordmark
-    flattened the range out of the frame entirely (the complaint was "I don't
-    see the mountains any more"); only the middle is ever *behind* the type, so
-    only the middle has to keep its head down. It is a flat floor plus a ramp,
-    not a single ramp from the centre — a plain ramp was still only ~35% carved
-    at the edge of the text and let peaks through — and it widens with distance,
-    because the type holds the same share of the screen however far away the
-    ground is.
-    **The geometry is solved, not chosen.** A dot's ndcY is
-    `y / ((6 - z) * tan20)`, so distant peaks sit far higher on screen than
-    their world y suggests. `GROUND_Y`/`RELIEF` were swept until the highest dot
-    *within the type's band* clears ndcY -0.26 (the text runs +0.09 to -0.22)
-    while the flanking peaks reach -0.05, about halfway up the frame. Also:
-    `Z_NEAR` must stay strictly nearer than the camera at z = 6, or the first
-    row sits on the lens. Redo the sweep if the depth, the carve or the hero's
-    type size changes.
-    **`WATER` is tested against the natural elevation, not the carved one.**
-    Keyed to the carved height it drowned the whole pass floor — 40% of the
-    field, and the middle of the frame went blank — because the carve pushes
-    everything there down by design.
-    **Interaction:** the cursor tints what it passes toward the spectrum *and*
-    moves the ground — a swell with ripples running out of it, measured from
-    each dot's resting place so the swell sits still under the cursor instead of
-    chasing ground it just lifted. The cursor is placed by **ray-marching the
-    real heightfield** (`raycastTerrain`, analytic, with a few bisections). A
-    flat plane at mid-relief was tried first and put the swell visibly *below*
-    the cursor: the plane sits above the real surface almost everywhere, so the
-    ray met it early, and dots at those coordinates — at their true, lower
-    height — projected further down the screen. It is one ray per frame, not one
-    per dot, so the accurate version costs nothing worth saving.
-    **Hover the GTHR wordmark and the field gathers into the letterforms.**
-    The target is measured: the word is rasterised into a canvas using the *live
-    computed font* of the DOM wordmark, with the baseline derived from real
-    metrics — `line-height: 1` centres the text in its line box by half-leading,
-    so the baseline sits at `(boxHeight - (ascent + descent)) / 2 + ascent`.
-    Sampled pixels map canvas → screen → world. Re-measured on `fonts.ready`,
-    by a `ResizeObserver`, and on every mode change.
-    Three traps in that measurement, all of which made the gather fly off to a
-    spot the type does not occupy:
-      * `getBoundingClientRect` is **viewport-relative**, so measuring while the
-        page is scrolled bakes that scroll in — and the frame loop then adds
-        `scrollState.y` on top, counting it twice. Measured against `#hero`,
-        whose unscrolled top is the top of the document.
-      * It reports the **transformed** box, and `WordSheen` scales this element
-        as the hero scrolls away. The transform is neutralised for the read.
-      * The lockup is absolutely placed at the middle of the viewport on the
-        **business face only** — on the party face it sits in the section's
-        grid. Party is the default, so measuring on mount baked the other
-        layout. It now only measures on the business face.
-    Read the word's *direct text nodes only* — `textContent` picks up the sheen
-    overlay nested inside it and rasterises the word twice over.
-    The dots fade out **completely** before they land: they sit behind the DOM
-    word, and any residue at all stipples the glyph edges and the word reads as
-    noisy. The hover itself is owned by `sections/WordSheen.tsx` and published
-    through `scrollState.wordmark`.
-    The morph is staggered per dot and bowed toward the viewer at the midpoint,
-    so the field arcs into the word rather than sliding flat. It only fires once
-    the text positions exist.
-    **Scrolling gathers it too**, so the range collects itself into the word on
-    the way out rather than just fading — and the word answers by drawing back
-    (`WordSheen` scales and fades it in step). The gathered positions therefore
-    track a *moving* target: `uTextShift` carries the page scroll and the
-    recession, `uTextScale`/`uTextCenter` the shrink, or the dots would converge
-    on where the type used to be. The field's own fade is timed *after* the
-    gather (0.42 → 0.88 of `hero`) so the flight is visible before anything
-    disappears. Both read a **speed-limited** copy of `hero` (`heroLag`, full
-    range in ≥ ~0.8s): tied to the raw scroll, a fast flick jumped the field
-    into the word in a frame or two. Where the word *is* (`uTextShift`, the
-    recession) still reads the live scroll, so the dots never aim at a stale
-    spot.
-    `.hero-lockup__word` carries `pointer-events: auto` for this — the lockup
-    around it stays inert, and the span is shrink-to-fit so the target is the
-    word only.
-    Five predecessors filled this slot: `HalftoneGlobe`, `DotField` (a stippled
-    landscape with two figures), `DotGlobe`, `ParticlePlane` and `LiquidSphere`
-    (a lumpy transmission blob that dented under the cursor — dropped partly
-    for cost). Copies are in the session scratchpad only.
+  - (Removed: `LensWord`, a G behind fluted glass. It was the business hero —
+    resolving into GTHR on scroll, with a hover reveal — then a static
+    backdrop behind the contact form; the client dropped both. In git
+    history. Other rejected business heroes: a warm cream/peach redesign, the
+    whole word behind glass, an LED wall and audience, a conference stage,
+    rings, a meadow and a stippled mountain range.)
   - `WordSheen` (sections/) — the spectral sweep on the business wordmark, and
     the DOM half of the hover above. A second copy of the word laid exactly over
     the first, painted with five blobs in the **party face's thermal colours**
-    (red, red-orange, amber, teal, deep teal) through `background-clip: text`.
+    (teal, blue, violet, magenta, coral) through `background-clip: text`.
     It is a moment, not a hover state, and a *sweep* rather than a fade: a
     moving `mask-image` with two soft edges crosses the word left to right —
     the leading edge brings the colour in (`SHEEN_IN` 0.2s, `REVEAL` 0.8s, so
     it lands with the dots), it holds (`HOLD`), then the trailing edge clears
     it back to black, also left to right (`CLEAR`), even if the pointer stays;
     leaving early starts the clear at once. First background layer paints on
-    top, so teal/orange lead (red first buried the rest) and the blobs are
+    top, so teal/blue lead (magenta first buried the rest) and the blobs are
     tight so they don't average into brown.
     The base word underneath is **never touched**, so the type itself cannot go
     wrong; the sheen just fades in on top of it, which is what makes the onset
@@ -337,7 +213,17 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     grid and the wordmark stayed in row 1. Anything here that has to beat a
     utility class on the same element (the hero's `display`, the line's
     `max-width` and colour) must live outside the layer.
-    The word itself is a hover target — see `DotTerrain`.
+    On the business face the lockup and the hero line are now hidden, and the
+    hero is **`.hero-poster`** instead (Hero.tsx, copy is `poster` in
+    `site.ts`), after the client's NVIDIA poster: absolutely filling `#hero`
+    as a four-row grid — the headline top-left in thin white caps on two
+    natural lines, evenly tracked (0.14em) — *not* justified: spreading the
+    poster's one-word lines ("YOUR", "ONE.") letter by letter read badly —
+    a middle row `01\ | label | paragraph` on the 12 columns, and a huge
+    left-aligned `GTHR` along the bottom, clear of the bottom bar.
+    The
+    ground is `businessRoom` in CloudBackdrop. `hero.businessTagline` is no
+    longer used.
   - `Stickers` — flat 2D stickers (SVG strings in `stickerDefs.ts`,
     rasterised to textures once) on unlit planes behind the glass: the whole
     sheet wanders the hero on per-sticker simplex-noise paths, passing behind
@@ -407,18 +293,24 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     `ExtrudeGeometry` — rounded outline + hole — with the face art UV-mapped
     onto its front cap (texture repeat 1/W, 1/H, offset 0.5), so corner radius
     and hole come from the geometry, never the art. A RoundedBox + textured
-    plane before it had two radii that disagreed and showed at the corners. The face follows the client's reference ID card: black stock printed in
-    speckled off-white — `GTHR.` mark, a large mono ALL-ACCESS, two label
-    columns, a rule, handle and name, a hashed QR block and reference lines
-    (copy is `badge` in `site.ts`) — with a slot punch rather than a round
-    hole, on black woven tape. Textures are *baked* once.
-    **The statement type stays legible over it by inversion.** Statement ink
-    is black on this face, so it would vanish over the card. Each statement
-    carries a white twin (`.statement-invert`, same grid cell, business only)
-    and Badge's frame loop projects the card outline (rounded corners
-    sampled) and the strap to viewport pixels and sets them as the twin's
-    `clip-path: path(...)` — so letters turn white exactly where they cross
-    the badge. CSS `mix-blend-mode` cannot do this: the page scrolls inside a
+    plane before it had two radii that disagreed and showed at the corners.
+    The face is **the hero poster in miniature** (the NVIDIA reference), mixed
+    with the earlier black ID card's working parts: the hero's ground (the
+    same stops as `businessRoom`, green glow top-right), `badge.headline` in
+    thin tracked white caps top-left, a `01\ | FOCUS | text` row, a rule,
+    handle and name, a small hashed QR block and reference line, and `GTHR.`
+    fitted to the card's width along the bottom (copy is `badge` in
+    `site.ts`). Light edge stock, a slot punch, and **deep-green woven tape**;
+    the clasp stays black metal. Textures are *baked* once. (The previous
+    face was black stock printed in speckled off-white.)
+    **The statement type stays legible over the strap by inversion.**
+    Statement ink is black on this face, so it would vanish over the dark
+    strap. Each statement carries a white twin (`.statement-invert`, same
+    grid cell, business only) and Badge's frame loop projects the strap to
+    viewport pixels and sets it as the twin's `clip-path: path(...)` — so
+    letters turn white exactly where they cross it. The card is light now,
+    so black type reads on it and it is no longer part of the clip (when the
+    card was black, its rounded outline was clipped too). CSS `mix-blend-mode` cannot do this: the page scrolls inside a
     fixed wrapper, a separate stacking context, so blending never sees the
     canvas. The twin's reveal is keyed off the base copy
     (`.reveal.is-in + .statement-invert`): Chrome counts the clip against
@@ -441,8 +333,12 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     remapped through thermal-camera bands). **Removed at the client's
     request** — it keeps the same ground as the rest of the page.
     `scrollState.thermal` is still published, because `Badge` gates its
-    visibility on it and `BendImages` fades the polaroids out with it.
-- **Chrome:** fixed `TopBar` (wordmark + Services/Contact), `BottomBar`
+    visibility on it.
+- **Chrome:** fixed `TopBar` (wordmark + Services/Contact; on business its
+  ink is **white while the hero's green is behind it** — `data-on-green`,
+  flipping back to black at hero scroll 0.575, the middle of `uRoom`'s fade —
+  done by redeclaring the ink tokens on `.top-bar`, since the derived ones
+  resolve at `:root`), `BottomBar`
   (visitor-local `Clock` left, Telegram + X links right),
   `SideScrollbar` (desktop, Lenis-driven), `PixelCursor` (8-bit terracotta
   cursor replacing the OS cursor for fine pointers; hidden over text fields).
@@ -451,13 +347,34 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   transparent so the backdrop shows; `StickyFade` fades the pinned one as the
   next slides over.
 - **Who are we** (`About.tsx`, id `about`; phones show `About` in the nav
-  because the full label overflows the header): eyebrow + the client's description, then each person as a
-  border-only polaroid (`TeamCard`; the photo is the bending WebGL copy, B/W)
-  beside their name/role/bio — Polly left, Kevin right. No coloured panels.
-  The mono is **neutral** and the frame is the `--frame` token: both were warm
-  (a sepia mono multiplier, a `#f7f5ef` frame) and read as a sand cast, which
-  the client rejected. `--frame` is painted into the WebGL copy as well, read
-  from the computed style, so a mode change re-keys and repaints the polaroid.
+  because the full label overflows the header), identical on both faces:
+  eyebrow, the client's about paragraph, a row of four **stats**, and a
+  founder line — all client copy in `about` (`site.ts`). The founder cards
+  (polaroids, photos, roles, bios) were removed at the client's request, and
+  with them `TeamCard`, `BendImages` (the WebGL layer that painted them), the
+  polaroid CSS, the `--frame` token and `public/team/`.
+  The stats are the section's anchor now there are no photographs. Each sits
+  in a **frosted card** after the client's reference — label top-left in the
+  mono, the number large and centred, an index (`01`–`04`) bottom-left — on
+  the page's 12-column grid, four across (3 columns each) on desktop, two by
+  two below `lg`. The cards are the site's own `.glass`, so each face styles
+  them: smoked on party; on business `.stat-card` makes them a white frosted
+  panel *lighter* than the paper, as the reference's are — the business
+  `.glass` is a faint grey wash, darker than the paper, and read as a hole.
+  (The stats first opened on a hairline with a `+`; the client had that
+  removed.) The numbers count up once
+  (`ui/CountUp`), armed the way `Reveal` arms its transitions: the server
+  renders the final value, JS only takes it back to zero if it is still below
+  the fold, reduced motion leaves it alone, and the final value is laid out
+  invisibly underneath so the width never shifts as digits change. `value`
+  and `suffix` are kept apart in the copy so nothing parses strings back into
+  numbers.
+- **Marks:** `src/app/icon.png` (the client's glowing `G`, round-cropped) is
+  the favicon, and `src/app/opengraph-image.png` (the same `G`, 1200x630) is
+  the link preview — both cut straight out of the client's photograph, window
+  and all, because pasting the glyph onto fresh black left a seam where the
+  two blacks disagreed. `opengraph-image.alt.txt` carries the alt text. They
+  replaced a generated preview card and the starter `favicon.ico`.
 - **Contact:** centered form (two-column filled fields after the client's
   reference: name/email, company (optional)/location, then the message; black
   pill submit) → `app/actions/contact.ts` server action → Resend
@@ -474,12 +391,11 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 src/app/            layout.tsx (fonts, chrome, canvas), page.tsx (section order), globals.css (tokens, reveal + grid CSS)
 src/components/
   chrome/           TopBar, BottomBar, Clock, Socials, SmoothScroll, ModeToggle, SideScrollbar, PixelCursor
-  sections/         Hero, WordSheen, Statement, StickyFade, Services, About, TeamCard, Contact, ContactForm
+  sections/         Hero, WordSheen, Statement, StickyFade, Services, About, Contact, ContactForm
   three/            SceneCanvas → Scene (Canvas + tracker), CloudBackdrop (+ the grid),
-                    HeroLetters, DotTerrain, Stickers + stickerDefs, Badge, Ticket,
-                    canvasPaint, BendImages,
-                    Lighting, noise, scrollState
-  ui/               Reveal
+                    HeroLetters, Stickers + stickerDefs, Badge, Ticket,
+                    canvasPaint, Lighting, noise, scrollState
+  ui/               Reveal, CountUp
 src/app/actions/    contact.ts — server action for the form
 src/hooks/          usePrefersReducedMotion, useMediaQuery
 src/content/        site.ts, services.ts — all copy

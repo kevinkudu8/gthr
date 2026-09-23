@@ -1,18 +1,20 @@
 import { Reveal } from "@/components/ui/Reveal";
 import { WordSheen } from "@/components/sections/WordSheen";
-import { hero } from "@/content/site";
+import { hero, poster } from "@/content/site";
 
 /**
  * Full-viewport opener.
  *
  * The party face's wordmark is 3D, drawn in the fixed canvas behind this
  * section (components/three/HeroLetters.tsx), so here it exists only for
- * screen readers and search. The business face's is flat type, so it is real
- * DOM — centred with the line directly under it, above the dot terrain's
- * mountains. Hovering the word gathers that field into the letterforms
- * (components/three/DotTerrain.tsx), which is why the span is hoverable. It is
- * `aria-hidden` because the `sr-only` heading already carries the name.
+ * screen readers and search; the party face also shows `.hero-line`.
+ *
+ * The business face is a poster, after the client's reference (`.hero-poster`,
+ * shown on that face only): a tracked headline top-left, a row of index,
+ * label and paragraph, and the wordmark large along the bottom, over the
+ * green gradient CloudBackdrop paints. `.hero-lockup` is hidden there.
  */
+
 export function Hero() {
   return (
     <section
@@ -33,6 +35,25 @@ export function Hero() {
       >
         {hero.line}
       </Reveal>
+      <div className="hero-poster">
+        <p className="hero-poster__headline">
+          {/* Broken for the poster; screen readers get the sentence whole. */}
+          <span className="sr-only">{hero.line}</span>
+          {poster.lines.map((line) => (
+            <span key={line} className="hero-poster__line" aria-hidden="true">
+              {line}
+            </span>
+          ))}
+        </p>
+        <div className="hero-poster__row">
+          <span className="hero-poster__index">{poster.index}</span>
+          <span className="hero-poster__label">{poster.label}</span>
+          <p className="hero-poster__text">{poster.text}</p>
+        </div>
+        <p className="hero-poster__mark" aria-hidden="true">
+          {hero.wordmark}
+        </p>
+      </div>
     </section>
   );
 }

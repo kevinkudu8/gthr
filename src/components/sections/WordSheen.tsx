@@ -15,7 +15,7 @@ import { scrollState } from "@/components/three/scrollState";
  *
  * It is also where the hover lives: it publishes `scrollState.wordmark`, which
  * is what the dot field reads to gather itself into the letterforms
- * (three/DotTerrain.tsx).
+ * (three/GrassField.tsx).
  *
  * The blob positions are driven from a frame loop rather than from CSS
  * keyframes, because they answer to the pointer as well as to the clock — the
@@ -107,7 +107,7 @@ export function WordSheen({ text }: { text: string }) {
 
 
       // The word draws back as the page leaves it, while the dot field gathers
-      // into it (three/DotTerrain.tsx mirrors this with uTextScale/uTextShift,
+      // into it (three/GrassField.tsx mirrors this with uTextScale/uTextShift,
       // so the two have to agree). It still scrolls away with the document —
       // this is only the recession on top of that.
       const drift = smoothstep(0.12, 0.75, scrollState.hero);

@@ -218,7 +218,7 @@ function tearMaterial(piece: Piece, map: Texture) {
 
 const INK = "#0b0b0c";
 
-/** Foil: the bright middle of the thermal ramp — orange through amber to teal. */
+/** Foil: the bright middle of the ramp — teal through blue and violet to coral. */
 const FOIL: Blob[] = [
   [0.5, 0.48, 0.55, 0.3, 0, 0.5, 0.4], // amber glow behind the title
   [0.02, 1.05, 0.34, 0.26, 0.4, 1, 0.5], // teal from the lower left

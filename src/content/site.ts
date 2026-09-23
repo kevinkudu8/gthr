@@ -36,6 +36,20 @@ export const nav = [
   { href: "#contact", label: "Contact", short: "Contact" },
 ] as const;
 
+/**
+ * The business face's hero, laid out after the client's poster reference: a
+ * justified headline top-left, a row of index / label / paragraph, and the
+ * wordmark large along the bottom (sections/Hero.tsx). The headline is
+ * `hero.line`, broken into the poster's four lines — a single-word line is
+ * letter-spaced across the column, a multi-word line spreads its words.
+ */
+export const poster = {
+  lines: ["Your events team,", "without building one."],
+  index: "01\\",
+  label: "Events & experiences",
+  text: "GTHR is an events and experiential marketing agency — from pitch to post, embedded with your team at every step.",
+} as const;
+
 export const hero = {
   /** The name itself — used for the accessible heading on both faces. */
   wordmark: "GTHR",
@@ -54,29 +68,22 @@ export const statements = {
   second: "designed to be remembered",
 } as const;
 
-/** "Who are we" section (id `about`). Roles and bios are PLACEHOLDERS; the description is client copy. */
+/** "Who are we" section (id `about`). Client copy. */
 export const about = {
   eyebrow: "Who are we",
   description:
-    "GTHR is an events and experiential marketing agency. Since 2026, we have focused fully on events in the blockchain and technology space.",
-  team: [
-    {
-      id: "polly",
-      name: "Polly",
-      initial: "P",
-      role: "Placeholder role",
-      bio: "Placeholder bio. Two or three sentences on what Polly does at GTHR, where she comes from, and the kind of event she'd build if nobody was watching.",
-      image: "/team/polly.jpg",
-    },
-    {
-      id: "kevin",
-      name: "Kevin",
-      initial: "K",
-      role: "Placeholder role",
-      bio: "Placeholder bio. Two or three sentences on what Kevin does at GTHR, where he comes from, and the kind of event he'd build if nobody was watching.",
-      image: "/team/kevin.jpg",
-    },
+    "GTHR is an events and experiential marketing agency for blockchain and technology brands. We're new as a company but not to the work. Between us, we've spent years producing events around the world for some of the biggest names in the industry.",
+  /**
+   * `value` is what counts up; `suffix` is appended as-is. Kept apart so the
+   * count-up never has to parse a string back into a number.
+   */
+  stats: [
+    { value: 15, suffix: "+", label: "Years combined" },
+    { value: 250, suffix: "+", label: "Events delivered" },
+    { value: 30, suffix: "+", label: "Cities" },
+    { value: 15, suffix: "", label: "Countries" },
   ],
+  founders: "Founded by Polly and Kevin. Working with clients globally.",
 } as const;
 
 /**
@@ -86,6 +93,8 @@ export const about = {
 export const badge = {
   mark: "GTHR.",
   access: "All-access",
+  headline: ["All-access", "Event pass"],
+  index: "01\\",
   columns: [
     ["Focus", "Blockchain &", "technology events"],
     ["Web", "gthr.com", "hello@gthr.com"],

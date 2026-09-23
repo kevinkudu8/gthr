@@ -7,9 +7,7 @@ import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { lenisRef } from "@/components/chrome/SmoothScroll";
 import { useMode } from "@/components/mode/ModeProvider";
 import { Badge } from "./Badge";
-import { BendImages } from "./BendImages";
 import { CloudBackdrop } from "./CloudBackdrop";
-import { DotTerrain } from "./DotTerrain";
 import { HeroLetters } from "./HeroLetters";
 import { Lighting } from "./Lighting";
 import { scrollState, updateScrollState } from "./scrollState";
@@ -34,7 +32,6 @@ export function Scene() {
     >
       <SceneTracker reducedMotion={reducedMotion} />
       <CloudBackdrop />
-      <DotTerrain mobile={mobile} />
       <Lighting business={business} />
       <Suspense fallback={null}>
         <HeroLetters reducedMotion={reducedMotion} mobile={mobile} />
@@ -46,7 +43,6 @@ export function Scene() {
         ) : (
           <Ticket reducedMotion={reducedMotion} />
         )}
-        <BendImages />
       </Suspense>
     </Canvas>
   );

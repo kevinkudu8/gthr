@@ -1,52 +1,64 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
+import { CountUp } from "@/components/ui/CountUp";
 import { Reveal } from "@/components/ui/Reveal";
 import { about } from "@/content/site";
-import { TeamCard } from "./TeamCard";
 
-/** Photos live in `public/team/`; missing ones fall back to an initial. */
-const photo = (src: string) =>
-  existsSync(path.join(process.cwd(), "public", src)) ? src : null;
-
+/**
+ * "Who are we": label, the about paragraph, a row of four stats, and a
+ * founder line. The stats are the section's visual anchor now that there are
+ * no photographs: each sits in a frosted card after the client's reference —
+ * its label top-left in the mono, the number large and centred, an index
+ * bottom-left — on the page's own 12-column grid, four across (3 columns
+ * each) on desktop and two by two below it.
+ *
+ * The cards are the site's own `.glass`, so each face styles them: smoked on
+ * party, and on business a light frosted panel (`.stat-card`, globals.css),
+ * lighter than the paper the way the reference's cards are.
+ */
 export function About() {
   return (
     <section
       id="about"
-      className="w-full scroll-mt-16 px-4 py-16 lg:scroll-mt-24 lg:px-14 lg:py-24"
+      className="grid w-full scroll-mt-16 grid-cols-12 px-4 py-18 lg:scroll-mt-24 lg:px-14 lg:py-24"
       aria-labelledby="about-heading"
     >
-      <Reveal as="h2" id="about-heading" className="eyebrow mb-4 px-2">
+      <Reveal as="h2" id="about-heading" className="eyebrow col-span-12 mb-4 px-2">
         {about.eyebrow}
       </Reveal>
       <Reveal
         as="p"
         lines
         delay={60}
-        className="mb-12 max-w-[38ch] px-2 text-base leading-snug text-ink-1 lg:mb-16 lg:text-2xl"
+        className="col-span-12 max-w-[38ch] px-2 text-base leading-snug text-ink-1 lg:col-span-8 lg:text-2xl"
       >
         {about.description}
       </Reveal>
 
-      <div className="grid grid-cols-12 gap-x-6 gap-y-14">
-        {about.team.map((person, index) => (
+      <ul className="col-span-12 mt-14 grid grid-cols-12 gap-3 px-2 lg:mt-24 lg:gap-4">
+        {about.stats.map((stat, index) => (
           <Reveal
-            key={person.id}
-            delay={index * 120}
-            className="col-span-12 grid grid-cols-2 items-center gap-6 px-2 lg:col-span-6"
+            key={stat.label}
+            as="li"
+            delay={120 + index * 80}
+            className="glass stat-card col-span-6 flex aspect-[5/4] flex-col justify-between rounded-[1.1rem] p-4 lg:col-span-3 lg:rounded-[1.5rem] lg:p-6"
           >
-            <TeamCard
-              name={person.name}
-              initial={person.initial}
-              image={photo(person.image)}
+            <span className="eyebrow">{stat.label}</span>
+            <CountUp
+              value={stat.value}
+              suffix={stat.suffix}
+              className="self-center font-display text-[12svw] leading-[0.9] font-bold tracking-[-0.02em] text-ink-1 sm:text-[8svw] lg:text-[5.4svw]"
             />
-            <div className="flex flex-col gap-2">
-              <h3 className="font-display text-2xl font-bold lg:text-3xl">{person.name}</h3>
-              <p className="eyebrow">{person.role}</p>
-              <p className="max-w-[40ch] text-sm leading-relaxed text-ink-2 lg:text-base">{person.bio}</p>
-            </div>
+            <span className="eyebrow tabular-nums">{String(index + 1).padStart(2, "0")}</span>
           </Reveal>
         ))}
-      </div>
+      </ul>
+
+      <Reveal
+        as="p"
+        delay={460}
+        className="col-span-12 mt-14 max-w-[40ch] px-2 text-sm leading-relaxed text-ink-2 lg:mt-20 lg:text-base"
+      >
+        {about.founders}
+      </Reveal>
     </section>
   );
 }

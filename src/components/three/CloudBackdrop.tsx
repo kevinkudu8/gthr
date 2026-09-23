@@ -24,6 +24,7 @@ const fragmentShader = /* glsl */ `
   uniform float uBusiness;
   uniform vec3 uPaper;
   uniform vec3 uBusinessPaper;
+  uniform float uRoom;
   uniform float uGrid;
   uniform float uDpr;
   uniform float uGrain;
@@ -66,16 +67,50 @@ const fragmentShader = /* glsl */ `
     return h;
   }
 
-  /* The scalar field goes through a thermal ramp that runs black -> red ->
-     orange -> amber -> teal -> navy -> back to black, sampled from the
-     reference. The ramp returning to black is why the core of the big mass is
-     dark again: it is the *hottest* point, not an absence. */
+  /* The scalar field goes through a ramp in the client's palette, in the
+     reference's own hue order — black -> green -> teal -> blue -> violet ->
+     magenta -> coral -> and back to black.
+
+     The *hues* are the new reference's; the **luminance curve is the old
+     ramp's**: it peaks around the middle and then runs a long dark tail, so
+     the core of the big mass is the hottest point yet reads dark. That is
+     what holds the page's layout of light and dark — and the room for white
+     type. Taking the reference's own luminance instead (which ends at cream)
+     lit up the middle of every screen: the statements, the about copy and the
+     contact form all lost their ground. */
   vec3 thermal(float h) {
     vec3 col = uRamp[0];
     for (int i = 1; i < STOPS; i++) {
       float k = clamp((h - uRampAt[i - 1]) / (uRampAt[i] - uRampAt[i - 1]), 0.0, 1.0);
       col = mix(col, uRamp[i], k);
     }
+    return col;
+  }
+
+  /* The business hero's ground, after the client's poster reference: a
+     vertical ramp from a muted teal at the top down through pale mint to
+     near-white, with a deep green glow sitting top-right of centre. Colours
+     are sampled from the poster. The glow is held off the top-right corner,
+     where the nav's dark type sits. uv here is 0..1 with y up. (This has been
+     a light grey, and an infinity-cove room while an LED wall stood in it.) */
+  vec3 hexc(float r, float g, float b) { return vec3(r, g, b) / 255.0; }
+
+  vec3 businessRoom(vec2 uv) {
+    float aspect = uResolution.x / uResolution.y;
+    float t = 1.0 - uv.y; // 0 at the top, 1 at the bottom
+    vec3 col = hexc(122.0, 164.0, 154.0);
+    col = mix(col, hexc(134.0, 174.0, 165.0), smoothstep(0.0, 0.3, t));
+    col = mix(col, hexc(192.0, 213.0, 208.0), smoothstep(0.3, 0.46, t));
+    col = mix(col, hexc(223.0, 233.0, 232.0), smoothstep(0.46, 0.62, t));
+    col = mix(col, hexc(244.0, 246.0, 245.0), smoothstep(0.62, 0.82, t));
+    col = mix(col, hexc(248.0, 248.0, 248.0), smoothstep(0.82, 1.0, t));
+    // Paler toward the top-left, where the poster's headline sits over mint.
+    float tl = exp(-pow(length((uv - vec2(0.0, 1.0)) * vec2(aspect, 1.0)) / 0.7, 2.0));
+    col = mix(col, hexc(150.0, 190.0, 180.0), tl * 0.35);
+    // The deep green glow.
+    vec2 g = (uv - vec2(0.64, 0.84)) * vec2(aspect / 0.62, 1.0 / 0.4);
+    float glow = exp(-dot(g, g));
+    col = mix(col, hexc(26.0, 106.0, 88.0), glow * 0.92);
     return col;
   }
 
@@ -128,7 +163,11 @@ const fragmentShader = /* glsl */ `
     // The vignette still darkens the gutters, which is what keeps the chrome
     // and the hairline grid legible over the warm band.
     float strength = (0.88 + 0.12 * uIntensity) * mix(0.80, 1.0, vig) * (1.0 - uBusiness);
-    vec3 paper = mix(uPaper, uBusinessPaper, uBusiness);
+    /* Business: the room while the hero is on screen, settling into one calm
+       tone taken from it (uBusinessPaper) as the page scrolls on — the copy
+       below the hero sits on a colour of the same room, not on the room. */
+    vec3 room = mix(uBusinessPaper, businessRoom(gl_FragCoord.xy / uResolution), uRoom);
+    vec3 paper = mix(uPaper, room, uBusiness);
     // Opaque output: blended toward paper here rather than via alpha, so the
     // quad stays in the opaque pass and is drawn *under* the letters.
     vec3 col2 = mix(paper, col, strength);
@@ -207,10 +246,11 @@ const BLOB_PARAMS = [
 // Raw sRGB — this ShaderMaterial writes straight to the sRGB framebuffer.
 // Exported: the party badge is painted from the same ramp.
 export const RAMP: [number, string][] = [
-  [0, "05090c"], [0.12, "27090a"], [0.22, "670809"], [0.32, "ab0609"],
-  [0.4, "e8180c"], [0.46, "fb4811"], [0.52, "f76f1c"], [0.58, "de8330"],
-  [0.64, "b98640"], [0.7, "6e7d56"], [0.76, "317068"], [0.81, "0b5d6d"],
-  [0.86, "02445f"], [0.91, "022c42"], [0.95, "031624"], [1, "060a0e"],
+  [0, "05070a"], [0.1, "0d2a1a"], [0.18, "14461f"], [0.26, "1b7038"],
+  [0.34, "23a05a"], [0.4, "2ab39a"], [0.46, "2f8fd0"], [0.52, "4a5fe0"],
+  [0.58, "8b3fd0"], [0.64, "d23b9a"], [0.7, "f43f74"], [0.75, "fb6a4e"],
+  [0.8, "d9742f"], [0.85, "8a5a34"], [0.9, "4a2f3a"], [0.95, "1e1526"],
+  [1, "080a12"],
 ];
 
 const defines = { BLOBS: BLOB_PARAMS.length, STOPS: RAMP.length };
@@ -243,6 +283,7 @@ export function CloudBackdrop() {
       uDpr: { value: 1 },
       uGrain: { value: 0 },
       uScroll: { value: 0 },
+      uRoom: { value: 1 },
       uBlobA: {
         value: BLOB_PARAMS.map(([x, y, rx, ry]) => new Vector4(x, y, 1 / rx, 1 / ry)),
       },
@@ -265,7 +306,9 @@ export function CloudBackdrop() {
       // straight to the sRGB framebuffer, and a THREE.Color would be converted
       // into linear working space on the way in and land several shades darker.
       // It matters here because this is a near-white the eye can measure.
-      uBusinessPaper: { value: [0xf4 / 255, 0xf4 / 255, 0xf3 / 255] },
+      // The calm tone the hero's grey settles into below it. Kept in step
+      // with the --paper token.
+      uBusinessPaper: { value: [0xe7 / 255, 0xe7 / 255, 0xe7 / 255] },
     }),
     [],
   );
@@ -287,6 +330,11 @@ export function CloudBackdrop() {
     m.uniforms.uIntensity.value = backdrop;
     m.uniforms.uScroll.value = (scrollState.y / Math.max(1, scrollState.vh)) * PARALLAX;
     m.uniforms.uBusiness.value = scrollState.businessMix;
+    // The room belongs to the hero; below it the page settles to one tone.
+    {
+      const t = Math.min(1, Math.max(0, (scrollState.hero - 0.3) / 0.55));
+      m.uniforms.uRoom.value = 1 - t * t * (3 - 2 * t);
+    }
   });
 
   return (

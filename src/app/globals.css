@@ -28,11 +28,6 @@
   --ink-3: rgba(var(--ink-rgb), 0.4);
   --ink-4: rgba(var(--ink-rgb), 0.22);
   --line: rgba(var(--ink-rgb), 0.14);
-  /* Polaroid frame. Dark on this face — the caption is painted in `--ink-2`
-     (now white) straight onto the frame, so a light card would hide it.
-     Painted into the WebGL copy too (three/BendImages.tsx reads this
-     property), so the two must agree. */
-  --frame: #17191e;
   /* The platform UI face — SF Pro on Apple hardware. Used by the business
      wordmark; see `.hero-lockup`. */
   --font-system:
@@ -48,21 +43,21 @@
    `data-mode` attribute on <html>.
    --------------------------------------------------------------- */
 :root[data-mode="business"] {
-  /* Not pure white: a faint grey gives the dot terrain a ground to sit on,
-     and it is what the reference engraving is printed on. */
-  --paper: #f4f4f3;
-  --paper-elevated: #eaeae8;
-  --ink-rgb: 0, 0, 0;
-  --brand: #000000;
-  --accent: #000000;
-  --frame: #ffffff;
-  --shadow-rgb: 0, 0, 0;
+  /* A plain light grey, the ground of the fluted-glass hero, which the whole
+     page settles into below it. Kept in step with CloudBackdrop's
+     uBusinessPaper. */
+  --paper: #e7e7e7;
+  --paper-elevated: #dcdcdc;
+  --ink-rgb: 18, 22, 19;
+  --brand: #121613;
+  --accent: #7d8f82;
+  --shadow-rgb: 18, 26, 20;
   color-scheme: light;
 
   --ink-2: rgba(var(--ink-rgb), 0.62);
   --ink-3: rgba(var(--ink-rgb), 0.38);
   --ink-4: rgba(var(--ink-rgb), 0.2);
-  --line: rgba(var(--ink-rgb), 0.16);
+  --line: rgba(var(--ink-rgb), 0.14);
 }
 
 @theme inline {
@@ -340,54 +335,6 @@
     pointer-events: none;
   }
 
-  /* --- Team polaroids (see sections/TeamCard.tsx) --------------------- */
-  /* Frame only: borders paint the card, the photo well stays transparent so
-     the WebGL copy of the photo (which bends with scroll) shows through. */
-  .polaroid {
-    position: relative;
-    border: 0.5rem solid var(--frame);
-    border-bottom-width: 2rem;
-    border-radius: 4px;
-    background: transparent;
-    box-shadow:
-      0 30px 60px -24px rgba(var(--shadow-rgb), 0.6),
-      0 4px 12px -4px rgba(var(--shadow-rgb), 0.35);
-    animation: polaroid-bob 7s ease-in-out infinite;
-  }
-
-  .polaroid__caption {
-    position: absolute;
-    inset-inline: 0;
-    bottom: -1.6rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-
-  /* DOM image under a bending WebGL copy: keep layout + alt, hide pixels. */
-  .bend-source {
-    opacity: 0;
-  }
-
-  /* Whole polaroid painted by WebGL: keep layout + shadow, hide the paint. */
-  .polaroid--bent {
-    border-color: transparent;
-  }
-
-  .polaroid--bent .polaroid__caption {
-    opacity: 0;
-  }
-
-  @keyframes polaroid-bob {
-    0%,
-    100% {
-      translate: 0 0;
-    }
-    50% {
-      translate: 0 -8px;
-    }
-  }
-
   /* --- Business lockup (sections/Hero.tsx) ---------------------------- */
   /* The name spelled out, over the dot field. Present in both faces so it can
      fade, but only visible — and only reachable — in the business one. */
@@ -474,10 +421,10 @@
     opacity: 0;
     white-space: nowrap;
     pointer-events: none;
-    /* Five blobs over an ink base, in the party face's thermal colours (red,
-       red-orange, amber, teal, deep teal — sampled from CloudBackdrop's
-       RAMP). The first layer paints on top, so teal and orange lead — with
-       red first it buried the rest and the word read as plain red — and the
+    /* Five blobs over an ink base, in the party face's thermal colours (teal,
+       blue, violet, magenta, coral — sampled from CloudBackdrop's
+       RAMP). The first layer paints on top, so teal and blue lead — with
+       magenta first it buried the rest and the word read as plain red — and the
        blobs are tight (clear by 62%) so they sit as distinct patches rather
        than averaging into brown where teal crosses amber. Each is on
        its own track — they cross at different rates and in different directions, so the colour never
@@ -489,11 +436,11 @@
        running when it meets the edge of its background box gets cut off square,
        which is what put the hard horizontal breaks across the H and the T. */
     background-image:
-      radial-gradient(48% 48% at 50% 50%, rgba(28, 127, 150, 0.96) 0%, rgba(28, 127, 150, 0.5) 30%, rgba(28, 127, 150, 0) 62%),
-      radial-gradient(48% 48% at 50% 50%, rgba(247, 111, 28, 0.96) 0%, rgba(247, 111, 28, 0.5) 30%, rgba(247, 111, 28, 0) 62%),
-      radial-gradient(48% 48% at 50% 50%, rgba(222, 131, 48, 0.96) 0%, rgba(222, 131, 48, 0.5) 30%, rgba(222, 131, 48, 0) 62%),
-      radial-gradient(48% 48% at 50% 50%, rgba(232, 24, 12, 0.96) 0%, rgba(232, 24, 12, 0.5) 30%, rgba(232, 24, 12, 0) 62%),
-      radial-gradient(48% 48% at 50% 50%, rgba(11, 93, 109, 0.96) 0%, rgba(11, 93, 109, 0.5) 30%, rgba(11, 93, 109, 0) 62%),
+      radial-gradient(48% 48% at 50% 50%, rgba(42, 179, 154, 0.96) 0%, rgba(42, 179, 154, 0.5) 30%, rgba(42, 179, 154, 0) 62%),
+      radial-gradient(48% 48% at 50% 50%, rgba(47, 143, 208, 0.96) 0%, rgba(47, 143, 208, 0.5) 30%, rgba(47, 143, 208, 0) 62%),
+      radial-gradient(48% 48% at 50% 50%, rgba(139, 63, 208, 0.96) 0%, rgba(139, 63, 208, 0.5) 30%, rgba(139, 63, 208, 0) 62%),
+      radial-gradient(48% 48% at 50% 50%, rgba(210, 59, 154, 0.96) 0%, rgba(210, 59, 154, 0.5) 30%, rgba(210, 59, 154, 0) 62%),
+      radial-gradient(48% 48% at 50% 50%, rgba(244, 63, 116, 0.96) 0%, rgba(244, 63, 116, 0.5) 30%, rgba(244, 63, 116, 0) 62%),
       linear-gradient(var(--brand), var(--brand));
     background-repeat: no-repeat;
     background-size:
@@ -509,8 +456,8 @@
     /* The bit that escapes the glyphs: a prismatic fringe just outside the
        letterform. Kept tight — the letters themselves have to stay crisp. */
     filter:
-      drop-shadow(0.012em 0 0.02em rgba(28, 127, 150, 0.5))
-      drop-shadow(-0.012em 0 0.02em rgba(251, 72, 17, 0.45));
+      drop-shadow(0.012em 0 0.02em rgba(47, 143, 208, 0.5))
+      drop-shadow(-0.012em 0 0.02em rgba(244, 63, 116, 0.45));
     will-change: opacity, background-position;
   }
 
@@ -588,6 +535,23 @@
     background: none;
   }
 
+  /* The stat cards in "Who are we", on business: frosted and *lighter* than
+     the paper, as the client's reference cards are — the business .glass
+     above is a faint grey wash, darker than the paper, which read as a hole
+     rather than a panel. White is the glass rim's own colour, so no new
+     colour comes in. */
+  :root[data-mode="business"] .stat-card {
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.72) 0%,
+      rgba(255, 255, 255, 0.5) 100%
+    );
+    border-color: rgba(var(--ink-rgb), 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 24px 50px -34px rgba(var(--shadow-rgb), 0.35);
+  }
+
   .side-scrollbar {
     opacity: 0.6;
     transition: opacity 0.3s var(--ease-66);
@@ -643,7 +607,10 @@
   top: calc(var(--hero-middle) + var(--lockup-half) + 1.2rem);
   margin-inline: auto;
   max-width: 44ch;
-  color: rgba(var(--ink-rgb), 0.55);
+  /* Back over paper, so it no longer needs the halo it wore over the grass —
+     but a touch stronger than the old 0.55, because the ring field passes
+     behind it. */
+  color: rgba(var(--ink-rgb), 0.66);
 }
 
 @media (min-width: 64rem) {
@@ -657,6 +624,158 @@
   :root[data-mode="business"] .hero-line {
     top: calc(var(--hero-middle) + var(--lockup-half) + 1.4rem);
   }
+}
+
+/* The business hero is the poster (.hero-poster), so the DOM lockup is
+   hidden on this face — the sr-only h1
+   still names the page — and the hero line is visually hidden but kept for
+   assistive tech.
+   Unlayered, because both have to beat rules and utilities on the same
+   elements (see the note on the business hero layout above). */
+:root[data-mode="business"] .hero-lockup {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+:root[data-mode="business"] .hero-line {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- The business hero: a poster ---------------------------------------
+   After the client's reference: a justified headline in white, top left; a
+   row of index / label / paragraph; and the wordmark set large along the
+   bottom — over the green-to-white gradient CloudBackdrop paints. Business
+   face only, and unlayered, because it has to beat the utilities on #hero. */
+.hero-poster {
+  display: none;
+}
+
+:root[data-mode="business"] .hero-poster {
+  display: grid;
+  position: absolute;
+  inset: 0;
+  grid-template-rows: auto 1fr auto auto;
+  /* Left-aligned, as the poster is: #hero centres its text on this face. The
+     bottom padding keeps the wordmark clear of the fixed clock and links. */
+  text-align: left;
+  padding: 5.5rem 1.5rem 3.75rem;
+  color: var(--ink-1);
+}
+
+.hero-poster__headline {
+  /* Thin caps in white, as on the poster, tracked evenly rather than
+     justified: spreading one-word lines ("Your", "One.") letter by letter
+     broke them apart, so the sentence runs on two natural lines instead. */
+  font-family: var(--font-system);
+  font-weight: 300;
+  font-size: clamp(1.05rem, 5vw, 1.6rem);
+  line-height: 1.45;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.hero-poster__line {
+  display: block;
+}
+
+/* The row: index, label, paragraph — on the poster's own column rhythm. */
+.hero-poster__row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  row-gap: 0.9rem;
+  align-self: end;
+  margin-bottom: 2.5rem;
+  font-family: var(--font-system);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.hero-poster__index {
+  grid-column: span 3;
+}
+
+.hero-poster__label {
+  grid-column: span 9;
+  text-transform: uppercase;
+}
+
+.hero-poster__text {
+  grid-column: 1 / -1;
+  max-width: 38ch;
+}
+
+/* The wordmark, set large along the bottom as the poster sets its name. */
+.hero-poster__mark {
+  font-family: var(--font-system);
+  font-weight: 600;
+  font-size: 27vw;
+  line-height: 0.78;
+  letter-spacing: -0.045em;
+  margin-left: -0.04em;
+}
+
+@media (min-width: 64rem) {
+  :root[data-mode="business"] .hero-poster {
+    padding: 7rem 3.5rem 5.25rem;
+  }
+
+  .hero-poster__headline {
+    font-size: 2.3vw;
+    line-height: 1.4;
+  }
+
+  .hero-poster__row {
+    font-size: 0.95rem;
+    margin-bottom: 3rem;
+  }
+
+  .hero-poster__index {
+    grid-column: 1 / span 3;
+  }
+
+  .hero-poster__label {
+    grid-column: 4 / span 3;
+  }
+
+  .hero-poster__text {
+    grid-column: 8 / -1;
+  }
+
+  .hero-poster__mark {
+    font-size: 21vw;
+  }
+}
+
+/* The top bar over the business hero's green: white ink, flipping back to
+   the page's black once the green has faded out behind it (TopBar sets
+   data-on-green). The tokens are redeclared here, not just --ink-rgb,
+   because the derived ones were already resolved at :root. The toggle's
+   checked label reads --paper, so that goes dark to sit on the white thumb. */
+:root[data-mode="business"] .top-bar[data-on-green] {
+  --ink-rgb: 255, 255, 255;
+  --ink-1: rgb(255, 255, 255);
+  --ink-2: rgba(255, 255, 255, 0.78);
+  --line: rgba(255, 255, 255, 0.4);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --paper: #121613;
+}
+
+.top-bar a,
+.top-bar .mode-toggle,
+.top-bar .mode-toggle__thumb {
+  transition:
+    color 0.4s var(--ease-66),
+    border-color 0.4s var(--ease-66),
+    background-color 0.4s var(--ease-66),
+    transform 0.45s var(--ease-66);
 }
 
 /* While the face is switching (ModeProvider sets this for a moment), the line
