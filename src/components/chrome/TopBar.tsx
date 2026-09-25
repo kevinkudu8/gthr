@@ -1,54 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type MouseEvent } from "react";
 import { ModeToggle } from "@/components/chrome/ModeToggle";
 import { nav, site } from "@/content/site";
-import { useLenisInstance } from "./SmoothScroll";
+import { useScrollTo } from "./SmoothScroll";
 
 /**
  * Fixed top strip: wordmark left, small ink section links right. Links are
  * real anchors so they work without JS; with Lenis running they smooth-scroll.
- * Lenis honours each section's `scroll-margin-top` itself, so no offset here.
  *
- * `data-on-green` marks while the business hero's green ground is still
- * behind the bar; the bar's ink turns white for it (globals.css). The ground
- * fades to paper over hero scroll 0.3–0.85 (CloudBackdrop's `uRoom`), so the
- * bar flips back at the middle of that fade.
+ * It no longer tracks what is behind it. While the business hero had a green
+ * gradient, the bar's ink turned white over it and back to black below —
+ * a scroll listener and a `data-on-green` attribute, both gone with that
+ * gradient. The business ground is one flat paper colour now.
  */
-const GREEN_UNTIL = 0.575;
-
 export function TopBar() {
-  const lenis = useLenisInstance();
-  const [onGreen, setOnGreen] = useState(true);
-
-  useEffect(() => {
-    const hero = document.getElementById("hero");
-    const update = () => {
-      const top = hero?.getBoundingClientRect().top ?? 0;
-      setOnGreen(-top / Math.max(1, window.innerHeight) < GREEN_UNTIL);
-    };
-    update();
-    document.addEventListener("scroll", update, { capture: true, passive: true });
-    window.addEventListener("resize", update);
-    return () => {
-      document.removeEventListener("scroll", update, { capture: true });
-      window.removeEventListener("resize", update);
-    };
-  }, []);
-
-  const scrollTo = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (!lenis) return;
-    const target = document.querySelector<HTMLElement>(href);
-    if (!target) return;
-    event.preventDefault();
-    lenis.scrollTo(target);
-    history.replaceState(null, "", href);
-  };
+  const scrollTo = useScrollTo();
 
   return (
     <header
-      data-on-green={onGreen || undefined}
       className="top-bar pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between px-4 py-4 font-mono lg:px-14 lg:py-7"
     >
       <Link

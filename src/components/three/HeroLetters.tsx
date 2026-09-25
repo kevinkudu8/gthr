@@ -247,8 +247,12 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
                 // against the dark field there is structure to reach for, so it
                 // can run much further and the letters actually bend what is
                 // behind them.
-                // (0.52 -> 0.442: refraction eased 15% at the client's request.)
-                thickness={size * 0.442}
+                // (0.52 -> 0.442 -> 0.354: refraction eased 15%, then another
+                // 20%, at the client's request — it was bending so much of the
+                // ground through the strokes that the word read as a lump of
+                // glass rather than as a pane over the page. Apple's liquid
+                // glass is the target: you should still see what is behind it.)
+                thickness={size * 0.354}
                 roughness={0}
                 // Lower ior = less Fresnel reflection at glancing angles, which
                 // is what was whiting out a rounded tube and hiding the
@@ -258,14 +262,23 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
                 // it is what paints the rainbow along the bevels where the
                 // surface turns away. Needs the sample count below to stay
                 // smooth — too few samples and the spread bands.
-                // (0.85 -> 0.72: the smear eased 15% with the refraction.)
-                chromaticAberration={0.72}
+                // (0.85 -> 0.72 -> 0.576: the smear eased 15%, then another
+                // 20%, in step with the refraction each time. Kept in
+                // proportion deliberately — dropping the ray length without
+                // the dispersion leaves the fringe wider than the bevel it is
+                // supposed to sit on, and it detaches into a coloured halo.)
+                chromaticAberration={0.576}
                 anisotropicBlur={0}
                 distortion={0}
                 distortionScale={0}
                 temporalDistortion={0}
                 samples={mobile ? 10 : 18}
-                resolution={mobile ? 512 : 1024}
+                // The transmission buffer. The refracted image is only ever as
+                // sharp as this, so the last of the softness was resolution,
+                // not a blur setting — none of the three above are on. Desktop
+                // steps up with the eased refraction; mobile stays, where the
+                // extra full-scene pass each frame is not affordable.
+                resolution={mobile ? 512 : 1536}
                 backside={false}
                 // No clearcoat: at roughness 0 it is a mirror layer, and it
                 // reflected the studio environment as opaque white plastic.

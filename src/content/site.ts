@@ -37,17 +37,25 @@ export const nav = [
 ] as const;
 
 /**
- * The business face's hero, laid out after the client's poster reference: a
- * justified headline top-left, a row of index / label / paragraph, and the
- * wordmark large along the bottom (sections/Hero.tsx). The headline is
- * `hero.line`, broken into the poster's four lines — a single-word line is
- * letter-spaced across the column, a multi-word line spreads its words.
+ * The business face's hero (sections/Hero.tsx): the headline top-left with
+ * the stats opposite it, a call to action under it, a row of index / label /
+ * paragraph, and the wordmark large along the bottom.
+ *
+ * The headline is `hero.line` broken into its two natural lines. `mark` is
+ * the phrase that gets the mint marker behind it — which line carries the
+ * highlight is a copy decision, so it lives here rather than as a string the
+ * component slices apart.
  */
 export const poster = {
-  lines: ["Your events team,", "without building one."],
+  lines: [
+    { text: "Your events team,", mark: false },
+    { text: "without building one.", mark: true },
+  ],
   index: "01\\",
   label: "Events & experiences",
   text: "GTHR is an events and experiential marketing agency — from pitch to post, embedded with your team at every step.",
+  /** Scrolls to the contact section. */
+  cta: { label: "Start a project", href: "#contact" },
 } as const;
 
 export const hero = {

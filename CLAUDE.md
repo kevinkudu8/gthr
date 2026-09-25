@@ -16,9 +16,12 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   hides across its layout jump.
 - **Two faces, one page.** A toggle in the top bar switches between `business`
   (the default, listed first) and `party`. Sections and copy are **identical**;
-  the business finish is: a plain light-grey ground (`--paper` `#e7e7e7`, kept
-  in step with CloudBackdrop's `uBusinessPaper`), very dark neutral ink rather
-  than pure black, a `GTHR` wordmark set in the platform UI face
+  the business finish is **black and warm off-white with one mint accent**,
+  after the client's retro coffee-packaging reference: paper `#f4f2ec` (kept
+  in step with CloudBackdrop's `uBusinessPaper`), soft black ink `#141414`,
+  muted `#6b6b66`, hairlines and grid `#dad7cf`, mint `#86dcb2` (sampled from
+  the client's blobby `GTHR` wordmark), a `GTHR` wordmark set in the platform
+  UI face
   (`--font-system`, which *is* SF Pro on Apple hardware — closer than any
   webfont lookalike), no stickers, no marque beside the wordmark, and a hero
   laid out as a poster after the client's NVIDIA reference (see the business
@@ -43,8 +46,30 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   is a draft. Keep the `{ number, title, description }` shape; rows stay compact.
 - **Business tokens** live in one `:root[data-mode="business"]` block in
   `globals.css`. Everything already reads `--paper` / `--ink-rgb` / `--brand`,
-  so the whole DOM reskins from those four lines; `.glass` is the one thing
-  that needs an override, because a frosted white card is invisible on white.
+  so the whole DOM reskins from those lines; `.glass` is the one thing that
+  needs an override, because a frosted white card is invisible on white.
+- **The mint is a highlight, never a ground and never type on the paper.**
+  `#86dcb2` on `#f4f2ec` is about **1.3:1** and fails AA at any size. It is
+  only ever a *fill* with soft black on it — the CTA, the mode toggle's thumb,
+  the marker behind "without building one", the nav link's hover rule — or
+  mint type **on black**, which is the small pill labels (12.5:1). Because
+  `--accent` cannot be read as ink on this face there is a second token,
+  **`--accent-ink`**: the accent where something is *drawn* rather than
+  filled. Party maps it straight to `--accent` (terracotta on a dark ground
+  reads fine); business maps it to `--ink-1`. The pixel cursor and the contact
+  form's error take `--accent-ink`, not `--accent`.
+- **Small muted type on business is `--ink-2`, not `--ink-3`.** ink-3 over
+  this paper is ~2.3:1 and fails AA at label sizes, so `.eyebrow`, the
+  `text-ink-3` / `text-ink-4` utilities and the form placeholders are lifted
+  to ink-2 (≈ `#6b6b66`, 4.8:1). Those overrides are **unlayered** — they have
+  to beat Tailwind utilities, and layer order beats specificity. Party keeps
+  ink-3; white on a dark ground it is ~6:1.
+- **Printed grain.** `.paper-grain` is a fixed, full-viewport inline
+  `feTurbulence` at 3.5%, mounted with the chrome in `layout.tsx`, business
+  only. Deliberately *not* the backdrop shader's film grain, which is reseeded
+  per frame and shimmers — right for the party colour field, wrong for
+  something meant to look printed. z 60: over the page (10) and the fixed bars
+  (50), under the pixel cursor (70).
 - **Party face is DARK**, and its ground is the client's reference artwork
   **rebuilt as a field** in `CloudBackdrop`, not the image itself: the source is
   low-res, and the ground has to run the length of the page. It is nine
@@ -119,11 +144,18 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   mutable `scrollState` each frame — never React state at 60fps. Reduced motion
   freezes time-based motion but keeps scroll-driven placement.
   - `CloudBackdrop` — full-screen colour field shader (see the party face,
-    above). On the business face it paints the poster's ground in
-    the hero (`businessRoom`: a deep green glow top-right, fading through
-    mint to near-white at the bottom, after the NVIDIA reference), settling to
-    one calm grey below it (`uRoom`, hero 0.3–0.85 → `uBusinessPaper` /
-    `--paper` `#e7e7e7`), and the grid over it.
+    above). On the business face it paints **one flat warm off-white**
+    (`uBusinessPaper` / `--paper` `#f4f2ec`) and the grid over it. There was a
+    green gradient behind the business hero — `businessRoom`, a ramp plus a
+    glow, faded into the paper by `uRoom` over hero scroll 0.3–0.85 — and it
+    is **gone**, with `uRoom` and `TopBar`'s `data-on-green` scroll listener.
+    Four palettes were tried on it first (an NVIDIA-poster sage-teal, a
+    yellow-green, a forest green, and a dark face with a luminous crescent);
+    the face is black-and-paper now and its texture is `.paper-grain`, not the
+    shader. The grid hairlines are white at 0.1 on party and the `--line`
+    colour `#dad7cf` at full strength on business — named outright, because an
+    alpha of black over this paper lands near that colour but never on it, and
+    the grid, the "+" markers and the CSS borders all have to match.
   - `HeroLetters` — the wordmark as one connected cursive word, lowercase
     `gthr` in Pacifico. `pacifico-gthr.typeface.json` holds the four glyphs
     **unioned into one outline** (glyph key `w`; rebuild with the scratch
@@ -142,11 +174,21 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
       * `thickness` is the refraction ray length. It was held small (~0.22 x
         size) while the ground was pale, because a long ray only reached more
         flat paper; against the dark field there is structure to bend, so it
-        now runs to ~0.44 x size (eased 15% from 0.52 on request).
+        runs long — 0.52, eased 15% to 0.442 and then 20% to **0.354** on
+        request, the target being Apple's liquid glass: still a pane you see
+        the page through, not a lump. `chromaticAberration` was eased in the
+        same proportion each time (0.85 → 0.72 → **0.576**) and must be — drop
+        the ray length alone and the fringe is wider than the bevel it sits
+        on, so it detaches into a coloured halo. The last of the softness was
+        the **transmission buffer** (`resolution`), not a blur setting:
+        `roughness`, `anisotropicBlur` and `distortion` are all 0, and the
+        refracted image is only ever as sharp as that buffer. Desktop is 1536;
+        mobile stays 512, where another full-scene pass per frame is not
+        affordable.
       * `envMapIntensity` stays **low** (0.3) — high read as brushed metal.
     The look is clear-with-rainbow-edges, after the reference render: the body
     is near-colourless (`color` `#eef5ff`, long `attenuationDistance`) and the
-    colour lives on the edges, from `chromaticAberration` 0.72 (the R/G/B
+    colour lives on the edges, from `chromaticAberration` (the R/G/B
     refraction rays are spread by it, so it paints the bevel) plus thin-film
     `iridescence` 1, which is strongest at glancing angles and so lands on the
     bevel too. Dispersion bands at low sample counts — hence `samples` 14
@@ -215,15 +257,46 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     `max-width` and colour) must live outside the layer.
     On the business face the lockup and the hero line are now hidden, and the
     hero is **`.hero-poster`** instead (Hero.tsx, copy is `poster` in
-    `site.ts`), after the client's NVIDIA poster: absolutely filling `#hero`
-    as a four-row grid — the headline top-left in thin white caps on two
-    natural lines, evenly tracked (0.14em) — *not* justified: spreading the
-    poster's one-word lines ("YOUR", "ONE.") letter by letter read badly —
-    a middle row `01\ | label | paragraph` on the 12 columns, and a huge
-    left-aligned `GTHR` along the bottom, clear of the bottom bar.
-    The
-    ground is `businessRoom` in CloudBackdrop. `hero.businessTagline` is no
-    longer used.
+    `site.ts`): absolutely filling `#hero` as a two-column, five-row grid on
+    the flat off-white ground.
+    **The headline is the page's primary message and is set like it** —
+    sentence case, medium weight, normal tracking, soft black, on its two
+    natural lines from `poster.lines`, with a mint marker behind the phrase
+    whose `mark` flag is set in the copy (which phrase is highlighted is a
+    copy decision, not a string the component slices). It was thin white caps
+    tracked at 0.14em, which read as a caption beside the wordmark and lost to
+    it outright. It carries **no `max-width`**: the lines are pre-broken and
+    each is its own block, so any measure narrower than "without building
+    one." wraps it again into an orphan line.
+    (A stepped block filling the rest of the measure, after the client's "Ohne
+    Distanz" reference — two blocks sharing a right edge, stepping with the
+    copy, on a vertical gradient with a filleted inside corner — was built
+    here and taken back out. It is in the history. Two things it turned up are
+    worth keeping in mind if it ever returns: the fill has to be a *vertical*
+    ramp, because two stacked blocks of different widths only join invisibly
+    when the colour depends on y alone; and the lines need their own wrapper
+    before `:first-child` will reach them, since the sr-only sentence is also
+    a span and also first.)
+    Under it the **CTA** (`HeroCta`, a client component so the section stays a
+    server one): a mint pill with soft black type and a thin black rule,
+    inverting to black-on-mint on hover, easing to `#contact` through
+    `useScrollTo` — the same hook the top bar's nav uses, extracted from it so
+    the two behave identically.
+    Opposite the headline, a compact **stats block** in the mono, reading
+    `about.stats` — the same array the "Who are we" cards count up, so the
+    numbers live in one place. It is `aria-hidden` (About presents them
+    properly, and a screen reader should meet them once) and hidden outright
+    below `lg`, where the hero is already carrying enough.
+    Then the `01\ | label | paragraph` row — the index is a **black pill with
+    mint type**, and both it and the label are in the mono, so every small
+    label on the page is one system — and `GTHR` large and left-aligned along
+    the bottom.
+    **The wordmark keeps clear space** above the fixed clock and social links
+    (24vw/19vw, eased down from 27vw/21vw, with the poster's bottom padding
+    held above the bottom bar's own height). A deliberate bleed off the bottom
+    edge was the alternative and was rejected: the crop lands mid-stroke at
+    some viewport heights and reads as a mistake.
+    `hero.businessTagline` is no longer used.
   - `Stickers` — flat 2D stickers (SVG strings in `stickerDefs.ts`,
     rasterised to textures once) on unlit planes behind the glass: the whole
     sheet wanders the hero on per-sticker simplex-noise paths, passing behind
@@ -294,15 +367,17 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     onto its front cap (texture repeat 1/W, 1/H, offset 0.5), so corner radius
     and hole come from the geometry, never the art. A RoundedBox + textured
     plane before it had two radii that disagreed and showed at the corners.
-    The face is **the hero poster in miniature** (the NVIDIA reference), mixed
-    with the earlier black ID card's working parts: the hero's ground (the
-    same stops as `businessRoom`, green glow top-right), `badge.headline` in
-    thin tracked white caps top-left, a `01\ | FOCUS | text` row, a rule,
-    handle and name, a small hashed QR block and reference line, and `GTHR.`
-    fitted to the card's width along the bottom (copy is `badge` in
-    `site.ts`). Light edge stock, a slot punch, and **deep-green woven tape**;
-    the clasp stays black metal. Textures are *baked* once. (The previous
-    face was black stock printed in speckled off-white.)
+    The face is **the business page's own stock**: warm off-white with the
+    same fine grain, `badge.headline` in soft black top-left, a
+    `01\ | FOCUS | text` row whose index is a **black pill with mint type**, a
+    rule on `#dad7cf`, handle and name, a small hashed QR block and reference
+    line, and `GTHR.` fitted to the card's width along the bottom (copy is
+    `badge` in `site.ts`). Light edge stock, a slot punch, and **soft black
+    woven tape with mint lettering**; the clasp stays black metal. Textures
+    are *baked* once. **The card's colours are the CSS tokens painted by hand**
+    — a canvas cannot read them — so they have to be changed in step with
+    `globals.css`. (It was the hero's green gradient in miniature until that
+    gradient went; before that, black stock printed in speckled off-white.)
     **The statement type stays legible over the strap by inversion.**
     Statement ink is black on this face, so it would vanish over the dark
     strap. Each statement carries a white twin (`.statement-invert`, same
@@ -334,11 +409,12 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     request** — it keeps the same ground as the rest of the page.
     `scrollState.thermal` is still published, because `Badge` gates its
     visibility on it.
-- **Chrome:** fixed `TopBar` (wordmark + Services/Contact; on business its
-  ink is **white while the hero's green is behind it** — `data-on-green`,
-  flipping back to black at hero scroll 0.575, the middle of `uRoom`'s fade —
-  done by redeclaring the ink tokens on `.top-bar`, since the derived ones
-  resolve at `:root`), `BottomBar`
+- **Chrome:** fixed `TopBar` (wordmark + Services/Contact; its nav and the
+  hero's CTA share `useScrollTo` from `SmoothScroll.tsx`. It used to track
+  what was behind it — `data-on-green` turned its ink white over the business
+  hero's green and back to black below, by redeclaring the ink tokens on
+  `.top-bar` since the derived ones resolve at `:root` — and that went with
+  the gradient), `BottomBar`
   (visitor-local `Clock` left, Telegram + X links right),
   `SideScrollbar` (desktop, Lenis-driven), `PixelCursor` (8-bit terracotta
   cursor replacing the OS cursor for fine pointers; hidden over text fields).
@@ -391,7 +467,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 src/app/            layout.tsx (fonts, chrome, canvas), page.tsx (section order), globals.css (tokens, reveal + grid CSS)
 src/components/
   chrome/           TopBar, BottomBar, Clock, Socials, SmoothScroll, ModeToggle, SideScrollbar, PixelCursor
-  sections/         Hero, WordSheen, Statement, StickyFade, Services, About, Contact, ContactForm
+  sections/         Hero, HeroCta, WordSheen, Statement, StickyFade, Services, About, Contact, ContactForm
   three/            SceneCanvas → Scene (Canvas + tracker), CloudBackdrop (+ the grid),
                     HeroLetters, Stickers + stickerDefs, Badge, Ticket,
                     canvasPaint, Lighting, noise, scrollState

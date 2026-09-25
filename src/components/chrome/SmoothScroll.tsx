@@ -7,6 +7,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
@@ -18,6 +19,28 @@ export const useLenisInstance = () => useContext(LenisContext);
 
 /** Module-level handle for non-React readers (the WebGL scene reads velocity). */
 export const lenisRef: { current: Lenis | null } = { current: null };
+
+/**
+ * Click handler for an in-page anchor: hands the jump to Lenis so it eases
+ * instead of snapping, and keeps the hash in the address bar. Without Lenis
+ * (reduced motion, or before it mounts) it returns nothing and the anchor is
+ * left to the browser, which is why every caller renders a real `href`.
+ *
+ * Lenis honours each section's own `scroll-margin-top`, so there is no offset
+ * to apply here. Shared by the top bar's nav and the hero's CTA — both jump
+ * to a section and both have to behave the same way.
+ */
+export function useScrollTo() {
+  const lenis = useLenisInstance();
+  return (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!lenis) return;
+    const target = document.querySelector<HTMLElement>(href);
+    if (!target) return;
+    event.preventDefault();
+    lenis.scrollTo(target);
+    history.replaceState(null, "", href);
+  };
+}
 
 /**
  * The page scrolls inside a fixed, viewport-sized wrapper (like the

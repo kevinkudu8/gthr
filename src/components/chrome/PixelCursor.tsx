@@ -72,7 +72,7 @@ export function PixelCursor() {
       ref={ref}
       aria-hidden="true"
       hidden
-      className="pixel-cursor pointer-events-none fixed top-0 left-0 z-[70] text-accent will-change-transform"
+      className="pixel-cursor pointer-events-none fixed top-0 left-0 z-[70] text-accent-ink will-change-transform"
     >
       <svg
         width={W}

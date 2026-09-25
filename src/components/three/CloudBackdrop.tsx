@@ -24,7 +24,6 @@ const fragmentShader = /* glsl */ `
   uniform float uBusiness;
   uniform vec3 uPaper;
   uniform vec3 uBusinessPaper;
-  uniform float uRoom;
   uniform float uGrid;
   uniform float uDpr;
   uniform float uGrain;
@@ -87,32 +86,7 @@ const fragmentShader = /* glsl */ `
     return col;
   }
 
-  /* The business hero's ground, after the client's poster reference: a
-     vertical ramp from a muted teal at the top down through pale mint to
-     near-white, with a deep green glow sitting top-right of centre. Colours
-     are sampled from the poster. The glow is held off the top-right corner,
-     where the nav's dark type sits. uv here is 0..1 with y up. (This has been
-     a light grey, and an infinity-cove room while an LED wall stood in it.) */
   vec3 hexc(float r, float g, float b) { return vec3(r, g, b) / 255.0; }
-
-  vec3 businessRoom(vec2 uv) {
-    float aspect = uResolution.x / uResolution.y;
-    float t = 1.0 - uv.y; // 0 at the top, 1 at the bottom
-    vec3 col = hexc(122.0, 164.0, 154.0);
-    col = mix(col, hexc(134.0, 174.0, 165.0), smoothstep(0.0, 0.3, t));
-    col = mix(col, hexc(192.0, 213.0, 208.0), smoothstep(0.3, 0.46, t));
-    col = mix(col, hexc(223.0, 233.0, 232.0), smoothstep(0.46, 0.62, t));
-    col = mix(col, hexc(244.0, 246.0, 245.0), smoothstep(0.62, 0.82, t));
-    col = mix(col, hexc(248.0, 248.0, 248.0), smoothstep(0.82, 1.0, t));
-    // Paler toward the top-left, where the poster's headline sits over mint.
-    float tl = exp(-pow(length((uv - vec2(0.0, 1.0)) * vec2(aspect, 1.0)) / 0.7, 2.0));
-    col = mix(col, hexc(150.0, 190.0, 180.0), tl * 0.35);
-    // The deep green glow.
-    vec2 g = (uv - vec2(0.64, 0.84)) * vec2(aspect / 0.62, 1.0 / 0.4);
-    float glow = exp(-dot(g, g));
-    col = mix(col, hexc(26.0, 106.0, 88.0), glow * 0.92);
-    return col;
-  }
 
   void main() {
     float aspect = uResolution.x / uResolution.y;
@@ -163,11 +137,16 @@ const fragmentShader = /* glsl */ `
     // The vignette still darkens the gutters, which is what keeps the chrome
     // and the hairline grid legible over the warm band.
     float strength = (0.88 + 0.12 * uIntensity) * mix(0.80, 1.0, vig) * (1.0 - uBusiness);
-    /* Business: the room while the hero is on screen, settling into one calm
-       tone taken from it (uBusinessPaper) as the page scrolls on — the copy
-       below the hero sits on a colour of the same room, not on the room. */
-    vec3 room = mix(uBusinessPaper, businessRoom(gl_FragCoord.xy / uResolution), uRoom);
-    vec3 paper = mix(uPaper, room, uBusiness);
+    /* Business: one flat warm off-white, the whole way down. There used to be
+       a green gradient behind the hero here (businessRoom) that uRoom faded
+       into this colour as the page scrolled on; the face is black-and-paper
+       with a single mint accent now, so the gradient is gone and uRoom with
+       it. The printed texture is a CSS grain over the page (.paper-grain in
+       globals.css), not something this shader paints.
+
+       No backticks in here: this whole shader is a template literal, and one
+       in a comment ends it silently -- the quad just stops drawing. */
+    vec3 paper = mix(uPaper, uBusinessPaper, uBusiness);
     // Opaque output: blended toward paper here rather than via alpha, so the
     // quad stays in the opaque pass and is drawn *under* the letters.
     vec3 col2 = mix(paper, col, strength);
@@ -204,11 +183,15 @@ const fragmentShader = /* glsl */ `
         line = max(line, 1.0 - smoothstep(0.0, 1.0, abs(px.y - h * float(j) / 3.0)));
       }
 
-      // Matches the --ink-rgb tokens either side of the toggle. The party face
-      // is dark now, so its hairlines are white — dark ones were invisible.
-      vec3 ink = mix(vec3(1.0), vec3(0.0), uBusiness);
-      col2 = mix(col2, ink, line * 0.1 * uGrid);
-      col2 = mix(col2, ink, cross * 0.45 * uGrid);
+      /* Party's hairlines are white at a low alpha (the face is dark, black
+         ones were invisible). Business names its grid colour outright — the
+         --line token, #dad7cf — so it is laid on at full strength rather than
+         mixed toward from the ink; an alpha of black over this paper lands
+         somewhere near it but never on it, and the grid, the "+" markers and
+         the CSS hairline borders all have to be the one colour. */
+      vec3 ink = mix(vec3(1.0), hexc(218.0, 215.0, 207.0), uBusiness);
+      col2 = mix(col2, ink, line * mix(0.1, 1.0, uBusiness) * uGrid);
+      col2 = mix(col2, ink, cross * mix(0.45, 1.0, uBusiness) * uGrid);
     }
 
     /* Film grain. Applied last, over everything including the grid, and at a
@@ -283,7 +266,6 @@ export function CloudBackdrop() {
       uDpr: { value: 1 },
       uGrain: { value: 0 },
       uScroll: { value: 0 },
-      uRoom: { value: 1 },
       uBlobA: {
         value: BLOB_PARAMS.map(([x, y, rx, ry]) => new Vector4(x, y, 1 / rx, 1 / ry)),
       },
@@ -308,7 +290,7 @@ export function CloudBackdrop() {
       // It matters here because this is a near-white the eye can measure.
       // The calm tone the hero's grey settles into below it. Kept in step
       // with the --paper token.
-      uBusinessPaper: { value: [0xe7 / 255, 0xe7 / 255, 0xe7 / 255] },
+      uBusinessPaper: { value: [0xf4 / 255, 0xf2 / 255, 0xec / 255] },
     }),
     [],
   );
@@ -330,11 +312,6 @@ export function CloudBackdrop() {
     m.uniforms.uIntensity.value = backdrop;
     m.uniforms.uScroll.value = (scrollState.y / Math.max(1, scrollState.vh)) * PARALLAX;
     m.uniforms.uBusiness.value = scrollState.businessMix;
-    // The room belongs to the hero; below it the page settles to one tone.
-    {
-      const t = Math.min(1, Math.max(0, (scrollState.hero - 0.3) / 0.55));
-      m.uniforms.uRoom.value = 1 - t * t * (3 - 2 * t);
-    }
   });
 
   return (

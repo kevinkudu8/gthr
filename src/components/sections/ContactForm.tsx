@@ -82,7 +82,7 @@ export function ContactForm() {
       </label>
 
       {state.status === "error" && state.message ? (
-        <p role="alert" className="font-mono text-sm text-accent sm:col-span-2">
+        <p role="alert" className="font-mono text-sm text-accent-ink sm:col-span-2">
           {state.message}
         </p>
       ) : null}

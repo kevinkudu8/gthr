@@ -76,6 +76,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 <BottomBar />
                 <SideScrollbar />
                 <PixelCursor />
+                {/* Printed paper grain over the business face's off-white.
+                    Outside the scroll wrapper with the rest of the fixed
+                    chrome, so it does not ride the page. */}
+                <div className="paper-grain" aria-hidden="true" />
               </>
             }
           >

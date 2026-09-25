@@ -138,66 +138,67 @@ function dRingGeometry() {
 
 /**
  * The badge face: the business hero's poster in miniature (after the client's
- * NVIDIA reference), keeping the old ID card's working parts. A green glow
- * top-right over a mint-to-white ground, the pass line in thin tracked white
- * caps top-left, a `01\\ | label | text` row, a rule, handle and name, the
+ * reference), keeping the old ID card's working parts — and now on the
+ * business face's own stock: warm off-white with a printed grain (it was the
+ * hero's green gradient in miniature until that gradient went), the pass line
+ * in soft black top-left, a `01\\ | label | text` row, a rule, handle and name, the
  * QR block and reference lines, and the wordmark large along the bottom.
  * Copy is `badge` in site.ts.
  */
 function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRenderingContext2D) {
-  // Ground: the same stops as CloudBackdrop's businessRoom, plus fine grain.
+  /* Ground: the face's warm off-white stock, with the same fine grain as
+     before. It used to be the hero's gradient in miniature — a ramp of stops
+     plus a glow, kept in step with CloudBackdrop's businessRoom — and went
+     flat when that gradient did. The grain stays: it is what keeps a printed
+     card from reading as a filled rectangle, and it is the same idea as the
+     page's own .paper-grain. */
   const img = ctx.createImageData(w, h);
-  const stops: [number, [number, number, number]][] = [
-    [0, [122, 164, 154]],
-    [0.3, [134, 174, 165]],
-    [0.46, [192, 213, 208]],
-    [0.62, [223, 233, 232]],
-    [0.82, [244, 246, 245]],
-    [1, [248, 248, 248]],
-  ];
-  const smooth = (e0: number, e1: number, x: number) => {
-    const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
-    return t * t * (3 - 2 * t);
-  };
-  const mix = (a: number[], b: number[], t: number) => a.map((v, i) => v + (b[i] - v) * t);
+  const stock = [244, 242, 236];
   for (let py = 0; py < h; py++) {
-    const t = py / h;
-    let col: number[] = stops[0][1];
-    for (let i = 1; i < stops.length; i++) col = mix(col, stops[i][1], smooth(stops[i - 1][0], stops[i][0], t));
     for (let px = 0; px < w; px++) {
-      const gx = (px / w - 0.7) / 0.62;
-      const gy = (py / h - 0.14) / 0.3;
-      const glow = Math.exp(-(gx * gx + gy * gy));
-      const c = mix(col, [26, 106, 88], glow * 0.92);
       const n = (hash2(px, py) - 0.5) * 6;
       const o = (py * w + px) * 4;
-      img.data[o] = c[0] + n;
-      img.data[o + 1] = c[1] + n;
-      img.data[o + 2] = c[2] + n;
+      img.data[o] = stock[0] + n;
+      img.data[o + 1] = stock[1] + n;
+      img.data[o + 2] = stock[2] + n;
       img.data[o + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
 
   const system = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
-  const ink = "#121613";
+  // The face's tokens, painted by hand because a canvas cannot read CSS.
+  // Keep these in step with :root[data-mode="business"] in globals.css.
+  const ink = "#141414";
+  const mint = "#86dcb2";
   const pad = 56;
   const c = badge;
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
-  // The pass line: thin tracked caps in white, below the slot punch.
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `300 40px ${system}`;
-  ctx.letterSpacing = "6px";
-  c.headline.forEach((line, i) => ctx.fillText(line.toUpperCase(), pad, 196 + i * 56));
-  ctx.letterSpacing = "0px";
-
-  // The poster's middle row: index, label, text.
+  /* The pass line. It was thin white caps, which needed the green behind it;
+     on off-white stock it is soft black, and set at the weight the page's own
+     headline now uses rather than as a hairline. */
   ctx.fillStyle = ink;
+  ctx.font = `500 44px ${system}`;
+  ctx.letterSpacing = "0px";
+  c.headline.forEach((line, i) => ctx.fillText(line, pad, 196 + i * 54));
+
+  /* The middle row: index, label, text. The index is a black pill with mint
+     type — the packaging label the face borrows, and the one place the mint
+     is set as type, which is why it is on black rather than on the stock. */
   const rowY = 470;
+  ctx.font = `500 17px ${fonts.mono}`;
+  const pillW = ctx.measureText(c.index).width + 34;
+  ctx.fillStyle = ink;
+  ctx.beginPath();
+  ctx.roundRect(pad, rowY - 21, pillW, 31, 15.5);
+  ctx.fill();
+  ctx.fillStyle = mint;
+  ctx.fillText(c.index, pad + 17, rowY);
+
+  ctx.fillStyle = ink;
   ctx.font = `400 19px ${system}`;
-  ctx.fillText(c.index, pad, rowY);
   ctx.fillText(c.columns[0][0].toUpperCase(), pad + (w - pad * 2) * 0.24, rowY);
   const tx = pad + (w - pad * 2) * 0.56;
   ctx.font = `400 17px ${system}`;
@@ -205,7 +206,8 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
     if (line) ctx.fillText(line, tx, rowY + i * 24);
   });
 
-  ctx.fillStyle = "rgba(18,22,19,0.3)";
+  // The rule, on the face's one hairline colour.
+  ctx.fillStyle = "#dad7cf";
   ctx.fillRect(pad, 592, w - pad * 2, 1.5);
   ctx.fillStyle = ink;
   ctx.font = `400 15px ${fonts.mono}`;
@@ -235,7 +237,7 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
     }
   }
   ctx.font = `400 13px ${fonts.mono}`;
-  ctx.fillStyle = "rgba(18,22,19,0.6)";
+  ctx.fillStyle = "rgba(20,20,20,0.62)";
   ctx.fillText(c.reference.join(" ").toUpperCase(), pad, 730);
 
   // The wordmark, as large as the card allows, along the bottom.
@@ -318,14 +320,16 @@ function paintStrap(fonts: Fonts) {
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
-  // Woven tape in the poster's deep green, the wordmark repeating small in
-  // mono with a hairline above and below — how a lanyard is actually printed.
-  ctx.fillStyle = "#16574a";
+  /* Woven tape, the wordmark repeating small in mono with a hairline above
+     and below — how a lanyard is actually printed. Soft black tape with mint
+     lettering, which is the face's pill label at length; it was deep green
+     while the hero was. Mint on black is 8.8:1. */
+  ctx.fillStyle = "#141414";
   ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillStyle = "rgba(134,220,178,0.3)";
   ctx.fillRect(0, h * 0.2, w, 2);
   ctx.fillRect(0, h * 0.8 - 2, w, 2);
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#86dcb2";
   ctx.font = `500 40px ${fonts.mono}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
