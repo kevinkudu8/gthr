@@ -376,27 +376,17 @@
       inset 0 0 0 1px rgba(255, 255, 255, 0.07),
       inset 0 0 48px rgba(255, 255, 255, 0.05),
       0 40px 90px -40px rgba(var(--shadow-rgb), 0.55);
+    /* Unprefixed only. Written alongside -webkit-backdrop-filter, the CSS
+       build collapsed the pair to the prefixed one, which Chrome ignores, so
+       the glass never blurred there and the grain and grid showed straight
+       through. The build adds the -webkit- prefix for Safari itself. */
     backdrop-filter: blur(32px) saturate(1.5) brightness(0.72);
-    -webkit-backdrop-filter: blur(32px) saturate(1.5) brightness(0.72);
   }
 
-  /* The contact form's card and the about stat cards on the party face: the
-     stock glass let the brightest bands of the field show straight through
-     (four stat cards read as four different colours), and the labels and
-     placeholders washed out over them. Darker smoke, a heavier blur and less
-     brightness from behind, so the colour reads as a soft glow; the small type
-     inside is a step brighter (unlayered, at the end of this file). */
-  :root[data-mode="party"] .stat-card,
-  :root[data-mode="party"] .contact-glass {
-    background: linear-gradient(
-      135deg,
-      rgba(14, 14, 18, 0.62) 0%,
-      rgba(10, 10, 14, 0.7) 55%,
-      rgba(14, 14, 18, 0.62) 100%
-    );
-    backdrop-filter: blur(48px) saturate(1.2) brightness(0.55);
-    -webkit-backdrop-filter: blur(48px) saturate(1.2) brightness(0.55);
-  }
+  /* The contact card and the stat cards use the stock .glass on the party
+     face. A darker smoke (blur 48px, brightness 0.55) was tried for
+     legibility and taken back out: the client preferred the clear liquid
+     glass. The brighter labels and fields (unlayered, end of file) stay. */
 
   .glass::before {
     content: "";
@@ -638,7 +628,6 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.8),
       0 30px 70px -45px rgba(var(--shadow-rgb), 0.5);
     backdrop-filter: blur(18px) saturate(1.1);
-    -webkit-backdrop-filter: blur(18px) saturate(1.1);
   }
 
   :root[data-mode="business"] .glass::before {

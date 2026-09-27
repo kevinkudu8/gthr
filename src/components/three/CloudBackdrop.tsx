@@ -29,7 +29,6 @@ const fragmentShader = /* glsl */ `
   uniform float uGrid;
   uniform float uDpr;
   uniform float uGrain;
-  uniform float uDither;
   uniform float uScroll;
   uniform vec4 uBlobA[BLOBS];
   uniform vec4 uBlobB[BLOBS];
@@ -39,15 +38,6 @@ const fragmentShader = /* glsl */ `
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-  }
-
-  // Ordered (Bayer) dither thresholds in 0..1: 2x2, then 4x4 built from it.
-  float bayer2(vec2 a) {
-    a = floor(a);
-    return fract(dot(a, vec2(0.5, a.y * 0.75)));
-  }
-  float bayer4(vec2 a) {
-    return bayer2(0.5 * a) * 0.25 + bayer2(a);
   }
 
   // The reference artwork's width, in units of its height.
@@ -236,15 +226,6 @@ const fragmentShader = /* glsl */ `
     float g = hash(floor(gl_FragCoord.xy / max(1.0, uDpr * 0.5)) + fract(uTime) * 91.7);
     col2 += (g - 0.5) * uGrain;
 
-    /* Ordered dither: the colour stepped to a few dozen levels per channel,
-       with a fixed 4x4 Bayer threshold in CSS pixels deciding which way each
-       pixel rounds. It reads as a fine printed screen over the smooth field,
-       under the moving grain. Party face only (uDither is 0 on business). */
-    float levels = 28.0;
-    float th = bayer4(gl_FragCoord.xy / max(1.0, uDpr)) - 0.5;
-    vec3 stepped = floor(col2 * levels + 0.5 + th) / levels;
-    col2 = mix(col2, stepped, uDither);
-
     gl_FragColor = vec4(col2, 1.0);
   }
 `;
@@ -309,7 +290,6 @@ export function CloudBackdrop() {
       uGrid: { value: 1 },
       uDpr: { value: 1 },
       uGrain: { value: 0 },
-      uDither: { value: 0 },
       uScroll: { value: 0 },
       uBlobA: {
         value: BLOB_PARAMS.map(([x, y, rx, ry]) => new Vector4(x, y, 1 / rx, 1 / ry)),
@@ -352,10 +332,10 @@ export function CloudBackdrop() {
     m.uniforms.uDpr.value = dpr;
     m.uniforms.uGrid.value = scrollState.grid;
     // Party face only — the business ground is clean stock.
-    // Grain lifted from 0.075 at the client's request, with a fine ordered
-    // dither under it. 0.11 read as TV static over the big dark areas.
-    m.uniforms.uGrain.value = 0.09 * (1 - scrollState.businessMix);
-    m.uniforms.uDither.value = 1 - scrollState.businessMix;
+    // Subtle, a touch under the original 0.075. 0.11 and 0.09 read as TV
+    // static; an ordered (Bayer) dither was tried with it and removed — its
+    // 4x4 pattern showed as fine lines on the smooth gradients.
+    m.uniforms.uGrain.value = 0.06 * (1 - scrollState.businessMix);
     m.uniforms.uTime.value = reducedMotion ? 12 : clock.elapsedTime;
     m.uniforms.uIntensity.value = backdrop;
     m.uniforms.uCalm.value = scrollState.calm;

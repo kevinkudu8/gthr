@@ -124,12 +124,10 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   client's request. Requested by
   the client: the full field behind text, cards and the form read as too
   much. No scrims behind blocks — calm the ground instead.
-  **Grain and dither:** film grain at 0.09 (was 0.075; 0.11 read as TV static), reseeded per frame so
-  it shimmers (a static version was tried and reverted — it looked better
-  moving),
-  then a fixed 4x4 Bayer ordered dither in CSS pixels stepping the colour to
-  28 levels — a fine printed screen under the moving grain. Both are
-  `* (1 - businessMix)`, party only.
+  **Grain:** film grain only, at 0.06 (a touch under the original 0.075),
+  reseeded per frame, party only. Tried and removed: 0.11 / 0.09 (TV static),
+  a static grain (looked worse), and a 4x4 Bayer ordered dither (its pattern
+  read as fine lines on the gradients). Keep it subtle and random.
   **It scrolls** at `PARALLAX` 0.75 of the page. The first screen is the
   reference. Below it the page is a vertical *mirror fold* of it (`FOLD`),
   with the field held constant in y past `EXTEND` so the fold lines have
@@ -529,9 +527,8 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   two below `lg`. Each label has a brand dot before it
   (`.stat-card__label::before`: mint on party, soft black on business, where
   `--brand` is ink) and the index is just `01`–`04` (a `/ 04` total was tried and removed). The cards are the site's
-  own `.glass`, so each face styles them: on party they share
-  `.contact-glass`'s darker smoke and heavier blur (the stock glass let the
-  field through, so the four read as four different colours); on business `.stat-card` makes them a white frosted
+  own `.glass`, so each face styles them: on party the stock clear glass
+  (a darker smoke was tried and reverted at the client's request); on business `.stat-card` makes them a white frosted
   panel *lighter* than the paper, as the reference's are — the business
   `.glass` is a faint grey wash, darker than the paper, and read as a hole.
   (The stats first opened on a hairline with a `+`; the client had that
@@ -548,10 +545,15 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   and all, because pasting the glyph onto fresh black left a seam where the
   two blacks disagreed. `opengraph-image.alt.txt` carries the alt text. They
   replaced a generated preview card and the starter `favicon.ico`.
-- **Contact:** on the party face the card is `.glass.contact-glass`: darker
-  smoke, `blur(48px)` and `brightness(0.55)` behind, with brighter labels,
-  field borders and placeholders (those three unlayered, to beat utilities) —
-  the stock glass let the field's brightest bands wash the type out.
+- **Backdrop blur: write `backdrop-filter` only, never with a hand-written
+  `-webkit-backdrop-filter` beside it.** The CSS build collapsed the pair to
+  the prefixed one, which Chrome ignores — so every `.glass` had no blur in
+  Chrome, and the party field's grain and grid lines showed straight through
+  the stat cards and contact card. The build adds the prefix for Safari.
+- **Contact:** the card is the stock clear `.glass` on both faces (a darker
+  smoked `.contact-glass` was tried and reverted — the client prefers the
+  clear liquid glass); on party the labels, field borders and placeholders
+  are a step brighter (unlayered, to beat utilities).
   Centered form (two-column filled fields after the client's
   reference: name/email, company (optional)/location, then the message; black
   pill submit) → `app/actions/contact.ts` server action → Resend
