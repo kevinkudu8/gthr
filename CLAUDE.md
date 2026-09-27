@@ -14,6 +14,9 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   quick (0.1s delay, ~0.4s) and starts as they finish (and leaves fast the other way); and
   `ModeProvider` sets `data-switching` on `<html>` for 0.9s so the hero line
   hides across its layout jump.
+- **Every visit opens on business.** The chosen face is kept in
+  `sessionStorage` (per tab, survives reloads), not `localStorage` — that made
+  anyone who had once toggled land on party on every later visit.
 - **Switching keeps your place.** The faces are not the same length (party
   pulls Services up, for one), so `setMode` notes which section is under the
   middle of the screen and how far through it (`captureAnchor` in

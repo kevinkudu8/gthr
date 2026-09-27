@@ -20,9 +20,14 @@ const STORAGE_KEY = "gthr:mode";
  * attribute on <html> for the CSS tokens, and `scrollState` for the WebGL
  * frame loop, which cannot read React state at 60fps.
  */
+/*
+ * Remembered per tab (sessionStorage), not forever: every new visit opens on
+ * business, the default face, while a reload keeps the face you picked. It was
+ * localStorage, so anyone who had toggled to party kept landing on party.
+ */
 function readStored(): Mode {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "party" ? "party" : "business";
+    return window.sessionStorage.getItem(STORAGE_KEY) === "party" ? "party" : "business";
   } catch {
     return "business"; // private browsing or blocked storage
   }
@@ -97,7 +102,7 @@ export function setMode(next: Mode) {
   window.clearTimeout(switchTimer);
   switchTimer = window.setTimeout(() => delete root.dataset.switching, 900);
   try {
-    window.localStorage.setItem(STORAGE_KEY, next);
+    window.sessionStorage.setItem(STORAGE_KEY, next);
   } catch {
     // Not fatal — the mode still applies for this visit.
   }
@@ -137,6 +142,6 @@ export function ModeProvider({ children }: { children: ReactNode }) {
  * Applies the stored mode before first paint, so a returning visitor never
  * sees the business palette flash before the party one takes over.
  */
-export const modeBootScript = `try{document.documentElement.dataset.mode=localStorage.getItem(${JSON.stringify(
+export const modeBootScript = `try{document.documentElement.dataset.mode=sessionStorage.getItem(${JSON.stringify(
   STORAGE_KEY,
 )})==="party"?"party":"business"}catch(e){document.documentElement.dataset.mode="business"}`;
