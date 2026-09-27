@@ -38,8 +38,9 @@ export const nav = [
 
 /**
  * The business face's hero (sections/Hero.tsx): the headline top-left with
- * the stats opposite it, a call to action under it, a row of index / label /
- * paragraph, and the wordmark large along the bottom.
+ * the stats opposite it, a call to action under it, and the wordmark large
+ * along the bottom. `index`, `label` and `text` are shown by the party face's
+ * footer row only.
  *
  * The headline is `hero.line` broken into its two natural lines. `mark` is
  * the phrase that gets the mint marker behind it — which line carries the

@@ -37,9 +37,13 @@ export function Scene() {
         <HeroLetters reducedMotion={reducedMotion} mobile={mobile} />
         <Stickers reducedMotion={reducedMotion} />
         {/* One prop per face for the statements block: the lanyard badge on
-            business, the tearing ticket on party. */}
+            business, the tearing ticket on party. Business also hangs a
+            second badge in the hero's right half. */}
         {business ? (
-          <Badge reducedMotion={reducedMotion} />
+          <>
+            <Badge reducedMotion={reducedMotion} placement="hero" mobile={mobile} />
+            <Badge reducedMotion={reducedMotion} />
+          </>
         ) : (
           <Ticket reducedMotion={reducedMotion} />
         )}

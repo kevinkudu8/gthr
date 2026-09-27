@@ -13,8 +13,7 @@ import { about, hero, poster } from "@/content/site";
  *
  * The business face is a poster (`.hero-poster`, shown on that face only):
  * the headline top-left with a compact stats block opposite it, a call to
- * action under it, a row of index, label and paragraph, and the wordmark
- * large along the bottom — soft black on warm off-white, with the mint used
+ * action under it, and the wordmark large along the bottom — soft black on warm off-white, with the mint used
  * only as a fill. `.hero-lockup` is hidden there.
  *
  * The headline is the page's primary message and is set as such; the wordmark
@@ -99,15 +98,8 @@ export function Hero() {
           ))}
         </p>
 
-        <div className="hero-poster__row">
-          <span className="hero-poster__index">
-            <span className="pill">{poster.index}</span>
-          </span>
-          <span className="hero-poster__label">{poster.label}</span>
-          <p className="hero-poster__text">{poster.text}</p>
-        </div>
         <p className="hero-poster__mark" aria-hidden="true">
-          {hero.wordmark}
+          {hero.businessWordmark}
         </p>
       </div>
     </section>

@@ -305,13 +305,17 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     `max-width` and colour) must live outside the layer.
     On the business face the lockup and the hero line are now hidden, and the
     hero is **`.hero-poster`** instead (Hero.tsx, copy is `poster` in
-    `site.ts`): absolutely filling `#hero` as a two-column, five-row grid on
+    `site.ts`): absolutely filling `#hero` as a two-column, four-row grid on
     the flat off-white ground.
     **The headline is the page's primary message and is set like it** —
     sentence case, medium weight, normal tracking, soft black, on its two
     natural lines from `poster.lines`, with a mint marker behind the phrase
     whose `mark` flag is set in the copy (which phrase is highlighted is a
-    copy decision, not a string the component slices). It was thin white caps
+    copy decision, not a string the component slices).
+    The marker is trimmed to cap height and baseline (`text-box: trim-both
+    cap alphabetic`, inline-block) with equal `0.3em` padding, so the room
+    above and below the words is equal in every browser; untrimmed, the
+    font's ascent/descent sat the words low (visibly on Safari). It was thin white caps
     tracked at 0.14em, which read as a caption beside the wordmark and lost to
     it outright. It carries **no `max-width`**: the lines are pre-broken and
     each is its own block, so any measure narrower than "without building
@@ -335,10 +339,11 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     numbers live in one place. It is `aria-hidden` (About presents them
     properly, and a screen reader should meet them once) and hidden outright
     below `lg`, where the hero is already carrying enough.
-    Then the `01\ | label | paragraph` row — the index is a **black pill with
-    mint type**, and both it and the label are in the mono, so every small
-    label on the page is one system — and `GTHR` large and left-aligned along
-    the bottom.
+    Then `GTHR.` (`hero.businessWordmark`, with the full stop) large and
+    left-aligned along the bottom. The `01\ | label | paragraph` row that sat
+    above it was removed at the client's request; it is in the history.
+    The hero's empty right half holds a **second lanyard badge** (see
+    `Badge`, `placement="hero"`).
     **The wordmark keeps clear space** above the fixed clock and social links
     (24vw/19vw, eased down from 27vw/21vw, with the poster's bottom padding
     held above the bottom bar's own height). A deliberate bleed off the bottom
@@ -351,7 +356,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     grey mono, then a bigger medium-weight headline the client found heavy), and on the right (stacked below it on
     phones) an outlined pill with `poster.index` in brand green and
     `poster.label`, then `poster.text`. That block is `.hero-about`, hidden on
-    the business face, whose poster sets the same copy in its own row.
+    the business face; it is now the only place that copy appears.
   - `Stickers` — flat 2D stickers (SVG strings in `stickerDefs.ts`,
     rasterised to textures once). GTHR's own show-day set — wristband, crew
     pass, 24/7 starburst, the site's pixel cursor, disco ball, speaker, QR,
@@ -450,6 +455,20 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     Textures are *baked* once. **The card's colours are the CSS tokens painted
     by hand** — a canvas cannot read them — so change them in step with
     `globals.css`.
+    **Two placements.** `Scene` mounts it twice on business. The default
+    (`statements`) travels through the statements block as described below.
+    `placement="hero"` hangs still in the business hero's right half, the
+    strap running off the top of the frame, and scrolls away with the page.
+    Its strap is placed from the nav's measured left edge (`.top-bar ul`),
+    because the nav's black type vanishes on the black strap. It shrinks
+    (pushed back in z) into the band above the wordmark when full size would
+    sit behind it, and is hidden when even that would cover the headline
+    (roughly under 1200px wide) and on phones — both clearances measured from
+    the text nodes (`heroBoxes`), the wordmark's to its R, not its low full
+    stop. **Both swing when clicked**: the canvas takes no pointer events, so
+    a window `pointerdown` raycasts the card; the side hit sets the swing
+    direction and kicks a yaw spring (capped short of the unprinted back).
+    The pendulum step is shared (`swing()`).
     **The statement type stays legible over the badge by inversion.**
     Statement ink is black on this face, so it would vanish over the dark
     strap and the card's dark art panel. The twin is clipped to both (the

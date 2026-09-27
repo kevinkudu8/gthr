@@ -7,6 +7,8 @@ import {
   CatmullRomCurve3,
   ExtrudeGeometry,
   Path,
+  Raycaster,
+  Vector2,
   RepeatWrapping,
   Shape,
   SRGBColorSpace,
@@ -409,16 +411,105 @@ function paintStrap(fonts: Fonts) {
   return canvas;
 }
 
+/** The scene camera: 40° vertical field of view, at z = 6. See Scene.tsx. */
+const TAN_HALF_FOV = Math.tan((20 * Math.PI) / 180);
+const CAMERA_Z = 6;
+
+/** CSS pixels per world unit at depth `z`. */
+function pxPerWorld(z: number, heightPx: number) {
+  return heightPx / (2 * TAN_HALF_FOV * (CAMERA_Z - z));
+}
+
 /**
- * One big lanyard badge for the statements block: a solid plastic card on a
- * printed woven strap. Travels from upper left, close past the
- * camera, and out lower right on scroll; hangs from a pivot up the strap as a
- * real pendulum, driven by its own acceleration.
+ * What the hero badge has to keep clear of, measured from the text itself so
+ * a right edge is the last glyph rather than the block's full width: the
+ * wordmark's top (in page pixels, not viewport) and the right edge of its
+ * letters, and the headline's right edge. Cached per viewport size: they only move when the
+ * vw-based type does.
  */
-export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
+type HeroBoxes = { key: string; markTop: number; markRight: number; headlineRight: number };
+let heroCache: HeroBoxes = { key: "", markTop: Infinity, markRight: 0, headlineRight: 0 };
+function textBox(selector: string, dropLast = false) {
+  const el = document.querySelector(selector);
+  if (!el) return null;
+  // Text nodes one at a time: a range over the element would take in block
+  // children's full boxes (the headline's lines are blocks), and the
+  // screen-reader copy is skipped.
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let top = Infinity;
+  let right = -Infinity;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.parentElement?.closest(".sr-only")) continue;
+    range.selectNodeContents(node);
+    if (dropLast && node.textContent) range.setEnd(node, Math.max(0, node.textContent.length - 1));
+    const r = range.getBoundingClientRect();
+    if (!r.width) continue;
+    top = Math.min(top, r.top);
+    right = Math.max(right, r.right);
+  }
+  return right > -Infinity ? { top, right } : null;
+}
+function heroBoxes(width: number, height: number): HeroBoxes | null {
+  const key = `${width}x${height}`;
+  if (heroCache.key === key) return heroCache;
+  // The wordmark's full stop sits low on the baseline, under where the card
+  // hangs, so its right edge is taken at the R.
+  const mark = textBox(".hero-poster__mark", true);
+  const headline = textBox(".hero-poster__headline");
+  if (!mark || !headline) return null;
+  heroCache = { key, markTop: mark.top + scrollState.y, markRight: mark.right, headlineRight: headline.right };
+  return heroCache;
+}
+
+type Swing = { theta: number; omega: number; yaw: number; yawV: number };
+
+/**
+ * One step of the pendulum. Gravity restores, damping settles, the pivot's
+ * horizontal acceleration `ax` swings it (a real hanging card lags its
+ * lanyard), and a faint breeze keeps it alive at rest; `t` is 0 under reduced
+ * motion, which stills the breeze. Everything is clamped so a scroll jump can
+ * never fling it — it should never look like anything but a card hanging from
+ * a strap. `yaw` is the turn about the strap a click kicks in, on a damped
+ * spring, and capped short of showing the card's unprinted back.
+ */
+function swing(ph: Swing, ax: number, dt: number, t: number) {
+  const gravity = 9.8;
+  const breeze = t ? Math.sin(t * 0.8) * 0.05 + Math.sin(t * 2.3) * 0.015 : 0;
+  const alpha = (-gravity * Math.sin(ph.theta) - ax * Math.cos(ph.theta) * 0.3) / PIVOT - ph.omega * 1.1 + breeze;
+  ph.omega = Math.max(-2.5, Math.min(2.5, ph.omega + alpha * dt));
+  ph.theta = Math.max(-0.5, Math.min(0.5, ph.theta + ph.omega * dt));
+  ph.yawV += (-ph.yaw * 18 - ph.yawV * 2.2) * dt;
+  ph.yaw = Math.max(-1.1, Math.min(1.1, ph.yaw + ph.yawV * dt));
+}
+
+/**
+ * The lanyard badge: a solid plastic card on a printed woven strap, hanging
+ * from a pivot up the strap as a real pendulum. Two placements:
+ *
+ * - `statements`: travels from upper left, close past the camera, and out
+ *   lower right through the statements block, driven by its own acceleration.
+ * - `hero`: hangs still in the business hero's empty right half, the strap
+ *   running off the top of the frame, and scrolls away with the page. Desktop
+ *   only — on a phone the right half is the headline's.
+ *
+ * Both swing when the card is clicked. The canvas takes no pointer events (it
+ * sits behind the page), so the click is hit-tested from a window listener,
+ * as Stickers.tsx does for its drag.
+ */
+export function Badge({
+  reducedMotion,
+  placement = "statements",
+  mobile = false,
+}: {
+  reducedMotion: boolean;
+  placement?: "statements" | "hero";
+  mobile?: boolean;
+}) {
+  const hero = placement === "hero";
   const root = useRef<Group>(null);
   const pivot = useRef<Group>(null);
-  const physics = useRef({ theta: 0, omega: 0, lastX: 0, lastVx: 0, warm: 0, primed: false });
+  const physics = useRef({ theta: 0, omega: 0, yaw: 0, yawV: 0, lastX: 0, lastVx: 0, warm: 0, primed: false });
   const [textures, setTextures] = useState<{ face: Texture; strap: Texture } | null>(null);
   const { viewport, camera, size } = useThree();
   const cardMesh = useRef<Mesh>(null);
@@ -453,18 +544,88 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     // has the torn ticket (Ticket.tsx) in this slot instead.
   }, []);
 
+  // Click to swing. A hit on one side of the card pushes that side back:
+  // the pendulum swings away from it and the card turns about its strap.
+  // A hit near the middle picks a side, so a click always visibly lands.
+  useEffect(() => {
+    const raycaster = new Raycaster();
+    const ndc = new Vector2();
+    const onDown = (event: PointerEvent) => {
+      const g = root.current;
+      const mesh = cardMesh.current;
+      if (!g?.visible || !mesh) return;
+      ndc.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const hit = raycaster.intersectObject(mesh, false)[0];
+      if (!hit) return;
+      const local = mesh.worldToLocal(hit.point.clone());
+      let side = local.x / (W / 2);
+      if (Math.abs(side) < 0.2) side = Math.random() < 0.5 ? -0.6 : 0.6;
+      const ph = physics.current;
+      ph.omega -= side * 2.2;
+      ph.yawV += side * 7;
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [camera]);
+
   useFrame(({ clock }, rawDelta) => {
     const g = root.current;
     const pv = pivot.current;
     if (!g || !pv) return;
     const { statement, thermal } = scrollState;
+    const halfW = viewport.width / 2;
+    const halfH = viewport.height / 2;
+    const dt = Math.min(0.05, rawDelta);
+    const t = reducedMotion ? 0 : clock.elapsedTime;
+    const ph = physics.current;
+
+    if (hero) {
+      const boxes = heroBoxes(size.width, size.height);
+      g.visible = !mobile && scrollState.hero < 1 && !!boxes;
+      if (!g.visible || !boxes) return;
+      // The strap runs up through the top bar, and the nav's black type
+      // vanishes on it, so it hangs in the gap left of the nav links —
+      // measured, since that gap moves with the viewport width.
+      const navLeft = document.querySelector(".top-bar ul")?.getBoundingClientRect().left ?? size.width;
+      const strapPx = Math.min(size.width * 0.7, navLeft - 60);
+      // Full size, vertically centred, when that clears the wordmark to its
+      // left. Where the nav pins it further left (narrower screens), it would
+      // sit behind the wordmark instead, so it shrinks — pushed back from the
+      // camera — into the band between the top bar and the wordmark's top.
+      let z = 0;
+      let centrePx = size.height / 2;
+      if (strapPx - (W / 2) * pxPerWorld(0, size.height) < boxes.markRight + 16) {
+        const top = 110;
+        const bottom = boxes.markTop - 24;
+        z = Math.max(-4, CAMERA_Z - size.height / (2 * TAN_HALF_FOV * ((bottom - top) / H)));
+        z = Math.min(0, z);
+        centrePx = (top + bottom) / 2;
+      }
+      // Moves up with the page, at its own depth's pixels-per-unit.
+      const ppw = pxPerWorld(z, size.height);
+      // Too narrow for the gap to hold it clear of the headline (small
+      // laptops, tablets): no badge rather than one over the type.
+      if (strapPx - (W / 2) * ppw < boxes.headlineRight + 24) {
+        g.visible = false;
+        return;
+      }
+      const x = (strapPx - size.width / 2) / ppw;
+      const cardY = (size.height / 2 - centrePx + scrollState.y) / ppw;
+      g.position.set(x, cardY + PIVOT, z);
+      swing(ph, 0, dt, t);
+      pv.rotation.z = ph.theta;
+      // Turned a touch toward the headline, so it reads as an object.
+      pv.rotation.y = -0.22 + ph.yaw;
+      return;
+    }
+
     // Remapped so the card's edge reaches the frame at statement ~0.26 — just
     // after the about section's stat cards scroll off (0.23-0.26 across
     // 720-1080p) — and it clears the frame around 0.8, while "Designed to be
     // remembered" is still up. At full speed it left at ~0.62 and the second
     // statement sat alone; entering earlier put it behind the stat cards.
     const p = 0.12 + statement * 0.685;
-    const ph = physics.current;
     // Present early but parked far off-screen left, so it slides in rather
     // than popping into view.
     g.visible = thermal > 0.02;
@@ -476,11 +637,6 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
       }
       return;
     }
-    const halfW = viewport.width / 2;
-    const halfH = viewport.height / 2;
-    const dt = Math.min(0.05, rawDelta);
-    const t = reducedMotion ? 0 : clock.elapsedTime;
-
     // Travel of the card: upper-left → centre (close) → lower-right, dipping
     // low at the closest point so the light colour field, not the band, sits
     // behind the statement text. The pivot sits PIVOT above the card; the
@@ -503,11 +659,7 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     const y = cardY + PIVOT;
     g.position.set(x, y, z);
 
-    // Pendulum: gravity restores, damping settles, the pivot's horizontal
-    // acceleration swings it (a real hanging card lags its lanyard), and a
-    // faint breeze keeps it alive at rest. Everything is clamped so a scroll
-    // jump can never fling it — it should never look like anything but a
-    // card hanging from a strap.
+    // Pendulum, driven by the pivot's own horizontal acceleration: see swing().
     if (!ph.primed) {
       ph.lastX = x;
       ph.lastVx = 0;
@@ -522,15 +674,10 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     ph.lastVx = vx;
     ph.warm = Math.min(1, ph.warm + dt * 2); // no drive for the first half second
     const ax = Math.max(-40, Math.min(40, rawAx)) * ph.warm;
-    const L = PIVOT;
-    const gravity = 9.8;
-    const breeze = reducedMotion ? 0 : Math.sin(t * 0.8) * 0.05 + Math.sin(t * 2.3) * 0.015;
-    const alpha = (-gravity * Math.sin(ph.theta) - ax * Math.cos(ph.theta) * 0.3) / L - ph.omega * 1.1 + breeze;
-    ph.omega = Math.max(-2.5, Math.min(2.5, ph.omega + alpha * dt));
-    ph.theta = Math.max(-0.5, Math.min(0.5, ph.theta + ph.omega * dt));
+    swing(ph, ax, dt, t);
     pv.rotation.z = ph.theta;
     // A little turn with motion so the card reads as an object.
-    pv.rotation.y = (p - 0.5) * 0.7 + Math.max(-0.25, Math.min(0.25, ph.omega * 0.12));
+    pv.rotation.y = (p - 0.5) * 0.7 + Math.max(-0.25, Math.min(0.25, ph.omega * 0.12)) + ph.yaw;
 
     // Project the strap outline to viewport pixels for the statement
     // inversion. The canvas is fixed at the viewport's top left, so its
