@@ -14,10 +14,10 @@ export const site = {
   email: "hello@gthr.com",
 } as const;
 
-/** Bottom-right links. PLACEHOLDER handles — confirm the real accounts. */
+/** Bottom-right links. X is confirmed; the Telegram handle is still a PLACEHOLDER. */
 export const socials = [
   { id: "telegram", label: "GTHR on Telegram", href: "https://t.me/gthr" },
-  { id: "x", label: "GTHR on X", href: "https://x.com/gthr" },
+  { id: "x", label: "GTHR on X", href: "https://x.com/gthragency" },
 ] as const;
 
 /** The two faces of the site; see components/mode/ModeProvider.tsx. */
@@ -92,6 +92,24 @@ export const about = {
     { value: 15, suffix: "", label: "Countries" },
   ],
   founders: "Founded by Polly and Kevin. Working with clients globally.",
+  photoLabels: { region: "Events we've produced", previous: "Previous photo", next: "Next photo" },
+  /**
+   * The slideshow beside the paragraph, in order. Files in `public/about/`.
+   * The branded shots (Robinhood, Crypto.com) sit in the back half: events
+   * from previous agencies, so they should not be the first thing seen.
+   */
+  photos: [
+    { src: "/about/lisbon-hall.jpg", alt: "A hackathon hall in Lisbon under a rainbow-lit ceiling, rows of attendees at work" },
+    { src: "/about/eth-mexico.jpg", alt: "A crowd facing a stage beneath a large mural at ETH Mexico" },
+    { src: "/about/arc-panel.jpg", alt: "A panel on a terrace stage, filmed by camera crew, with an audience seated in front" },
+    { src: "/about/lisbon-ballroom.jpg", alt: "A packed ballroom in Lisbon under chandeliers, screens across the stage" },
+    { src: "/about/arc-crowd.jpg", alt: "Attendees mingling in a leafy glass-roofed courtyard at an Arc event" },
+    { src: "/about/courtyard-lounge.jpg", alt: "A plant-filled courtyard lounge with warm lighting and seating" },
+    { src: "/about/robinhood-crypto.jpg", alt: "A yellow Robinhood Crypto sign suspended over an expo floor booth" },
+    { src: "/about/crypto-com-activation.jpg", alt: "A branded Crypto.com archway activation in a marble shopping arcade" },
+    { src: "/about/arc-courtyard.jpg", alt: "Tall glass doors open onto a checkered courtyard set with bar tables" },
+    { src: "/about/crypto-com-vegas.jpg", alt: "A dark club lit blue with a Crypto.com screen above the bar in Las Vegas" },
+  ],
 } as const;
 
 /**
@@ -107,7 +125,7 @@ export const badge = {
     ["Focus", "Blockchain &", "technology events"],
     ["Web", "gthr.com", "hello@gthr.com"],
   ],
-  handle: "@gthr",
+  handle: "@gthragency",
   name: "Your team",
   reference: ["Reference ID", "20260001"],
   agency: ["Events & experiential", "marketing agency"],
@@ -120,17 +138,20 @@ export const badge = {
  */
 export const ticket = {
   stub: {
-    kicker: "GTHR — Event pass 2026",
+    admit: "Admit one",
+    serial: "Nº 26—0001",
     title: "GTHR",
     tagline: "Events & Experiences",
     label: "All access",
+    /** Runs up the stub's right edge. */
+    edge: "Event pass 2026 — pitch to post",
   },
   body: {
     eyebrow: "GTHR event operations",
     headline: ["Your events team,", "without building one"],
-    date: ["24", "/7"],
     startLabel: "Starts",
     start: "Day one",
+    /** Run of show: `[label, number]`, numbered down the left. */
     rows: [
       ["Fractional", "01"],
       ["Production", "02"],
@@ -139,8 +160,8 @@ export const ticket = {
       ["Strategy", "05"],
       ["New hires", "0"],
     ],
+    stamp: ["24/7", "On call"],
     fine: ["Session: GTHR-26    Price level: bespoke", "Pass type: all access    Services: 05"],
-    stamp: "gthr",
     footer: "Non-transferable — designed to be remembered",
   },
 } as const;

@@ -252,12 +252,15 @@
   }
 
   /* The statement's white twin, clipped per frame to the business badge's
-     outline (three/Badge.tsx, clipStatements) so the type reads over the
-     black card. Hidden until clipped, and off entirely on the party face,
+     dark parts — the strap and the card's art panel (three/Badge.tsx,
+     clipStatements) — so the type reads over them. Hidden until clipped, and off entirely on the party face,
      where the statement is already white. */
   .statement-invert {
     display: none;
     color: #ffffff;
+    /* A soft dark halo, so the white holds up over the mint glow in the
+       badge's art panel as well as over the black strap. */
+    text-shadow: 0 1px 18px rgba(20, 20, 20, 0.55);
     pointer-events: none;
     clip-path: inset(50%);
   }
@@ -287,12 +290,33 @@
   }
 
   .pixel-cursor__arrow {
+    display: block;
     transform-origin: 0 0;
     transition: transform 0.2s var(--ease-66);
   }
 
   .pixel-cursor[data-hover] .pixel-cursor__arrow {
-    transform: scale(1.5);
+    transform: scale(1.15);
+  }
+
+  /* One drawing per face (PixelCursor.tsx). */
+  .pixel-cursor__arrow--business {
+    display: none;
+  }
+  :root[data-mode="business"] .pixel-cursor__arrow--party {
+    display: none;
+  }
+  :root[data-mode="business"] .pixel-cursor__arrow--business {
+    display: block;
+  }
+  .pixel-cursor__sleek {
+    fill: #141414;
+    stroke: #f4f2ec;
+    transition: fill 0.2s var(--ease-66);
+  }
+  .pixel-cursor[data-hover] .pixel-cursor__sleek {
+    fill: #86dcb2;
+    stroke: #141414;
   }
 
   /* --- Scroll reveals (see components/ui/Reveal.tsx) ---------------- */
@@ -354,6 +378,24 @@
       0 40px 90px -40px rgba(var(--shadow-rgb), 0.55);
     backdrop-filter: blur(32px) saturate(1.5) brightness(0.72);
     -webkit-backdrop-filter: blur(32px) saturate(1.5) brightness(0.72);
+  }
+
+  /* The contact form's card and the about stat cards on the party face: the
+     stock glass let the brightest bands of the field show straight through
+     (four stat cards read as four different colours), and the labels and
+     placeholders washed out over them. Darker smoke, a heavier blur and less
+     brightness from behind, so the colour reads as a soft glow; the small type
+     inside is a step brighter (unlayered, at the end of this file). */
+  :root[data-mode="party"] .stat-card,
+  :root[data-mode="party"] .contact-glass {
+    background: linear-gradient(
+      135deg,
+      rgba(14, 14, 18, 0.62) 0%,
+      rgba(10, 10, 14, 0.7) 55%,
+      rgba(14, 14, 18, 0.62) 100%
+    );
+    backdrop-filter: blur(48px) saturate(1.2) brightness(0.55);
+    -webkit-backdrop-filter: blur(48px) saturate(1.2) brightness(0.55);
   }
 
   .glass::before {
@@ -757,6 +799,12 @@
   pointer-events: none;
 }
 
+/* The party face's label + paragraph; the business poster sets the same copy
+   in its own row. */
+:root[data-mode="business"] .hero-about {
+  display: none;
+}
+
 :root[data-mode="business"] .hero-line {
   position: absolute;
   width: 1px;
@@ -1104,4 +1152,45 @@
     transform: none !important;
     opacity: 1 !important;
   }
+}
+
+/* The contact card's small type on the party face, a step brighter than the
+   stock ink-3 (see .contact-glass). Unlayered: it has to beat the Tailwind
+   utilities on the fields and labels, and layer order beats specificity. */
+:root[data-mode="party"] .contact-glass .eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+:root[data-mode="party"] .contact-glass :is(input, textarea) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+:root[data-mode="party"] .contact-glass :is(input, textarea)::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Stat cards: a brand dot before each label. */
+.stat-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+}
+.stat-card__label::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--brand);
+  flex: none;
+}
+:root[data-mode="party"] .stat-card .eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* Party face: services pulled up into the second statement's empty lower
+   half, halving the gap under "Designed to be remembered" (~485px at 900px
+   tall). Margin, not a shorter statements block, so scrollState.statement —
+   and the ticket's choreography with it — is unchanged. Unlayered to beat
+   the section's utilities. */
+:root[data-mode="party"] #services {
+  margin-top: -27svh;
 }

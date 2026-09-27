@@ -1,44 +1,48 @@
 /**
- * Services rows. Client-supplied copy; keep `number` zero-padded so it lines
- * up in tabular mono.
+ * Services rows: a title, one line, and three tags. Keep `number` zero-padded
+ * so it lines up in tabular mono.
+ *
+ * DRAFT for client sign-off: the one-liners and tags replace the client's
+ * paragraphs (in git history), cut down so the section scans. Fractional
+ * leads with what it *is* — the term was the least understood of the five.
  */
 
 export type Service = {
   number: string;
   title: string;
-  description: string;
+  line: string;
+  tags: readonly [string, string, string];
 };
 
 export const services: Service[] = [
   {
     number: "01",
     title: "Fractional Event Management",
-    description:
-      "Ongoing, embedded support across your entire event calendar — focused on measurable business outcomes. Billed like a fractional hire, resourced like a full studio.",
+    line: "An events lead on retainer, backed by a full studio — without the full-time hire.",
+    tags: ["Monthly retainer", "Full calendar", "Measured outcomes"],
   },
   {
     number: "02",
     title: "Event Design & Production",
-    description:
-      "Events designed around your objectives — whether that's generating pipeline, attracting investors, launching a product, strengthening your community, or building brand authority.",
+    line: "Events built around a goal, then produced end to end.",
+    tags: ["Product launches", "Investor events", "Community"],
   },
   {
     number: "03",
     title: "VIP Experiences",
-    // DRAFT — client supplied the title only.
-    description:
-      "High-touch moments for the people who matter most to your business — private dinners, hosted suites, behind-the-scenes access — designed to deepen relationships and open doors.",
+    line: "High-touch moments for the people who matter most.",
+    tags: ["Private dinners", "Hosted suites", "Backstage access"],
   },
   {
     number: "04",
     title: "Experiential & Field Activations",
-    description:
-      "Creative activations that bring community, content, and events together — creating IRL and online moments that grow brand awareness.",
+    line: "Brand moments that land in the room and online.",
+    tags: ["Pop-ups & booths", "Content capture", "IRL + online"],
   },
   {
     number: "05",
     title: "Strategy & Advisory",
-    description:
-      "Clear thinking before the first RSVP goes out. We help define what success actually looks like for your event, then build the plan to get there — from objectives and audience to format and follow-through.",
+    line: "Define what success looks like, then plan how to get there.",
+    tags: ["Objectives", "Audience", "Format"],
   },
 ];

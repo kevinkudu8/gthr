@@ -21,12 +21,15 @@ const fragmentShader = /* glsl */ `
   uniform float uTime;
   uniform vec2 uResolution;
   uniform float uIntensity;
+  uniform float uCalm;
+  uniform float uEnd;
   uniform float uBusiness;
   uniform vec3 uPaper;
   uniform vec3 uBusinessPaper;
   uniform float uGrid;
   uniform float uDpr;
   uniform float uGrain;
+  uniform float uDither;
   uniform float uScroll;
   uniform vec4 uBlobA[BLOBS];
   uniform vec4 uBlobB[BLOBS];
@@ -36,6 +39,15 @@ const fragmentShader = /* glsl */ `
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+  }
+
+  // Ordered (Bayer) dither thresholds in 0..1: 2x2, then 4x4 built from it.
+  float bayer2(vec2 a) {
+    a = floor(a);
+    return fract(dot(a, vec2(0.5, a.y * 0.75)));
+  }
+  float bayer4(vec2 a) {
+    return bayer2(0.5 * a) * 0.25 + bayer2(a);
   }
 
   // The reference artwork's width, in units of its height.
@@ -128,6 +140,26 @@ const fragmentShader = /* glsl */ `
     float heat = composition(vec2(p.x, fy), uTime);
     vec3 col = thermal(clamp(heat, 0.0, 1.0));
 
+    /* Calm, below the hero: the hero is the poster, the rest of the page the
+       room it hangs in. Behind reading content the full-strength field
+       fought the text, black against neon. Desaturate a little, then flatten
+       the range: blacks lift to a soft near-black and the peaks drop to
+       about half, so the bands read as ambient glow rather than stripes.
+       uCalm is per section (scrollState), blended as sections scroll past. */
+    /* At the very end of the page the full colour comes back, rising from
+       the bottom edge of the screen only: strongest along the bottom, gone by
+       a little over half-way up, and only as uEnd reaches the last stretch of
+       scroll. The contact form above stays on near-black. */
+    float peek = uEnd * uEnd * smoothstep(0.42, 1.0, sv.y);
+    float calmHere = uCalm * (1.0 - peek);
+    float calm1 = clamp(calmHere, 0.0, 1.0);
+    float calm2 = clamp(calmHere - 1.0, 0.0, 1.0);
+    float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    col = mix(col, vec3(lum), 0.35 * calm1);
+    col = mix(col, vec3(0.05, 0.045, 0.06) + col * 0.42, calm1);
+    // Level 2 (services, contact): near-black, only a trace of the colour.
+    col = mix(col, vec3(0.028, 0.026, 0.034) + col * 0.16, calm2);
+
     // Hold the edges near paper so the chrome and gutters stay legible.
     float vig = smoothstep(1.4, 0.35, length(uv / vec2(aspect, 1.0)));
     // The business face is a clean white ground: the colour field fades out
@@ -198,10 +230,20 @@ const fragmentShader = /* glsl */ `
        constant amplitude rather than one scaled by brightness — grain that
        fades out of the shadows is what makes a dark gradient look like a flat
        fill. Sized in device pixels so it stays fine on a retina screen, and
-       reseeded each frame so it shimmers the way real grain does rather than
-       sitting on the image as a fixed pattern. */
+       reseeded each frame so it shimmers the way real grain does. (A static
+       version was tried at the client's request and reverted — it looked
+       better moving.) */
     float g = hash(floor(gl_FragCoord.xy / max(1.0, uDpr * 0.5)) + fract(uTime) * 91.7);
     col2 += (g - 0.5) * uGrain;
+
+    /* Ordered dither: the colour stepped to a few dozen levels per channel,
+       with a fixed 4x4 Bayer threshold in CSS pixels deciding which way each
+       pixel rounds. It reads as a fine printed screen over the smooth field,
+       under the moving grain. Party face only (uDither is 0 on business). */
+    float levels = 28.0;
+    float th = bayer4(gl_FragCoord.xy / max(1.0, uDpr)) - 0.5;
+    vec3 stepped = floor(col2 * levels + 0.5 + th) / levels;
+    col2 = mix(col2, stepped, uDither);
 
     gl_FragColor = vec4(col2, 1.0);
   }
@@ -261,10 +303,13 @@ export function CloudBackdrop() {
       uTime: { value: 0 },
       uResolution: { value: [1, 1] },
       uIntensity: { value: 1 },
+      uCalm: { value: 0 },
+      uEnd: { value: 0 },
       uBusiness: { value: 0 },
       uGrid: { value: 1 },
       uDpr: { value: 1 },
       uGrain: { value: 0 },
+      uDither: { value: 0 },
       uScroll: { value: 0 },
       uBlobA: {
         value: BLOB_PARAMS.map(([x, y, rx, ry]) => new Vector4(x, y, 1 / rx, 1 / ry)),
@@ -307,9 +352,14 @@ export function CloudBackdrop() {
     m.uniforms.uDpr.value = dpr;
     m.uniforms.uGrid.value = scrollState.grid;
     // Party face only — the business ground is clean stock.
-    m.uniforms.uGrain.value = 0.075 * (1 - scrollState.businessMix);
+    // Grain lifted from 0.075 at the client's request, with a fine ordered
+    // dither under it. 0.11 read as TV static over the big dark areas.
+    m.uniforms.uGrain.value = 0.09 * (1 - scrollState.businessMix);
+    m.uniforms.uDither.value = 1 - scrollState.businessMix;
     m.uniforms.uTime.value = reducedMotion ? 12 : clock.elapsedTime;
     m.uniforms.uIntensity.value = backdrop;
+    m.uniforms.uCalm.value = scrollState.calm;
+    m.uniforms.uEnd.value = scrollState.end;
     m.uniforms.uScroll.value = (scrollState.y / Math.max(1, scrollState.vh)) * PARALLAX;
     m.uniforms.uBusiness.value = scrollState.businessMix;
   });

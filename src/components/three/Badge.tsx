@@ -20,13 +20,13 @@ import { badge } from "@/content/site";
 import { hash2, pageFonts, type Fonts } from "./canvasPaint";
 import { scrollState } from "./scrollState";
 
-const W = 1.7; // badge width, world units
+const W = 1.7; // card width, world units
 const H = W * 1.4;
-const D = 0.05;
+const D = 0.05; // solid plastic stock, not a sleeve
 const STRAP_W = 0.34;
 const STRAP_L = 7;
 const CARD_R = 0.11; // corner radius — the card's own outline, so it cannot disagree with the art
-const HOLE_Y = H / 2 - 0.15; // punched hole centre, card-local
+const HOLE_Y = H / 2 - 0.15; // punched slot centre, card-local
 const SLOT_W = 0.36; // slot punch, width and height
 const SLOT_H = 0.085;
 
@@ -48,51 +48,54 @@ const HOOK_TURN = 0.8;
 const PIVOT = H / 2 + 2.6; // pendulum pivot, up the strap
 
 /**
- * The card: one extruded rounded rectangle with the hole punched through it.
- *
- * It used to be a drei RoundedBox with a separate textured plane laid on top,
- * the face art clipped to its own rounded rect — two corner radii that never
- * quite agreed (0.09 on the slab, ~0.11 in the art), so the corners showed the
- * slab's edge through transparent texels. Now the outline is the geometry and
- * the face is mapped straight onto its front cap. The cap UVs are the shape's
- * own x/y (three's world UV generator), so the texture is scaled by 1/W, 1/H
- * and offset by half to land exactly on it. The hole is real, so the ring can
- * pass through it.
+ * The card: one extruded rounded rectangle with a stadium slot punched
+ * through it, which the snap hook's loop threads. The card's outline
+ * *is* its geometry, and the face is mapped straight onto its front cap (the
+ * cap UVs are the shape's own x/y, so the texture is scaled by 1/W, 1/H and
+ * offset by half) — a RoundedBox with a separate textured plane once gave two
+ * corner radii that never quite agreed.
  */
-function cardGeometry() {
-  const x = -W / 2;
-  const y = -H / 2;
-  const r = CARD_R;
+function slabGeometry(
+  w: number,
+  h: number,
+  depth: number,
+  r: number,
+  cy = 0,
+  slot?: { y: number; w: number; h: number },
+) {
+  const x = -w / 2;
+  const y = cy - h / 2;
   const shape = new Shape();
   shape.moveTo(x + r, y);
-  shape.lineTo(x + W - r, y);
-  shape.quadraticCurveTo(x + W, y, x + W, y + r);
-  shape.lineTo(x + W, y + H - r);
-  shape.quadraticCurveTo(x + W, y + H, x + W - r, y + H);
-  shape.lineTo(x + r, y + H);
-  shape.quadraticCurveTo(x, y + H, x, y + H - r);
+  shape.lineTo(x + w - r, y);
+  shape.quadraticCurveTo(x + w, y, x + w, y + r);
+  shape.lineTo(x + w, y + h - r);
+  shape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  shape.lineTo(x + r, y + h);
+  shape.quadraticCurveTo(x, y + h, x, y + h - r);
   shape.lineTo(x, y + r);
   shape.quadraticCurveTo(x, y, x + r, y);
-  // A slot punch, as on a real ID card: a stadium, cut clockwise so the
-  // extrusion reads it as a hole.
-  const hole = new Path();
-  const sw = SLOT_W / 2 - SLOT_H / 2;
-  hole.moveTo(-sw, HOLE_Y + SLOT_H / 2);
-  hole.absarc(-sw, HOLE_Y, SLOT_H / 2, Math.PI / 2, (3 * Math.PI) / 2, false);
-  hole.lineTo(sw, HOLE_Y - SLOT_H / 2);
-  hole.absarc(sw, HOLE_Y, SLOT_H / 2, -Math.PI / 2, Math.PI / 2, false);
-  hole.lineTo(-sw, HOLE_Y + SLOT_H / 2);
-  shape.holes.push(hole);
-  const bevel = 0.008;
+  if (slot) {
+    // Cut clockwise so the extrusion reads it as a hole.
+    const hole = new Path();
+    const sw = slot.w / 2 - slot.h / 2;
+    hole.moveTo(-sw, slot.y + slot.h / 2);
+    hole.absarc(-sw, slot.y, slot.h / 2, Math.PI / 2, (3 * Math.PI) / 2, false);
+    hole.lineTo(sw, slot.y - slot.h / 2);
+    hole.absarc(sw, slot.y, slot.h / 2, -Math.PI / 2, Math.PI / 2, false);
+    hole.lineTo(-sw, slot.y + slot.h / 2);
+    shape.holes.push(hole);
+  }
+  const bevel = Math.min(0.012, depth * 0.3);
   const geometry = new ExtrudeGeometry(shape, {
-    depth: D - bevel * 2,
+    depth: depth - bevel * 2,
     bevelEnabled: true,
     bevelThickness: bevel,
     bevelSize: bevel,
-    bevelSegments: 3,
-    curveSegments: 16,
+    bevelSegments: 4,
+    curveSegments: 20,
   });
-  geometry.translate(0, 0, -(D - bevel * 2) / 2);
+  geometry.translate(0, 0, -(depth - bevel * 2) / 2);
   return geometry;
 }
 
@@ -136,91 +139,159 @@ function dRingGeometry() {
   return new TubeGeometry(curve, 96, D_TUBE, 10, true);
 }
 
+/** Face texture size, and the art panel on it, in texture pixels. */
+const FACE_W = 680;
+const FACE_H = Math.round(FACE_W * (H / W));
+const PANEL = { x: 44, y: 104, w: FACE_W - 88, h: Math.round(FACE_H * 0.56), r: 44 };
+
 /**
- * The badge face: the business hero's poster in miniature (after the client's
- * reference), keeping the old ID card's working parts — and now on the
- * business face's own stock: warm off-white with a printed grain (it was the
- * hero's green gradient in miniature until that gradient went), the pass line
- * in soft black top-left, a `01\\ | label | text` row, a rule, handle and name, the
- * QR block and reference lines, and the wordmark large along the bottom.
- * Copy is `badge` in site.ts.
+ * The art panel's outline on the card's front face, card-local, rounded
+ * corners included. The statements invert over it as well as over the strap:
+ * the panel is dark, and black type crossing it was hard to read.
+ */
+const PANEL_OUTLINE: Vector3[] = (() => {
+  const toWorld = (px: number, py: number) =>
+    new Vector3((px / FACE_W - 0.5) * W, (0.5 - py / FACE_H) * H, D / 2 + 0.001);
+  const { x, y, w, h, r } = PANEL;
+  const corners: [number, number, number][] = [
+    [x + w - r, y + r, -Math.PI / 2],
+    [x + w - r, y + h - r, 0],
+    [x + r, y + h - r, Math.PI / 2],
+    [x + r, y + r, Math.PI],
+  ];
+  return corners.flatMap(([cx, cy, a0]) =>
+    Array.from({ length: 6 }, (_, i) => {
+      const a = a0 + (i / 5) * (Math.PI / 2);
+      return toWorld(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }),
+  );
+})();
+
+/**
+ * The badge face, after the client's lanyard reference: a card of the
+ * business face's warm off-white stock, most of it given to a rounded art
+ * panel, with the event line and two chips under it. The panel is the brand
+ * in a glow — soft black with blurred mint light, the mint as light rather
+ * than type — carrying the index pill, the access line and the wordmark.
+ * Below: the pass line, name and agency chips, the two info columns, the
+ * handle and reference, and the QR block. Copy is `badge` in site.ts.
  */
 function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRenderingContext2D) {
-  /* Ground: the face's warm off-white stock, with the same fine grain as
-     before. It used to be the hero's gradient in miniature — a ramp of stops
-     plus a glow, kept in step with CloudBackdrop's businessRoom — and went
-     flat when that gradient did. The grain stays: it is what keeps a printed
-     card from reading as a filled rectangle, and it is the same idea as the
-     page's own .paper-grain. */
-  const img = ctx.createImageData(w, h);
-  const stock = [244, 242, 236];
-  for (let py = 0; py < h; py++) {
-    for (let px = 0; px < w; px++) {
-      const n = (hash2(px, py) - 0.5) * 6;
-      const o = (py * w + px) * 4;
-      img.data[o] = stock[0] + n;
-      img.data[o + 1] = stock[1] + n;
-      img.data[o + 2] = stock[2] + n;
-      img.data[o + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-
-  const system = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
   // The face's tokens, painted by hand because a canvas cannot read CSS.
   // Keep these in step with :root[data-mode="business"] in globals.css.
   const ink = "#141414";
+  const paper = "#f4f2ec";
   const mint = "#86dcb2";
-  const pad = 56;
+  const line = "#dad7cf";
+  const muted = "#6b6b66";
+  const system = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
   const c = badge;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
+  const pad = 44;
 
-  /* The pass line. It was thin white caps, which needed the green behind it;
-     on off-white stock it is soft black, and set at the weight the page's own
-     headline now uses rather than as a hairline. */
+  ctx.fillStyle = paper;
+  ctx.fillRect(0, 0, w, h);
+
+  // The art panel.
+  // Starts below the slot punch. Shared with PANEL_OUTLINE.
+  const { x: px, y: py, w: pw, h: ph } = PANEL;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(px, py, pw, ph, PANEL.r);
+  ctx.clip();
   ctx.fillStyle = ink;
-  ctx.font = `500 44px ${system}`;
-  ctx.letterSpacing = "0px";
-  c.headline.forEach((line, i) => ctx.fillText(line, pad, 196 + i * 54));
+  ctx.fillRect(px, py, pw, ph);
+  ctx.filter = "blur(70px)";
+  const glow = (x: number, y: number, r: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px + pw * x, py + ph * y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  // Held mid-dark: the statements turn white where they cross the panel, so
+  // no part of it may be pale. (A pale-mint and a paper glow were brighter
+  // and left white type unreadable over them.)
+  ctx.globalAlpha = 0.72;
+  glow(0.3, 0.78, 190, mint);
+  ctx.globalAlpha = 0.5;
+  glow(0.78, 0.3, 150, mint);
+  ctx.globalAlpha = 1;
+  glow(0.08, 0.12, 110, "#2f5f4b");
+  ctx.filter = "none";
+  ctx.restore();
 
-  /* The middle row: index, label, text. The index is a black pill with mint
-     type — the packaging label the face borrows, and the one place the mint
-     is set as type, which is why it is on black rather than on the stock. */
-  const rowY = 470;
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  // Index pill: mint fill, soft black type (mint is never type on paper).
   ctx.font = `500 17px ${fonts.mono}`;
   const pillW = ctx.measureText(c.index).width + 34;
-  ctx.fillStyle = ink;
-  ctx.beginPath();
-  ctx.roundRect(pad, rowY - 21, pillW, 31, 15.5);
-  ctx.fill();
   ctx.fillStyle = mint;
-  ctx.fillText(c.index, pad + 17, rowY);
-
+  ctx.beginPath();
+  ctx.roundRect(px + 28, py + 28, pillW, 32, 16);
+  ctx.fill();
   ctx.fillStyle = ink;
-  ctx.font = `400 19px ${system}`;
-  ctx.fillText(c.columns[0][0].toUpperCase(), pad + (w - pad * 2) * 0.24, rowY);
-  const tx = pad + (w - pad * 2) * 0.56;
+  ctx.fillText(c.index, px + 45, py + 50);
+  ctx.fillStyle = paper;
+  ctx.textAlign = "right";
+  ctx.fillText(c.access.toUpperCase(), px + pw - 30, py + 50);
+  ctx.textAlign = "left";
+
+  // Wordmark, bottom-left of the panel.
+  ctx.font = `600 100px ${system}`;
+  ctx.letterSpacing = "-5px";
+  const fit = Math.min(1.7, (pw * 0.62) / ctx.measureText(c.mark).width);
+  ctx.font = `600 ${Math.floor(100 * fit)}px ${system}`;
+  ctx.letterSpacing = `${-5 * fit}px`;
+  ctx.fillText(c.mark, px + 26, py + ph - 34);
+  ctx.letterSpacing = "0px";
+
+  // The pass line, as the reference sets its event name.
+  let y = py + ph + 64;
+  ctx.fillStyle = ink;
+  ctx.font = `500 38px ${system}`;
+  ctx.fillText(c.headline.join(" "), pad + 4, y);
+
+  // Chips: name on a grey pill, the agency on an outlined one.
+  y += 30;
+  ctx.font = `500 15px ${fonts.mono}`;
+  const nameText = c.name.toUpperCase();
+  const nw = ctx.measureText(nameText).width + 36;
+  ctx.fillStyle = line;
+  ctx.beginPath();
+  ctx.roundRect(pad, y, nw, 40, 20);
+  ctx.fill();
+  ctx.fillStyle = ink;
+  ctx.fillText(nameText, pad + 18, y + 26);
   ctx.font = `400 17px ${system}`;
-  [...c.columns[0].slice(1), "", ...c.columns[1].slice(1)].forEach((line, i) => {
-    if (line) ctx.fillText(line, tx, rowY + i * 24);
+  const agencyText = c.agency.join(" ");
+  const aw = ctx.measureText(agencyText).width + 36;
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(pad + nw + 10, y + 1, aw, 38, 19);
+  ctx.stroke();
+  ctx.fillText(agencyText, pad + nw + 28, y + 26);
+
+  // Two info columns, labels in the mono.
+  y += 88;
+  c.columns.forEach(([label, ...lines], i) => {
+    const x = pad + 4 + i * 210;
+    ctx.fillStyle = muted;
+    ctx.font = `500 13px ${fonts.mono}`;
+    ctx.fillText(label.toUpperCase(), x, y);
+    ctx.fillStyle = ink;
+    ctx.font = `400 16px ${system}`;
+    lines.forEach((l, k) => ctx.fillText(l, x, y + 26 + k * 22));
   });
 
-  // The rule, on the face's one hairline colour.
-  ctx.fillStyle = "#dad7cf";
-  ctx.fillRect(pad, 592, w - pad * 2, 1.5);
-  ctx.fillStyle = ink;
-  ctx.font = `400 15px ${fonts.mono}`;
-  ctx.fillText(c.handle.toUpperCase(), pad, 632);
-  ctx.font = `500 40px ${system}`;
-  ctx.fillText(c.name, pad, 680);
+  // Foot: handle and reference left, QR block right.
+  ctx.fillStyle = muted;
+  ctx.font = `400 13px ${fonts.mono}`;
+  ctx.fillText(`${c.handle}   ${c.reference.join(" ")}`.toUpperCase(), pad + 4, h - pad);
 
-  // QR block: three finder squares and hashed modules, so it is identical on
-  // every repaint.
   const cell = 4;
-  const n = 25;
+  const n = 23;
   const qx = w - pad - cell * n;
-  const qy = 604;
+  const qy = h - pad - cell * n + 4;
   const finder = (fx: number, fy: number) =>
     (fx < 7 && fy < 7) || (fx > n - 8 && fy < 7) || (fx < 7 && fy > n - 8);
   const finderBit = (fx: number, fy: number) => {
@@ -230,25 +301,26 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
     const core = lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4;
     return ring || core;
   };
-  for (let y = 0; y < n; y++) {
-    for (let x = 0; x < n; x++) {
-      const on = finder(x, y) ? finderBit(x, y) : hash2(x + 11, y + 29) > 0.52;
-      if (on) ctx.fillRect(qx + x * cell, qy + y * cell, cell - 0.5, cell - 0.5);
+  ctx.fillStyle = ink;
+  for (let qy2 = 0; qy2 < n; qy2++) {
+    for (let qx2 = 0; qx2 < n; qx2++) {
+      const on = finder(qx2, qy2) ? finderBit(qx2, qy2) : hash2(qx2 + 11, qy2 + 29) > 0.52;
+      if (on) ctx.fillRect(qx + qx2 * cell, qy + qy2 * cell, cell - 0.5, cell - 0.5);
     }
   }
-  ctx.font = `400 13px ${fonts.mono}`;
-  ctx.fillStyle = "rgba(20,20,20,0.62)";
-  ctx.fillText(c.reference.join(" ").toUpperCase(), pad, 730);
 
-  // The wordmark, as large as the card allows, along the bottom.
-  ctx.fillStyle = ink;
-  ctx.font = `600 100px ${system}`;
-  ctx.letterSpacing = "-5px";
-  const fit = (w - pad * 2 + 8) / ctx.measureText(c.mark).width;
-  ctx.font = `600 ${Math.floor(100 * fit)}px ${system}`;
-  ctx.letterSpacing = `${-5 * fit}px`;
-  ctx.fillText(c.mark, pad - 6, h - 52);
-  ctx.letterSpacing = "0px";
+  // Printed grain over everything, as on the page's own .paper-grain.
+  const img = ctx.getImageData(0, 0, w, h);
+  for (let gy = 0; gy < h; gy++) {
+    for (let gx = 0; gx < w; gx++) {
+      const g = (hash2(gx, gy) - 0.5) * 7;
+      const o = (gy * w + gx) * 4;
+      img.data[o] += g;
+      img.data[o + 1] += g;
+      img.data[o + 2] += g;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
 }
 
 /** The strap plane's corners, in its own local space (it is rotated upright). */
@@ -261,10 +333,10 @@ const STRAP_OUTLINE: Vector3[] = [
 
 /**
  * Keeps the statement type legible over the dark strap. The statement is
- * black ink on the business face, so where the strap passes behind it the words
- * would vanish; each statement carries a white copy (`.statement-invert`) and
- * this clips that copy to the badge's on-screen outline — card and strap —
- * every frame, so the letters turn white exactly where they cross it.
+ * black ink on the business face, so where the strap passes behind it the
+ * words would vanish; each statement carries a white copy
+ * (`.statement-invert`) and this clips that copy to the strap's on-screen
+ * outline every frame, so the letters turn white exactly where they cross it.
  *
  * Done by hand because CSS blending cannot reach the canvas: the page scrolls
  * inside a fixed wrapper, which is its own stacking context, so a
@@ -287,16 +359,16 @@ function clipStatements(outlines: [number, number][][] | null) {
   });
 }
 
-/** The badge face, full bleed. */
+/** The card face, full bleed. */
 function paintBadge(fonts: Fonts) {
-  const w = 680;
-  const h = Math.round(w * (H / W));
+  const w = FACE_W;
+  const h = FACE_H;
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
-  // Full bleed: the card geometry supplies the corners and the hole.
+  // Full bleed: the card geometry supplies the corners.
   paintBusinessBadge(fonts, w, h, ctx);
   return canvas;
 }
@@ -338,9 +410,10 @@ function paintStrap(fonts: Fonts) {
 }
 
 /**
- * One big lanyard badge for the statements block. Travels from upper left,
- * close past the camera, and out lower right on scroll; hangs from a pivot
- * up the strap as a real pendulum, driven by its own acceleration.
+ * One big lanyard badge for the statements block: a solid plastic card on a
+ * printed woven strap. Travels from upper left, close past the
+ * camera, and out lower right on scroll; hangs from a pivot up the strap as a
+ * real pendulum, driven by its own acceleration.
  */
 export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
   const root = useRef<Group>(null);
@@ -352,7 +425,7 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
   const strapMesh = useRef<Mesh>(null);
   const clipped = useRef(false);
   const scratch = useRef(new Vector3());
-  const card = useMemo(() => cardGeometry(), []);
+  const card = useMemo(() => slabGeometry(W, H, D, CARD_R, 0, { y: HOLE_Y, w: SLOT_W, h: SLOT_H }), []);
   const hook = useMemo(() => hookGeometry(), []);
   const dRing = useMemo(() => dRingGeometry(), []);
 
@@ -384,7 +457,13 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     const g = root.current;
     const pv = pivot.current;
     if (!g || !pv) return;
-    const { statement: p, thermal } = scrollState;
+    const { statement, thermal } = scrollState;
+    // Remapped so the card's edge reaches the frame at statement ~0.26 — just
+    // after the about section's stat cards scroll off (0.23-0.26 across
+    // 720-1080p) — and it clears the frame around 0.8, while "Designed to be
+    // remembered" is still up. At full speed it left at ~0.62 and the second
+    // statement sat alone; entering earlier put it behind the stat cards.
+    const p = 0.12 + statement * 0.685;
     const ph = physics.current;
     // Present early but parked far off-screen left, so it slides in rather
     // than popping into view.
@@ -413,10 +492,14 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
     const near = Math.sin(rise * Math.PI * 0.5);
     const fall = Math.max(0, (p - 0.38) / 0.62);
     const mid = near - fall * 1.5;
-    const z = mid * 3.1 - 0.6;
+    // Held further back than it was (mid * 3.1 - 0.6, nearest z 2.5), so more
+    // of the card and strap stay in frame at the closest point.
+    const z = mid * 2.2 - 1.0;
     const scaleAtZ = (6 - z) / 6; // the visible half-extent shrinks as it nears the camera
     const x = (-2.3 + e * 4.6) * halfW * scaleAtZ;
-    const cardY = (0.9 - e * 1.6) * halfH * scaleAtZ - mid * 0.55 * halfH * scaleAtZ;
+    // Enters mid-left, into the space under the about section, not high
+    // where it would pass behind the stat cards.
+    const cardY = (0.55 - e * 1.25) * halfH * scaleAtZ - mid * 0.55 * halfH * scaleAtZ;
     const y = cardY + PIVOT;
     g.position.set(x, y, z);
 
@@ -461,8 +544,13 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
         mesh.localToWorld(v).project(camera);
         return [((v.x + 1) / 2) * size.width, ((1 - v.y) / 2) * size.height];
       };
-      // Strap only: the card is light, and black type reads on it.
-      clipStatements([STRAP_OUTLINE.map(toScreen(sm))]);
+      // The strap and the card's dark art panel; the rest of the card is
+      // light, and black type reads on it.
+      const card = cardMesh.current;
+      clipStatements([
+        STRAP_OUTLINE.map(toScreen(sm)),
+        ...(card ? [PANEL_OUTLINE.map(toScreen(card))] : []),
+      ]);
       clipped.current = true;
     }
   });
@@ -483,7 +571,7 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
               slightly thicker band with the crimp across its top. */}
           <mesh position={[0, D_BAR + 0.09, 0]}>
             <boxGeometry args={[STRAP_W, 0.24, 0.03]} />
-            <meshStandardMaterial color="#124a3f" roughness={0.85} />
+            <meshStandardMaterial color="#141414" roughness={0.85} />
           </mesh>
           <mesh position={[0, D_BAR + 0.2, 0]}>
             <boxGeometry args={[STRAP_W + 0.02, 0.05, 0.04]} />
@@ -508,23 +596,23 @@ export function Badge({ reducedMotion }: { reducedMotion: boolean }) {
               <meshStandardMaterial color="#1b1c20" metalness={0.85} roughness={0.32} />
             </mesh>
           </group>
-          {/* Card: face art on the front cap (group 0), plain stock on the
-              sides (group 1). The back cap shares group 0, but the swing never
-              turns it to the camera. */}
+          {/* Card: solid plastic stock. Face art on the front cap (group 0),
+              plain stock on the edges (group 1). The back cap shares group 0,
+              but the swing never turns it to the camera. A little of the face
+              as emissive, so the stock lands near the page's own paper
+              instead of a lit grey. */}
           <mesh ref={cardMesh} geometry={card}>
             <meshPhysicalMaterial
               attach="material-0"
               map={textures.face}
+              emissiveMap={textures.face}
+              emissive="#ffffff"
+              emissiveIntensity={0.3}
               roughness={0.35}
               clearcoat={0.6}
               clearcoatRoughness={0.2}
             />
-            <meshPhysicalMaterial
-              attach="material-1"
-              color="#e4ebe9"
-              roughness={0.5}
-              clearcoat={0.25}
-            />
+            <meshPhysicalMaterial attach="material-1" color="#ecebe6" roughness={0.45} clearcoat={0.3} />
           </mesh>
         </group>
       </group>

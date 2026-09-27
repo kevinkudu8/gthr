@@ -14,6 +14,13 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   quick (0.1s delay, ~0.4s) and starts as they finish (and leaves fast the other way); and
   `ModeProvider` sets `data-switching` on `<html>` for 0.9s so the hero line
   hides across its layout jump.
+- **Switching keeps your place.** The faces are not the same length (party
+  pulls Services up, for one), so `setMode` notes which section is under the
+  middle of the screen and how far through it (`captureAnchor` in
+  `ModeProvider.tsx`), and the provider's effect scrolls that same point back
+  under the middle once the new face's CSS has applied (`lenis.resize()` then
+  an immediate `scrollTo`; native `scrollTop` under reduced motion), again on
+  the next frame. Add new sections' ids to `ANCHORS`.
 - **Two faces, one page.** A toggle in the top bar switches between `business`
   (the default, listed first) and `party`. Sections and copy are **identical**;
   the business finish is **black and warm off-white with one mint accent**,
@@ -37,13 +44,30 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 - **One page.** Sections in order: Hero → Who are we `#about` → Statement
   (sticky) → Statement (scrolls over it) → Services `#services` → Contact
   `#contact`. The intro section (paragraph + image) was removed at the
-  client's request.
+  client's request. **Except at the very end:** `scrollState.end` (0 until
+  the last ~70% of a screen, 1 at the bottom, from contact's rect) lets the
+  full-colour field back in along the bottom of the screen
+  (`peek = end^2 * smoothstep(0.42, 1, screenY)` lifts the calm), so the
+  colour peeks up as you reach the bottom while the form stays on black.
   Nav links are in-page anchors. Don't add routes or sections without asking.
 - **Copy lives in `src/content/`** (`site.ts`, `services.ts`). Components never
   hard-code user-facing strings. Client-supplied and verbatim: both statements,
   the line under the contact form, `hero.line`, and everything in `about`.
-- **Services** are client copy (`services.ts`). The VIP Experiences description
-  is a draft. Keep the `{ number, title, description }` shape; rows stay compact.
+- **Party spacing:** on the party face `#services` has `margin-top: -27svh`,
+  halving the scroll from "Designed to be remembered" to Services (the
+  second statement is a full screen with its text centred). A margin rather
+  than a shorter block, so `scrollState.statement` and the ticket's timing
+  are unchanged.
+- **Services** (`services.ts`) are `{ number, title, line, tags[3] }`: one
+  line and three mono pill tags per row, replacing the client's paragraphs
+  (in git history) because the section read as wordy. The lines and tags are
+  a **draft awaiting client sign-off**. Fractional leads with what it *is*
+  ("an events lead on retainer…") — it was the least understood term. No
+  client logo strip until GTHR has clients of its own (past clients were
+  previous companies'). Rows stay compact.
+  (A photo per row was tried and removed — rows got tall and titles wrapped.)
+- **Socials:** X is `x.com/gthragency` (confirmed; the badge handle is
+  `@gthragency` to match). Telegram is still a placeholder.
 - **Business tokens** live in one `:root[data-mode="business"]` block in
   `globals.css`. Everything already reads `--paper` / `--ink-rgb` / `--brand`,
   so the whole DOM reskins from those lines; `.glass` is the one thing that
@@ -89,6 +113,23 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   median saturation 0.93, so averaging bands gave muddy rust. Never
   characterise a high-contrast image by its means.) Refit if the reference
   changes.
+  **Calm below the hero:** the hero shows the field at full strength (it is
+  that screen's design); below it the field is calmed per section
+  (`calm` in scrollState's `SECTIONS`, 0..2: hero 0, statements 0.45, about
+  1, services and contact 2; blended by visibility, published as
+  `scrollState.calm` → `uCalm`). Level 1 desaturates by 0.35 and flattens the
+  range (`mix(col, 0.05 + col * 0.42, ...)`): an ambient glow behind reading
+  content, not black-against-neon bands. Level 2 goes on to near-black with a
+  trace of colour (`0.028 + col * 0.16`) — services and contact, at the
+  client's request. Requested by
+  the client: the full field behind text, cards and the form read as too
+  much. No scrims behind blocks — calm the ground instead.
+  **Grain and dither:** film grain at 0.09 (was 0.075; 0.11 read as TV static), reseeded per frame so
+  it shimmers (a static version was tried and reverted — it looked better
+  moving),
+  then a fixed 4x4 Bayer ordered dither in CSS pixels stepping the colour to
+  28 levels — a fine printed screen under the moving grain. Both are
+  `* (1 - businessMix)`, party only.
   **It scrolls** at `PARALLAX` 0.75 of the page. The first screen is the
   reference. Below it the page is a vertical *mirror fold* of it (`FOLD`),
   with the field held constant in y past `EXTEND` so the fold lines have
@@ -114,7 +155,13 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 - **Type:** Syne (variable, 800 for `.display`) and Martian Mono for nav, clock,
   numbers, eyebrows. Display type is viewport-sized (`text-[Nsvw]`), uppercase,
   `leading-[0.9]`.
-- **Grid:** every section is `grid grid-cols-12 px-4 lg:px-14 py-18 lg:py-24`.
+- **Grid:** every section is `grid grid-cols-12 px-4 lg:px-14 py-18 lg:py-24`,
+  except Hero, About and Services, which sit in from the sides at `lg:px-24
+  xl:px-36` — at `px-14` their text, stat cards and rows ran too wide (the
+  hero moved in to share the left edge; the business poster is absolutely
+  placed with its own padding, so it is unaffected). The fixed bars stay at
+  `lg:px-14`. Services rows are 1 / 5 / 6 columns (number, title, line +
+  tags) so the long titles hold one line at 1280.
 - **Motion:** the page scrolls inside a fixed viewport-sized wrapper
   (`.scroll-wrapper`, `SmoothScroll.tsx`) driven by a hand-made Lenis instance
   exposed via `useLenisInstance()` (and `lenisRef` for the scene). Fixed
@@ -297,8 +344,20 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     edge was the alternative and was rejected: the crop lands mid-stroke at
     some viewport heights and reads as a mistake.
     `hero.businessTagline` is no longer used.
+    The **party hero** carries both messages too, as a footer row under the 3D
+    wordmark: `hero.line` on the left, on `poster.lines`' two lines, kept
+    minimal (display, regular, `text-lg`/`lg:text-2xl`, white; it was small
+    grey mono, then a bigger medium-weight headline the client found heavy), and on the right (stacked below it on
+    phones) an outlined pill with `poster.index` in brand green and
+    `poster.label`, then `poster.text`. That block is `.hero-about`, hidden on
+    the business face, whose poster sets the same copy in its own row.
   - `Stickers` — flat 2D stickers (SVG strings in `stickerDefs.ts`,
-    rasterised to textures once) on unlit planes behind the glass: the whole
+    rasterised to textures once). GTHR's own show-day set — wristband, crew
+    pass, 24/7 starburst, the site's pixel cursor, disco ball, speaker, QR,
+    doors pill, mic, sparkle, run-of-show card — in the party colours; it
+    replaced a generic sticker sheet (coil, asterisk, invader, globe…) that
+    was not the client's own. SVG text is drawn through an `<img>`, which
+    cannot see webfonts, so stickers set type in system faces on unlit planes behind the glass: the whole
     sheet wanders the hero on per-sticker simplex-noise paths, passing behind
     the wordmark, which refracts them. Hero props stay flat.
     **They can be grabbed and thrown.** The noise path is only a *target* now —
@@ -325,14 +384,27 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     be grabbed once mostly faded.
   - `Ticket` — the **party** face's prop for the statements block (Scene
     mounts `Ticket` on party, `Badge` on business). An event ticket after the
-    client's reference: a holographic stub (the thermal field's bright middle,
-    `paintThermal` lo/hi 0.4–0.8, plus `iridescence`) over a printed paper
-    body. Copy is `ticket` in `site.ts`. Centred, 0.667 of the viewport tall.
+    client's reference: a holographic stub (a **pearl** foil — pastel bands
+    over near-white, `PEARL` in Ticket.tsx, plus `iridescence`) over a printed
+    paper body. The stub used to be the thermal field's bright middle
+    (`paintThermal` lo/hi 0.4–0.8) and vanished into the same-coloured ground
+    behind it; keep the stub a colour the party field does not contain.
+    **The layout is deliberately not the reference's** (a Tokyo 2020 swimming
+    ticket: globe mark, title in an orbit ring, `+ tagline +`, venue/date
+    header, 3x2 label grid, checker strip, barcode, round seal). The client
+    asked for it to stop reading as a copy, so: one centred lanyard **slot**
+    (not two holes); an admit/serial row; `GTHR` large, flush left and sat
+    low on a black `ALL ACCESS ✦` band in mint, with the sparkle as the mark
+    and the pass line running up the right edge; on the body a black header
+    band, a full-width headline, the services as a **run of show** (number,
+    label, dotted leader, tick box), a tilted coral `24/7` rubber stamp, and a
+    QR block with the fine print. Don't drift back towards the reference.
+    Copy is `ticket` in `site.ts`. Centred, 0.667 of the viewport tall.
     **It is ripped, not split.** Each piece is a subdivided plane rather than
     an extrusion, because the tear has to bend the paper and an extruded face
     has no interior vertices. So `tearMaterial` splices into the stock
     materials: the die-cut outline (per-corner radii, perforation notches,
-    punched holes) and the **perforation** are a signed distance cut in the
+    lanyard slot) and the **perforation** are a signed distance cut in the
     fragment shader. It parts *along the perforation*, not like free paper (a
     ragged, fibrous edge was tried first and rejected): real holes run the
     line (each piece cuts its half of every circle, so it reads as one row
@@ -354,46 +426,56 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     is plain stock (`gl_FrontFacing`).
   - `canvasPaint.ts` — shared by the baked textures: `pageFonts`, the thermal
     ramp on the CPU (`rampAt`, `paintThermal`), `paintPaper`, `hash2`.
-  - `Badge` — the **business** face's prop for the statements block: a lanyard badge
-    (canvas-painted face, printed strap). The clasp follows the client's
-    reference photo, in black metal on both faces: strap folded round the bar
-    of a D-ring, a swivel eye and barrel, and a snap hook (one tube loop,
-    closed all the way round — an open J with a separate gate rod read as broken
-    from behind) turned `HOOK_TURN` off the card so its loop threads a
-    *real* hole. The strap canvas has the proportions of the strip one texture
-    repeat covers (`STRAP_TILE`), and its labels are measured to fit their slot
-    — it was squashed to ~65% width and the labels overlapped. The card is one
-    `ExtrudeGeometry` — rounded outline + hole — with the face art UV-mapped
-    onto its front cap (texture repeat 1/W, 1/H, offset 0.5), so corner radius
-    and hole come from the geometry, never the art. A RoundedBox + textured
-    plane before it had two radii that disagreed and showed at the corners.
-    The face is **the business page's own stock**: warm off-white with the
-    same fine grain, `badge.headline` in soft black top-left, a
-    `01\ | FOCUS | text` row whose index is a **black pill with mint type**, a
-    rule on `#dad7cf`, handle and name, a small hashed QR block and reference
-    line, and `GTHR.` fitted to the card's width along the bottom (copy is
-    `badge` in `site.ts`). Light edge stock, a slot punch, and **soft black
-    woven tape with mint lettering**; the clasp stays black metal. Textures
-    are *baked* once. **The card's colours are the CSS tokens painted by hand**
-    — a canvas cannot read them — so they have to be changed in step with
-    `globals.css`. (It was the hero's green gradient in miniature until that
-    gradient went; before that, black stock printed in speckled off-white.)
-    **The statement type stays legible over the strap by inversion.**
+  - `Badge` — the **business** face's prop for the statements block: a
+    solid plastic card on a printed woven strap. The card is one extruded
+    rounded slab (`slabGeometry`) with a slot punched through it and the face
+    art UV-mapped onto its front cap (texture repeat 1/W, 1/H, offset 0.5), so
+    its corners come from the geometry, never the art. The face art's panel
+    starts below the slot. Hardware is black metal: the strap folded round the
+    bar of a D-ring, a swivel eye and barrel, and a snap hook (one closed tube
+    loop) turned `HOOK_TURN` off the card so it threads the real slot. The
+    strap is soft black tape with `GTHR.` repeating in mint (`paintStrap`;
+    the canvas has the proportions of one `STRAP_TILE` so the type is not
+    squashed). A clear acrylic holder on a braided rope was tried here after a
+    second client reference and taken back out at their request — they
+    wanted a solid card and a thicker, branded strap. It is in the history.
+    The face is the business stock (`#f4f2ec`, fine grain) with most of it an
+    **art panel**: soft black with blurred mint glows (mint as light, never
+    type on paper), the `01\` pill (mint fill, black type), the access line,
+    and `GTHR.` large. Under it the pass line, a grey name chip and an outlined
+    agency chip, the Focus/Web columns, handle + reference, and the QR block.
+    All copy is `badge` in `site.ts`. The face is also its own `emissiveMap`
+    at 0.3 so the stock lands near the page's paper rather than a lit grey.
+    Textures are *baked* once. **The card's colours are the CSS tokens painted
+    by hand** — a canvas cannot read them — so change them in step with
+    `globals.css`.
+    **The statement type stays legible over the badge by inversion.**
     Statement ink is black on this face, so it would vanish over the dark
-    strap. Each statement carries a white twin (`.statement-invert`, same
-    grid cell, business only) and Badge's frame loop projects the strap to
+    strap and the card's dark art panel. The twin is clipped to both (the
+    panel's outline, rounded corners included, is `PANEL_OUTLINE`, built from
+    the same `PANEL` rect the painter uses) and carries a soft dark
+    `text-shadow`; the panel's glows are held mid-dark (no pale mint or paper
+    glow) so white type reads anywhere on it. Each statement carries a white twin (`.statement-invert`, same grid
+    cell, business only) and Badge's frame loop projects the strap to
     viewport pixels and sets it as the twin's `clip-path: path(...)` — so
-    letters turn white exactly where they cross it. The card is light now,
-    so black type reads on it and it is no longer part of the clip (when the
-    card was black, its rounded outline was clipped too). CSS `mix-blend-mode` cannot do this: the page scrolls inside a
-    fixed wrapper, a separate stacking context, so blending never sees the
-    canvas. The twin's reveal is keyed off the base copy
-    (`.reveal.is-in + .statement-invert`): Chrome counts the clip against
-    IntersectionObserver, so its own reveal only fired once the badge
-    overlapped it.
-    The matrix pattern is hashed from the cell index, not `Math.random()`, or it
-    would shimmer on every repaint. Placeholder artwork until the client's own
-    lands. whose pivot travels upper-left -> close past the camera -> lower
+    letters turn white exactly where they cross it. CSS `mix-blend-mode`
+    cannot do this: the page scrolls inside a fixed wrapper, a separate
+    stacking context, so blending never sees the canvas. The twin's reveal is
+    keyed off the base copy (`.reveal.is-in + .statement-invert`): Chrome
+    counts the clip against IntersectionObserver.
+    **Timing:** the travel runs on `0.12 + statement * 0.685`, so the card's
+    edge reaches the frame at statement ~0.26 — just after the about stat
+    cards scroll off (0.23–0.26 across 720–1080p; the client wants it in only
+    once they are gone) — and clears the frame around 0.8, while "Designed to
+    be remembered" is still up. Tried and rejected: `statement` straight
+    (arrived a third of the way in, screen empty until "Events built to
+    scale"), `(statement + 0.2) / 1.2` (behind the stat cards, and gone by
+    ~0.62, stranding the second statement). It enters
+    mid-left (`cardY` from 0.55 half-heights), clear of the stat cards.
+    Depth is `mid * 2.2 - 1.0` (nearest z 1.2); it was `mid * 3.1 - 0.6`
+    (nearest 2.5), close enough that the card filled the frame and cropped.
+    The QR pattern is hashed from the cell index, not `Math.random()`, or it
+    would shimmer on every repaint. The badge's pivot travels upper-left -> close past the camera -> lower
     right on `scrollState.statement`, nearest the camera before half-way and
     receding as it exits. It is *present* early (`thermal > 0.02`) but parked
     far off-screen left (travel starts at -2.3 x half-width) so it slides in
@@ -418,23 +500,38 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   (visitor-local `Clock` left, Telegram + X links right),
   `SideScrollbar` (desktop, Lenis-driven), `PixelCursor` (8-bit terracotta
   cursor replacing the OS cursor for fine pointers; hidden over text fields).
+  About OS size on both faces: party is the 8-bit arrow at 1.5px cells
+  (12 x 21) with a one-cell black pixel outline so it reads over the
+  field's orange (it vanished there); business swaps it in CSS for a slim vector arrow, soft black
+  with a paper keyline, that fills mint over links. Hover scale is 1.15.
   All `pointer-events-none` with only the controls re-enabled.
 - **Statements:** `.statement` (Syne 700, caps), both panels
   transparent so the backdrop shows; `StickyFade` fades the pinned one as the
   next slides over.
 - **Who are we** (`About.tsx`, id `about`; phones show `About` in the nav
   because the full label overflows the header), identical on both faces:
-  eyebrow, the client's about paragraph, a row of four **stats**, and a
-  founder line — all client copy in `about` (`site.ts`). The founder cards
+  eyebrow, the client's about paragraph with a **photo slideshow** to its
+  right (5 columns at `lg`, right-aligned, top-aligned with the paragraph
+  and a little taller than it; always 3:2, stacked below it on phones), a row of four
+  **stats**, and a founder line — all client copy in `about` (`site.ts`).
+  The slideshow is `ui/PhotoSlides`: the client's event photos (originals in
+  `Design/`, web copies ≤2000px in `public/about/`, order and alt text in
+  `about.photos`) stacked in one 3:2 box and crossfaded on a 4.25s timer, which
+  pauses on hover/focus and stops under reduced motion; arrows and a `01 / 10`
+  counter sit on a dark gradient along the bottom. The founder cards
   (polaroids, photos, roles, bios) were removed at the client's request, and
   with them `TeamCard`, `BendImages` (the WebGL layer that painted them), the
   polaroid CSS, the `--frame` token and `public/team/`.
-  The stats are the section's anchor now there are no photographs. Each sits
+  Each stat sits
   in a **frosted card** after the client's reference — label top-left in the
   mono, the number large and centred, an index (`01`–`04`) bottom-left — on
   the page's 12-column grid, four across (3 columns each) on desktop, two by
-  two below `lg`. The cards are the site's own `.glass`, so each face styles
-  them: smoked on party; on business `.stat-card` makes them a white frosted
+  two below `lg`. Each label has a brand dot before it
+  (`.stat-card__label::before`: mint on party, soft black on business, where
+  `--brand` is ink) and the index is just `01`–`04` (a `/ 04` total was tried and removed). The cards are the site's
+  own `.glass`, so each face styles them: on party they share
+  `.contact-glass`'s darker smoke and heavier blur (the stock glass let the
+  field through, so the four read as four different colours); on business `.stat-card` makes them a white frosted
   panel *lighter* than the paper, as the reference's are — the business
   `.glass` is a faint grey wash, darker than the paper, and read as a hole.
   (The stats first opened on a hairline with a `+`; the client had that
@@ -451,12 +548,16 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   and all, because pasting the glyph onto fresh black left a seam where the
   two blacks disagreed. `opengraph-image.alt.txt` carries the alt text. They
   replaced a generated preview card and the starter `favicon.ico`.
-- **Contact:** centered form (two-column filled fields after the client's
+- **Contact:** on the party face the card is `.glass.contact-glass`: darker
+  smoke, `blur(48px)` and `brightness(0.55)` behind, with brighter labels,
+  field borders and placeholders (those three unlayered, to beat utilities) —
+  the stock glass let the field's brightest bands wash the type out.
+  Centered form (two-column filled fields after the client's
   reference: name/email, company (optional)/location, then the message; black
   pill submit) → `app/actions/contact.ts` server action → Resend
   REST. Needs `RESEND_API_KEY` (see `.env.example`); without it the form says
   so and points to the email. Telegram and X sit bottom-right
-  (`Socials.tsx`; the handles in `site.ts` are placeholders), and the Telegram
+  (`Socials.tsx`; X is real, the Telegram handle in `site.ts` is a placeholder), and the Telegram
   link is reused in the contact copy.
 - Text on the left gutter needs an 8px inset (`px-2` / `outline-box` padding)
   so it clears the grid overlay's gutter line.
@@ -471,7 +572,7 @@ src/components/
   three/            SceneCanvas → Scene (Canvas + tracker), CloudBackdrop (+ the grid),
                     HeroLetters, Stickers + stickerDefs, Badge, Ticket,
                     canvasPaint, Lighting, noise, scrollState
-  ui/               Reveal, CountUp
+  ui/               Reveal, CountUp, PhotoSlides
 src/app/actions/    contact.ts — server action for the form
 src/hooks/          usePrefersReducedMotion, useMediaQuery
 src/content/        site.ts, services.ts — all copy

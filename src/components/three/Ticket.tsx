@@ -20,8 +20,6 @@ import {
   hash2,
   pageFonts,
   paintPaper,
-  paintThermal,
-  type Blob,
   type Fonts,
 } from "./canvasPaint";
 import { scrollState } from "./scrollState";
@@ -34,7 +32,7 @@ import { scrollState } from "./scrollState";
  * Each piece is a finely subdivided plane, not an extruded card: the tear has
  * to *bend* the paper, and an extrusion's face is one flat polygon with no
  * vertices inside it to move. So the die-cut outline — rounded outer corners,
- * half-round notches at the perforation, the stub's two punched holes — is cut
+ * half-round notches at the perforation, the stub's lanyard slot — is cut
  * in the fragment shader from a signed distance, along with the ragged torn
  * edge, and the curl is a vertex displacement. See `tearMaterial`.
  *
@@ -112,9 +110,8 @@ const TEAR_CUT = /* glsl */ `
   sd = max(sd, ${NR.toFixed(3)} - length(tp - vec2(uHalf.x, uEdgeY)));
   sd = max(sd, ${NR.toFixed(3)} - length(tp - vec2(-uHalf.x, uEdgeY)));
   if (uHoles > 0.5) {
-    vec2 hc = vec2(uHalf.x - 0.09, uHalf.y - 0.09);
-    sd = max(sd, 0.028 - length(tp - hc));
-    sd = max(sd, 0.028 - length(tp - vec2(-hc.x, hc.y)));
+    // One lanyard slot, centred near the top edge.
+    sd = max(sd, -tearBox(tp - vec2(0.0, uHalf.y - 0.1), vec2(0.11, 0.024), vec4(0.024)));
   }
   // The perforation, and the edge it leaves. Real holes run the whole line —
   // each piece cuts its half of every circle, so before the tear they read as
@@ -161,7 +158,7 @@ function tearMaterial(piece: Piece, map: Texture) {
   };
   const material =
     piece === "stub"
-      ? // Foil: the thin-film sheen shifts over the thermal print as it
+      ? // Foil: the thin-film sheen shifts over the pearl print as it
         // turns, which is what makes it read as holographic.
         new MeshPhysicalMaterial({
           map,
@@ -218,13 +215,45 @@ function tearMaterial(piece: Piece, map: Texture) {
 
 const INK = "#0b0b0c";
 
-/** Foil: the bright middle of the ramp — teal through blue and violet to coral. */
-const FOIL: Blob[] = [
-  [0.5, 0.48, 0.55, 0.3, 0, 0.5, 0.4], // amber glow behind the title
-  [0.02, 1.05, 0.34, 0.26, 0.4, 1, 0.5], // teal from the lower left
-  [1.02, 0.95, 0.22, 0.2, -0.3, 0.75, 0.3], // and a little lower right
-  [0.95, 0.08, 0.3, 0.14, 0.2, 0.3, 0.3], // warm lift top right
+/**
+ * Pearl foil: near-white with soft pastel bands running diagonally. It was
+ * the thermal ramp's bright middle, the same colours as the ground it floats
+ * over, and it disappeared into it; a pale stock stands off the dark field
+ * and still reads as holographic once the iridescence moves across it.
+ */
+const PEARL: readonly [number, string][] = [
+  [0, "#e4d9ff"],
+  [0.18, "#bdf0da"],
+  [0.36, "#f6f3ec"],
+  [0.52, "#ffc9da"],
+  [0.7, "#d0d5ff"],
+  [0.86, "#c3eee8"],
+  [1, "#fbe4c8"],
 ];
+
+function paintPearl(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const band = ctx.createLinearGradient(0, 0, w, h);
+  for (const [at, c] of PEARL) band.addColorStop(at, c);
+  ctx.fillStyle = band;
+  ctx.fillRect(0, 0, w, h);
+  // A soft sheen across the title, as light catching foil.
+  const sheen = ctx.createRadialGradient(w * 0.62, h * 0.3, 0, w * 0.62, h * 0.3, w * 0.7);
+  sheen.addColorStop(0, "rgba(255,255,255,0.55)");
+  sheen.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h);
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      const n = (hash2(px, py) - 0.5) * 10;
+      const o = (py * w + px) * 4;
+      img.data[o] += n;
+      img.data[o + 1] += n;
+      img.data[o + 2] += n;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
 
 function fitFont(
   ctx: CanvasRenderingContext2D,
@@ -240,6 +269,25 @@ function fitFont(
   return size;
 }
 
+const MINT_INK = "#04ea98";
+const CORAL = "#ff7a45";
+
+/** A four-point sparkle — the mark on the stub, and on the sticker sheet. */
+function sparkle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.quadraticCurveTo(x + r * 0.12, y - r * 0.12, x + r, y);
+  ctx.quadraticCurveTo(x + r * 0.12, y + r * 0.12, x, y + r);
+  ctx.quadraticCurveTo(x - r * 0.12, y + r * 0.12, x - r, y);
+  ctx.quadraticCurveTo(x - r * 0.12, y - r * 0.12, x, y - r);
+  ctx.fill();
+}
+
+/** Dotted leader from x0 to x1 on a baseline. */
+function leader(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number) {
+  for (let x = x0; x < x1; x += 10) ctx.fillRect(x, y - 3, 3, 3);
+}
+
 function paintStub(fonts: Fonts) {
   const w = TEX_W;
   const h = Math.round((w * TOP_H) / TW);
@@ -248,56 +296,54 @@ function paintStub(fonts: Fonts) {
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
-  paintThermal(ctx, w, h, FOIL, { lo: 0.4, hi: 0.8, grain: 16 });
+  paintPearl(ctx, w, h);
   const c = ticket.stub;
-  const cx = w / 2;
+  const pad = 56;
+  const right = w - pad - 44; // clear of the edge text
   ctx.fillStyle = INK;
   ctx.strokeStyle = INK;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+  ctx.textBaseline = "alphabetic";
 
-  // The mark: a wide wireframe globe, after the site's old corner globe.
-  ctx.lineWidth = 3;
-  for (const rx of [48, 30, 12]) {
-    ctx.beginPath();
-    ctx.ellipse(cx, 92, rx, 24, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.beginPath();
-  ctx.moveTo(cx - 48, 92);
-  ctx.lineTo(cx + 48, 92);
-  ctx.stroke();
-
-  ctx.font = `600 22px ${fonts.mono}`;
-  ctx.fillText(c.kicker.toUpperCase(), cx, 172);
-
-  // Title inside an orbit ring, as on the reference.
-  const ty = h * 0.47;
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.ellipse(cx, ty, w * 0.44, 74, -0.2, 0, Math.PI * 2);
-  ctx.stroke();
-  fitFont(ctx, 800, fonts.sans, c.title, 230, w * 0.62);
-  ctx.fillText(c.title, cx, ty + 8);
-
-  fitFont(
-    ctx,
-    700,
-    fonts.sans,
-    `+  ${c.tagline.toUpperCase()}  +`,
-    34,
-    w * 0.78,
-  );
-  ctx.fillText(`+  ${c.tagline.toUpperCase()}  +`, cx, h * 0.69);
-
-  // Rule and boxed label at the foot of the stub.
-  ctx.fillRect(cx - w * 0.16, h * 0.82, w * 0.32, 2);
+  // Top row, under the lanyard slot: admit / serial, then a hairline.
   ctx.font = `600 20px ${fonts.mono}`;
-  const label = c.label.toUpperCase();
-  const lw = ctx.measureText(label).width + 28;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(cx - lw / 2, h * 0.87 - 20, lw, 40);
-  ctx.fillText(label, cx, h * 0.87 + 1);
+  ctx.textAlign = "left";
+  ctx.fillText(c.admit.toUpperCase(), pad, 136);
+  ctx.textAlign = "right";
+  ctx.fillText(c.serial.toUpperCase(), right, 136);
+  ctx.fillRect(pad, 154, right - pad, 2);
+
+  // Title set big and flush left, sat on the band like a poster's headline;
+  // the foil shows through the open space above it.
+  const bandY = h - 150;
+  ctx.textAlign = "left";
+  ctx.font = `600 24px ${fonts.mono}`;
+  ctx.fillText(`${c.tagline.toUpperCase()}  →`, pad, bandY - 30);
+  const size = fitFont(ctx, 800, fonts.sans, c.title, 260, right - pad);
+  const base = bandY - 84;
+  ctx.fillText(c.title, pad - size * 0.04, base);
+  sparkle(ctx, right - 30, base - size * 0.72 - 44, 34);
+
+  // A black band along the foot, the label repeated across it.
+  ctx.fillRect(0, bandY, w, 58);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, bandY, w, 58);
+  ctx.clip();
+  ctx.fillStyle = MINT_INK;
+  ctx.font = `700 22px ${fonts.mono}`;
+  const unit = `${c.label.toUpperCase()}  ✦  `;
+  const uw = ctx.measureText(unit).width;
+  for (let x = -uw * 0.4; x < w; x += uw) ctx.fillText(unit, x, bandY + 37);
+  ctx.restore();
+
+  // Up the right edge.
+  ctx.save();
+  ctx.translate(w - pad + 6, bandY - 24);
+  ctx.rotate(-Math.PI / 2);
+  ctx.font = `500 15px ${fonts.mono}`;
+  ctx.fillStyle = INK;
+  ctx.fillText(c.edge.toUpperCase(), 0, 0);
+  ctx.restore();
   return canvas;
 }
 
@@ -312,93 +358,100 @@ function paintBody(fonts: Fonts) {
   paintPaper(ctx, w, h, [238, 237, 233]);
   const c = ticket.body;
   const pad = 56;
+  const gw = w - pad * 2;
   ctx.fillStyle = INK;
   ctx.strokeStyle = INK;
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
 
+  // Header band: eyebrow on black, start on the right.
+  ctx.fillRect(pad, 48, gw, 52);
+  ctx.fillStyle = MINT_INK;
+  ctx.font = `700 18px ${fonts.mono}`;
+  ctx.fillText(c.eyebrow.toUpperCase(), pad + 20, 81);
+  ctx.textAlign = "right";
+  ctx.fillText(`${c.startLabel} — ${c.start}`.toUpperCase(), w - pad - 20, 81);
+  ctx.textAlign = "left";
+  ctx.fillStyle = INK;
 
-  // Header: eyebrow, bullet, the hero line as the "venue".
-  ctx.font = `500 18px ${fonts.mono}`;
-  ctx.fillText(c.eyebrow.toUpperCase(), pad + 40, 72);
-  ctx.fillRect(pad, 88, 26, 26);
-  // Kept clear of the date block on the right — Syne 800 runs wide.
-  const headWidth = w * 0.46;
+  // Headline across the full measure.
   const [l1, l2] = c.headline.map((l) => l.toUpperCase());
   ctx.font = `800 100px ${fonts.sans}`;
   const widest = Math.max(ctx.measureText(l1).width, ctx.measureText(l2).width);
-  const size = Math.min(44, (100 * headWidth) / widest);
+  const size = Math.min(58, (100 * gw) / widest);
   ctx.font = `800 ${Math.floor(size)}px ${fonts.sans}`;
-  ctx.fillText(l1, pad + 40, 112);
-  ctx.fillText(l2, pad + 40, 112 + size * 1.08);
+  ctx.fillText(l1, pad, 170);
+  ctx.fillText(l2, pad, 170 + size * 1.08);
 
-  // Date block, right, behind a dotted rule.
-  ctx.fillStyle = "rgba(11,11,12,0.5)";
-  for (let y = 64; y < 250; y += 12) ctx.fillRect(w - pad - 18, y, 4, 4);
-  ctx.fillStyle = INK;
-  ctx.textAlign = "right";
-  ctx.font = `800 64px ${fonts.sans}`;
-  ctx.fillText(c.date[0], w - pad - 36, 136);
-  ctx.fillText(c.date[1], w - pad - 36, 226);
-  ctx.textAlign = "left";
-
-  ctx.font = `500 16px ${fonts.mono}`;
-  ctx.fillText(c.startLabel.toUpperCase(), pad, 262);
-  ctx.font = `800 40px ${fonts.sans}`;
-  ctx.fillText(c.start.toUpperCase(), pad + 110, 266);
-
-  // The grid: three rows of two label/value cells.
-  const gx = pad;
-  const gy = 300;
-  const gw = w - pad * 2;
-  const rowH = 118;
-  ctx.lineWidth = 3;
-  ctx.strokeRect(gx, gy, gw, rowH * 3);
-  const cellW = gw / 2;
+  // Run of show: number, label, dotted leader, a tick box.
+  const top = 170 + size * 1.08 + 64;
+  const rowH = 70;
+  ctx.fillRect(pad, top - 44, gw, 3);
   c.rows.forEach(([label, value], i) => {
-    const x = gx + (i % 2) * cellW;
-    const y = gy + Math.floor(i / 2) * rowH;
-    ctx.font = `500 18px ${fonts.mono}`;
-    ctx.fillText(label.toUpperCase(), x + 28, y + rowH / 2 + 6);
-    ctx.font = `800 62px ${fonts.sans}`;
-    ctx.fillText(value, x + cellW * 0.6, y + rowH / 2 + 22);
+    const y = top + i * rowH;
+    ctx.font = `800 40px ${fonts.sans}`;
+    ctx.fillText(value, pad, y);
+    ctx.font = `600 20px ${fonts.mono}`;
+    const text = label.toUpperCase();
+    ctx.fillText(text, pad + 96, y - 4);
+    const end = w - pad - 34;
+    leader(ctx, pad + 108 + ctx.measureText(text).width, end - 14, y - 4);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(end, y - 26, 24, 24);
+    if (value !== "0") {
+      ctx.beginPath();
+      ctx.moveTo(end + 5, y - 14);
+      ctx.lineTo(end + 11, y - 8);
+      ctx.lineTo(end + 20, y - 22);
+      ctx.stroke();
+    }
+    ctx.fillRect(pad, y + 22, gw, 1);
   });
 
-  // Fine print, checker strip, barcode, stamp.
-  const fy = gy + rowH * 3 + 44;
-  ctx.fillRect(pad, fy - 22, gw, 1);
-  ctx.font = `500 14px ${fonts.mono}`;
-  c.fine.forEach((line, i) =>
-    ctx.fillText(line.toUpperCase(), pad, fy + i * 22),
-  );
-  const cy = fy + 50;
-  for (let i = 0; i < 22; i++) {
-    for (let j = 0; j < 2; j++)
-      if ((i + j) % 2 === 0) ctx.fillRect(pad + i * 12, cy + j * 12, 12, 12);
-  }
-  const by = cy + 40;
-  let bx = pad;
-  let n = 0;
-  while (bx < pad + 300) {
-    const bw = 2 + Math.floor(hash2(n, 7) * 4);
-    if (n % 2 === 0) ctx.fillRect(bx, by, bw, 46);
-    bx += bw + 1;
-    n++;
-  }
-  const sx = w - pad - 72;
-  const sy = cy + 44;
-  ctx.lineWidth = 4;
+  // The rubber stamp, tilted across the list.
+  const listEnd = top + rowH * c.rows.length;
+  ctx.save();
+  ctx.translate(w - pad - 118, top + rowH * 2.5);
+  ctx.rotate(-0.22);
+  ctx.globalAlpha = 0.88;
+  ctx.strokeStyle = CORAL;
+  ctx.fillStyle = CORAL;
+  ctx.lineWidth = 5;
   ctx.beginPath();
-  ctx.arc(sx, sy, 62, 0, Math.PI * 2);
+  ctx.arc(0, 0, 92, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 80, 0, Math.PI * 2);
   ctx.stroke();
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `800 38px ${fonts.sans}`;
-  ctx.fillText(c.stamp, sx, sy + 2);
+  ctx.font = `800 56px ${fonts.sans}`;
+  ctx.fillText(c.stamp[0], 0, 14);
+  ctx.font = `700 16px ${fonts.mono}`;
+  ctx.fillText(c.stamp[1].toUpperCase(), 0, 46);
+  ctx.restore();
   ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
+
+  // Footer: a QR block, the fine print beside it.
+  const fy = listEnd + 20;
+  const cell = 9;
+  const n = 13;
+  const eye = (x: number, y: number) => x < 3 && y < 3 || x > n - 4 && y < 3 || x < 3 && y > n - 4;
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      if (eye(x, y)) continue;
+      if (hash2(x + 11, y + 29) < 0.45) ctx.fillRect(pad + x * cell, fy + y * cell, cell, cell);
+    }
+  }
+  for (const [ex, ey] of [[0, 0], [n - 3, 0], [0, n - 3]]) {
+    ctx.lineWidth = 5;
+    ctx.strokeRect(pad + ex * cell + 2.5, fy + ey * cell + 2.5, cell * 3 - 5, cell * 3 - 5);
+  }
+  const tx = pad + n * cell + 28;
   ctx.font = `500 14px ${fonts.mono}`;
-  ctx.fillText(c.footer.toUpperCase(), pad, h - 40);
+  c.fine.forEach((line, i) => ctx.fillText(line.toUpperCase(), tx, fy + 22 + i * 24));
+  ctx.font = `600 14px ${fonts.mono}`;
+  ctx.fillText(c.footer.toUpperCase(), tx, fy + n * cell - 4);
   return canvas;
 }
 

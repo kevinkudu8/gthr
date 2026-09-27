@@ -23,7 +23,7 @@ export function Contact() {
         >
           {contact.heading}
         </Reveal>
-        <Reveal delay={160} className="glass p-6 lg:p-10">
+        <Reveal delay={160} className="glass contact-glass p-6 lg:p-10">
           <ContactForm />
         </Reveal>
         <Reveal

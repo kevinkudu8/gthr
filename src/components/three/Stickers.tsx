@@ -51,17 +51,17 @@ type Slot = { id: string; seed: number; speed: number; z: number; size: number }
 // The whole sheet, wandering. Each sticker follows its own smooth noise path
 // across the hero — including behind the wordmark, which refracts it.
 const SLOTS: Slot[] = [
-  { id: "coil", seed: 1, speed: 0.045, z: -1.4, size: 0.1 },
-  { id: "asterisk", seed: 2, speed: 0.04, z: -1.8, size: 0.09 },
-  { id: "invader", seed: 3, speed: 0.05, z: -1.2, size: 0.09 },
-  { id: "globe", seed: 4, speed: 0.035, z: -2.2, size: 0.09 },
-  { id: "bars", seed: 5, speed: 0.042, z: -1.6, size: 0.028 },
-  { id: "label", seed: 6, speed: 0.03, z: -2.0, size: 0.12 },
-  { id: "dots", seed: 7, speed: 0.048, z: -1.5, size: 0.075 },
-  { id: "files", seed: 8, speed: 0.028, z: -2.4, size: 0.14 },
-  { id: "checker", seed: 9, speed: 0.055, z: -1.3, size: 0.045 },
-  { id: "gradient", seed: 10, speed: 0.038, z: -2.1, size: 0.12 },
-  { id: "diamond", seed: 11, speed: 0.044, z: -1.7, size: 0.06 },
+  { id: "crew", seed: 1, speed: 0.045, z: -1.4, size: 0.075 },
+  { id: "burst", seed: 2, speed: 0.04, z: -1.8, size: 0.09 },
+  { id: "cursor", seed: 3, speed: 0.05, z: -1.2, size: 0.06 },
+  { id: "disco", seed: 4, speed: 0.035, z: -2.2, size: 0.095 },
+  { id: "speaker", seed: 5, speed: 0.042, z: -1.6, size: 0.055 },
+  { id: "wristband", seed: 6, speed: 0.03, z: -2.0, size: 0.13 },
+  { id: "qr", seed: 7, speed: 0.048, z: -1.5, size: 0.06 },
+  { id: "runsheet", seed: 8, speed: 0.028, z: -2.4, size: 0.1 },
+  { id: "sparkle", seed: 9, speed: 0.055, z: -1.3, size: 0.045 },
+  { id: "doors", seed: 10, speed: 0.038, z: -2.1, size: 0.11 },
+  { id: "mic", seed: 11, speed: 0.044, z: -1.7, size: 0.075 },
 ];
 
 /**

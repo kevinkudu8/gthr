@@ -12,6 +12,19 @@ export const scrollState = {
   hero: 0,
   /** Cloud backdrop strength for whatever is on screen, 0..1. */
   backdrop: 1,
+  /**
+   * How much the party field is calmed for what is on screen, 0..2: 0 on the
+   * hero (the field at full strength *is* that screen's design), 1 an ambient
+   * glow behind reading content, 2 near-black with a trace of colour.
+   * CloudBackdrop desaturates and flattens by it.
+   */
+  calm: 0,
+  /**
+   * 0 until the last ~70% of a screen of scroll, rising to 1 at the very
+   * bottom of the page. CloudBackdrop lets the full-colour field back in
+   * along the bottom of the screen by it, so colour peeks up at the end.
+   */
+  end: 0,
   /** How much terracotta the backdrop mixes in, 0..1. */
   warm: 1,
   /** Progress through the #statements block: 0 as it enters → 1 as it leaves. */
@@ -53,12 +66,15 @@ export const scrollState = {
 };
 
 /** Per-section backdrop look. Sections tile the page, so overlaps sum to 1. */
-const SECTIONS: { id: string; intensity: number; warm: number; thermal: number }[] = [
-  { id: "hero", intensity: 0.42, warm: 0.9, thermal: 0 },
-  { id: "about", intensity: 0.4, warm: 0.9, thermal: 0 },
-  { id: "statements", intensity: 0.6, warm: 0.6, thermal: 0.55 },
-  { id: "services", intensity: 0.28, warm: 0.6, thermal: 0 },
-  { id: "contact", intensity: 0.75, warm: 1, thermal: 0 },
+const SECTIONS: { id: string; intensity: number; warm: number; thermal: number; calm: number }[] = [
+  { id: "hero", intensity: 0.42, warm: 0.9, thermal: 0, calm: 0 },
+  { id: "about", intensity: 0.4, warm: 0.9, thermal: 0, calm: 1 },
+  // The showpiece: brighter than the reading sections, the ticket is pale
+  // enough to stand off colour.
+  { id: "statements", intensity: 0.6, warm: 0.6, thermal: 0.55, calm: 0.45 },
+  // Near-black: the client wanted these two quiet.
+  { id: "services", intensity: 0.28, warm: 0.6, thermal: 0, calm: 2 },
+  { id: "contact", intensity: 0.75, warm: 1, thermal: 0, calm: 2 },
 ];
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
@@ -99,6 +115,7 @@ export function updateScrollState() {
   let intensity = 0;
   let warm = 0;
   let thermal = 0;
+  let calm = 0;
   for (const section of SECTIONS) {
     const el = sectionElement(section.id);
     if (!el) continue;
@@ -107,8 +124,14 @@ export function updateScrollState() {
     intensity += visible * section.intensity;
     warm += visible * section.warm;
     thermal += visible * section.thermal;
+    calm += visible * section.calm;
     if (section.id === "statements") {
       scrollState.statement = clamp01((vh - top) / (bottom - top + vh));
+    }
+    if (section.id === "contact") {
+      // Contact is the last section, so its bottom meets the viewport's
+      // bottom exactly at the end of the page.
+      scrollState.end = clamp01(1 - (bottom - vh) / (vh * 0.7));
     }
     if (section.id === "services") {
       // 1 while services is well below the fold, 0 once its top passes 30% of
@@ -119,4 +142,5 @@ export function updateScrollState() {
   scrollState.backdrop = clamp01(intensity);
   scrollState.warm = clamp01(warm);
   scrollState.thermal = clamp01(thermal);
+  scrollState.calm = Math.min(2, Math.max(0, calm));
 }

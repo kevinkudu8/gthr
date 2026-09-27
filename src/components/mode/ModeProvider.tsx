@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { lenisRef } from "@/components/chrome/SmoothScroll";
 import { scrollState } from "@/components/three/scrollState";
 
 export type Mode = "party" | "business";
@@ -35,6 +36,49 @@ if (typeof window !== "undefined") {
   scrollState.business = scrollState.businessMix = current === "business" ? 1 : 0;
 }
 
+/*
+ * Keeping your place across a switch. The two faces are not the same length
+ * (party pulls Services up into the second statement, for one), so the same
+ * scroll offset lands somewhere else. Instead: before the switch, note which
+ * section is under the middle of the screen and how far through it the middle
+ * is; after the new face has laid out, scroll so that same point of that same
+ * section is under the middle again.
+ */
+const ANCHORS = ["hero", "about", "statements", "services", "contact"];
+type Anchor = { id: string; progress: number };
+let pendingAnchor: Anchor | null = null;
+
+function scroller(): HTMLElement {
+  return document.querySelector<HTMLElement>(".scroll-wrapper") ?? document.documentElement;
+}
+
+function captureAnchor(): Anchor | null {
+  const mid = window.innerHeight / 2;
+  for (const id of ANCHORS) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (r.top <= mid && r.bottom > mid) return { id, progress: (mid - r.top) / Math.max(1, r.height) };
+  }
+  return null;
+}
+
+function restoreAnchor(anchor: Anchor) {
+  const el = document.getElementById(anchor.id);
+  if (!el) return;
+  const box = scroller();
+  const r = el.getBoundingClientRect();
+  const lenis = lenisRef.current;
+  const current = lenis ? lenis.scroll : box.scrollTop;
+  const target = current + r.top + anchor.progress * r.height - window.innerHeight / 2;
+  if (lenis) {
+    lenis.resize(); // the content height just changed under it
+    lenis.scrollTo(target, { immediate: true, force: true });
+  } else {
+    box.scrollTop = target;
+  }
+}
+
 const listeners = new Set<() => void>();
 let switchTimer = 0;
 const subscribe = (listener: () => void) => {
@@ -44,6 +88,7 @@ const subscribe = (listener: () => void) => {
 
 export function setMode(next: Mode) {
   if (next === current) return;
+  pendingAnchor = captureAnchor();
   current = next;
   // Marks the switch itself for CSS (see `[data-switching]` in globals.css):
   // the hero line hides across the layout change and fades back in after.
@@ -75,6 +120,14 @@ export function ModeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.mode = mode;
     scrollState.business = mode === "business" ? 1 : 0;
+    const anchor = pendingAnchor;
+    pendingAnchor = null;
+    if (!anchor) return;
+    // Once now, against the new face's CSS, and again next frame in case
+    // anything laid out late.
+    restoreAnchor(anchor);
+    const frame = requestAnimationFrame(() => restoreAnchor(anchor));
+    return () => cancelAnimationFrame(frame);
   }, [mode]);
 
   return <>{children}</>;
