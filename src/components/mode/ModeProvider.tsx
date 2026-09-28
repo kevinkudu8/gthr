@@ -10,7 +10,9 @@ const STORAGE_KEY = "gthr:mode";
 
 /**
  * The site has two faces: `business` (the default — white, black ink, the
- * dot terrain) and `party` (colour field, stickers, cursive glass wordmark). The layout and copy are identical; only the finish changes.
+ * dot terrain) and `party` (colour field, cursive glass wordmark), shown to
+ * visitors as light and dark mode. The layout and copy are nearly identical;
+ * only the finish changes.
  *
  * The choice lives in a module-level store rather than React state so that
  * (a) it can be seeded synchronously on the client, before the first render,

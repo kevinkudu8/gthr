@@ -11,7 +11,6 @@ import { CloudBackdrop } from "./CloudBackdrop";
 import { HeroLetters } from "./HeroLetters";
 import { Lighting } from "./Lighting";
 import { scrollState, updateScrollState } from "./scrollState";
-import { Stickers } from "./Stickers";
 import { Ticket } from "./Ticket";
 
 export function Scene() {
@@ -35,15 +34,11 @@ export function Scene() {
       <Lighting business={business} />
       <Suspense fallback={null}>
         <HeroLetters reducedMotion={reducedMotion} mobile={mobile} />
-        <Stickers reducedMotion={reducedMotion} />
-        {/* One prop per face for the statements block: the lanyard badge on
-            business, the tearing ticket on party. Business also hangs a
-            second badge in the hero's right half. */}
+        {/* One prop per face: the lanyard badge hanging in the business
+            hero, the tearing ticket in the party face's statements block
+            (business has no statements block). */}
         {business ? (
-          <>
-            <Badge reducedMotion={reducedMotion} placement="hero" mobile={mobile} />
-            <Badge reducedMotion={reducedMotion} />
-          </>
+          <Badge reducedMotion={reducedMotion} mobile={mobile} />
         ) : (
           <Ticket reducedMotion={reducedMotion} />
         )}

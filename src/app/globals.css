@@ -251,33 +251,6 @@
     }
   }
 
-  /* The statement's white twin, clipped per frame to the business badge's
-     dark parts — the strap and the card's art panel (three/Badge.tsx,
-     clipStatements) — so the type reads over them. Hidden until clipped, and off entirely on the party face,
-     where the statement is already white. */
-  .statement-invert {
-    display: none;
-    color: #ffffff;
-    /* A soft dark halo, so the white holds up over the mint glow in the
-       badge's art panel as well as over the black strap. */
-    text-shadow: 0 1px 18px rgba(20, 20, 20, 0.55);
-    pointer-events: none;
-    clip-path: inset(50%);
-  }
-
-  :root[data-mode="business"] .statement-invert {
-    display: block;
-  }
-
-  /* The twin rises with the statement it copies, not on its own: its own
-     reveal waits for an IntersectionObserver, and Chrome counts the clip-path
-     above against intersection — so the twin only "entered view" once the
-     badge overlapped it, and its words were still sunk when the badge first
-     crossed them. Keyed off the base copy (its previous sibling) instead. */
-  .reveal[data-armed].is-in + .statement-invert .reveal-word-inner {
-    transform: none;
-  }
-
   /* Pixel cursor replaces the OS cursor once JS has mounted it. Everything
      except the text fields, which keep the I-beam (PixelCursor hides itself
      over those). Listing tags one by one missed anything that sets its own
@@ -314,9 +287,16 @@
     stroke: #f4f2ec;
     transition: fill 0.2s var(--ease-66);
   }
-  .pixel-cursor[data-hover] .pixel-cursor__sleek {
+  .pixel-cursor[data-hover] .pixel-cursor__sleek,
+  :root[data-badge] .pixel-cursor__sleek {
     fill: #86dcb2;
     stroke: #141414;
+  }
+
+  /* Over the hero badge (three/Badge.tsx sets `data-badge`): the link
+     state, since a click is what moves it. */
+  :root[data-badge] .pixel-cursor__arrow {
+    transform: scale(1.15);
   }
 
   /* --- Scroll reveals (see components/ui/Reveal.tsx) ---------------- */
@@ -440,8 +420,8 @@
     }
   }
 
-  /* Arriving (party -> business): held back only until the glass word and the
-     stickers are mostly out (scrollState.partyPresence is done by ~0.25s),
+  /* Arriving (party -> business): held back only until the glass word is
+     mostly out (scrollState.partyPresence is done by ~0.25s),
      then focuses up in place, quickly — it used to fade in *over* the glass word while
      that was still shrinking, which is what read as messy. */
   :root[data-mode="business"] .hero-lockup {
@@ -527,61 +507,68 @@
   }
 
   /* --- Mode toggle (chrome/ModeToggle.tsx) ---------------------------- */
+  /* A square icon button: the sun on the light (business) face, the moon on
+     the dark (party) face. Both glyphs are drawn and crossfade with a turn,
+     so the swap reads as one control changing state. The icon is green on
+     both faces — the party brand green on dark, and a deeper mint on the
+     paper, where the mint itself is 1.7:1 and would not hold up as a glyph
+     (this is ~3.9:1). */
   .mode-toggle {
+    --mode-toggle-icon: var(--brand);
     position: relative;
-    /* Equal columns: the sliding thumb is a fixed 50%, so options of unequal
-       label width ("party" vs "business") would slide out of register. */
     display: inline-grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    align-items: stretch;
-    padding: 2px;
+    place-items: center;
+    width: 1.875rem;
+    height: 1.875rem;
     border: 1px solid var(--line);
-    border-radius: 999px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    line-height: 1;
-    background: rgba(var(--ink-rgb), 0.03);
+    border-radius: 0.55rem;
+    /* The page's own ground, so it reads as part of the bar, not a chip on
+       it. A white fill looked off against the warm paper. */
+    background: var(--paper);
+    color: var(--mode-toggle-icon);
+    transition:
+      border-color 0.3s var(--ease-66),
+      background-color 0.3s var(--ease-66);
+  }
+
+  :root[data-mode="business"] .mode-toggle {
+    --mode-toggle-icon: #2f8a5c;
+  }
+
+  .mode-toggle:hover {
+    border-color: rgba(var(--ink-rgb), 0.35);
+  }
+
+  .mode-toggle:focus-visible {
+    outline: 2px solid var(--mode-toggle-icon);
+    outline-offset: 2px;
   }
 
   @media (min-width: 64rem) {
     .mode-toggle {
-      font-size: 11px;
-    }
-
-    .mode-toggle__option {
-      padding: 0.42rem 0.72rem;
+      width: 2rem;
+      height: 2rem;
     }
   }
 
-  /* The sliding indicator. Half the control wide, moved by the checked index
-     (ModeToggle sets the transform inline). */
-  .mode-toggle__thumb {
-    position: absolute;
-    z-index: 0;
-    top: 2px;
-    bottom: 2px;
-    left: 2px;
-    width: calc(50% - 2px);
-    border-radius: 999px;
-    background: var(--ink-1);
-    transition: transform 0.45s var(--ease-66);
+  .mode-toggle__icon {
+    grid-area: 1 / 1;
+    width: 0.95rem;
+    height: 0.95rem;
+    transition:
+      opacity 0.35s var(--ease-66),
+      transform 0.5s var(--ease-66);
   }
 
-  .mode-toggle__option {
-    position: relative;
-    z-index: 1;
-    text-align: center;
-    padding: 0.36rem 0.5rem;
-    cursor: pointer;
-    color: var(--ink-2);
-    transition: color 0.45s var(--ease-66);
-    white-space: nowrap;
+  .mode-toggle__icon--moon,
+  :root[data-mode="party"] .mode-toggle__icon--sun {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
   }
 
-  .mode-toggle__option:has(:checked) {
-    color: var(--paper);
+  :root[data-mode="party"] .mode-toggle__icon--moon {
+    opacity: 1;
+    transform: none;
   }
 
   /* A frosted white card is invisible on the business face's white ground, so
@@ -603,20 +590,6 @@
   :root[data-mode="business"] .link-min::after {
     background: var(--accent);
     height: 2px;
-  }
-
-  /* The toggle's active option: a mint thumb with soft black on it, in place
-     of the black thumb with paper-coloured type. */
-  :root[data-mode="business"] .mode-toggle__thumb {
-    background: var(--accent);
-  }
-
-  :root[data-mode="business"] .mode-toggle__option:has(:checked) {
-    color: var(--ink-1);
-  }
-
-  :root[data-mode="business"] .mode-toggle {
-    border-color: var(--ink-1);
   }
 
   /* --------------------------------------------------------------------- */
@@ -817,10 +790,10 @@
   position: absolute;
   inset: 0;
   /* Two columns so the stats can sit top-right against the headline, and a
-     row each for headline, CTA and the wordmark, with the slack between them
-     taken by the 1fr. */
+     row each for headline, subline, CTA and the wordmark, with the slack
+     between them taken by the 1fr. */
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto auto 1fr auto;
   /* Left-aligned, as the poster is: #hero centres its text on this face. */
   text-align: left;
   /* The bottom padding is the wordmark's clear space. Of the two options for
@@ -839,11 +812,19 @@
   grid-row: 1;
 }
 
-:root[data-mode="business"] .hero-poster__cta {
+:root[data-mode="business"] .hero-poster__subline {
   grid-column: 1;
   grid-row: 2;
+}
+
+:root[data-mode="business"] .hero-poster__actions {
+  grid-column: 1;
+  grid-row: 3;
   justify-self: start;
-  margin-top: 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
 }
 
 :root[data-mode="business"] .hero-poster__stats {
@@ -853,7 +834,19 @@
 
 :root[data-mode="business"] .hero-poster__mark {
   grid-column: 1 / -1;
-  grid-row: 4;
+  grid-row: 5;
+}
+
+/* What GTHR is, under the headline: body copy in the muted ink, sized to
+   sit a clear step under the headline and to take up some of the band
+   between the CTA and the wordmark. */
+.hero-poster__subline {
+  margin-top: 1.5rem;
+  max-width: 30ch;
+  font-family: var(--font-system);
+  font-size: clamp(1.05rem, 4.2vw, 1.25rem);
+  line-height: 1.4;
+  color: var(--ink-2);
 }
 
 .hero-poster__headline {
@@ -878,7 +871,7 @@
   display: block;
 }
 
-/* The mint marker behind "without building one". A background on the inline
+/* The mint marker behind "remembered". A background on the inline
    span, not a highlight pseudo-element: it has to wrap with the words and
    break across lines the way a drawn marker would. Padded out and pulled back
    in by the same amount, so the run of colour sits proud of the glyphs
@@ -905,6 +898,11 @@
    so the words sat low in it (visibly on Safari/SF). Trimmed to cap height and
    baseline, the padding alone sets the room: equal top and bottom, with enough
    below for the g's descender. Browsers without text-box keep the rule above. */
+/* Mid-line, pulling the marker all the way back would eat the word space
+   and butt it against the previous word, so it is pulled back only a little. */
+.hero-poster__mark-word--mid {
+  margin-left: -0.06em;
+}
 @supports (text-box: trim-both cap alphabetic) {
   .hero-poster__mark-word {
     display: inline-block;
@@ -958,6 +956,75 @@
 .cta:focus-visible {
   background: var(--ink-1);
   color: var(--accent);
+}
+
+/* The name field beside the CTA (sections/BadgeNameField.tsx): the CTA's
+   pill and mono, outlined on the paper instead of filled, with a pencil so
+   it reads as something to write in. Only while the badge is on screen
+   (Badge sets data-badge-shown) — held in place with visibility rather than
+   display, so the CTA never shifts when it appears. */
+.badge-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 17.5rem;
+  padding: 0 1.1rem;
+  height: 2.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: text;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.4s var(--ease-66),
+    border-color 0.3s var(--ease-66),
+    visibility 0s linear 0.4s;
+}
+
+:root[data-badge-shown] .badge-name {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity 0.4s var(--ease-66),
+    border-color 0.3s var(--ease-66);
+}
+
+.badge-name:hover {
+  border-color: rgba(var(--ink-rgb), 0.35);
+}
+
+.badge-name:focus-within {
+  border-color: var(--ink-1);
+}
+
+.badge-name__icon {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.badge-name__input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+}
+
+.badge-name__input::placeholder {
+  color: var(--ink-2);
+  opacity: 1;
 }
 
 /* The arrow keeps pace with the label's colour without a second rule. */
@@ -1038,6 +1105,11 @@
     line-height: 1.08;
   }
 
+  .hero-poster__subline {
+    margin-top: 1.75rem;
+    font-size: clamp(1.2rem, 1.55vw, 1.6rem);
+  }
+
   .hero-poster__mark {
     font-size: 19vw;
   }
@@ -1049,8 +1121,7 @@
    ground is one flat paper colour now, so the bar's ink never changes.) */
 
 .top-bar a,
-.top-bar .mode-toggle,
-.top-bar .mode-toggle__thumb {
+.top-bar .mode-toggle {
   transition:
     color 0.4s var(--ease-66),
     border-color 0.4s var(--ease-66),
@@ -1124,6 +1195,13 @@
 }
 :root[data-mode="party"] .stat-card .eyebrow {
   color: rgba(255, 255, 255, 0.72);
+}
+
+/* Business face: no statements block. Its line is the hero's headline now,
+   and the badge that crossed it hangs in the hero, so the block would only
+   repeat the page's opening. Party keeps it, with the ticket. */
+:root[data-mode="business"] #statements {
+  display: none;
 }
 
 /* Party face: services pulled up into the second statement's empty lower

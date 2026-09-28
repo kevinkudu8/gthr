@@ -20,11 +20,15 @@ export const socials = [
   { id: "x", label: "GTHR on X", href: "https://x.com/gthragency" },
 ] as const;
 
-/** The two faces of the site; see components/mode/ModeProvider.tsx. */
-export const modes = [
-  { id: "business", label: "business", short: "biz" },
-  { id: "party", label: "party", short: "party" },
-] as const;
+/**
+ * The two faces of the site (components/mode/ModeProvider.tsx), presented as
+ * light and dark: business is the light face, party the dark. The toggle is
+ * an icon button, so these are its accessible name per state.
+ */
+export const modeToggle = {
+  toDark: "Switch to dark mode",
+  toLight: "Switch to light mode",
+} as const;
 
 /**
  * Top bar links. `href` is an in-page anchor; TopBar smooth-scrolls to it.
@@ -42,21 +46,33 @@ export const nav = [
  * along the bottom. `index`, `label` and `text` are shown by the party face's
  * footer row only.
  *
- * The headline is `hero.line` broken into its two natural lines. `mark` is
- * the phrase that gets the mint marker behind it — which line carries the
- * highlight is a copy decision, so it lives here rather than as a string the
- * component slices apart.
+ * The headline is `line` broken into its two natural lines. `mark` is the
+ * word (or phrase) in that line that gets the mint marker behind it — which
+ * words carry the highlight is a copy decision, so it lives here. It is the line the statements block used to carry;
+ * that block is party-only now.
  */
 export const poster = {
+  line: "Events built to scale, designed to be remembered",
   lines: [
-    { text: "Your events team,", mark: false },
-    { text: "without building one.", mark: true },
+    { text: "Events built to scale,", mark: "" },
+    { text: "designed to be remembered", mark: "remembered" },
   ],
+  /** Under the headline: what GTHR is, which the headline alone never says. */
+  subline: "An events and experiential marketing agency for web3 and tech.",
   index: "01\\",
   label: "Events & experiences",
   text: "GTHR is an events and experiential marketing agency — from pitch to post, embedded with your team at every step.",
   /** Scrolls to the contact section. */
   cta: { label: "Start a project", href: "#contact" },
+  /**
+   * The field beside the CTA that prints the visitor's own name on the
+   * hero's badge (sections/BadgeNameField.tsx). The label is for screen
+   * readers; the placeholder is what shows.
+   */
+  badgeName: {
+    label: "Put your name on the badge",
+    placeholder: "Your name on the pass",
+  },
 } as const;
 
 export const hero = {
@@ -68,10 +84,12 @@ export const hero = {
    * lowercase mark drawn in WebGL, which has no punctuation.
    */
   businessWordmark: "GTHR.",
+  /** The party face's line, under its 3D wordmark; `lines` is it broken. */
   line: "Your events team, without building one.",
+  lines: ["Your events team,", "without building one."],
 } as const;
 
-/** Rendered in caps by `.statement`. */
+/** Rendered in caps by `.statement`. Party face only. */
 export const statements = {
   first: "Events built to scale,",
   second: "designed to be remembered",
@@ -130,6 +148,15 @@ export const badge = {
   name: "Your team",
   reference: ["Reference ID", "20260001"],
   agency: ["Events & experiential", "marketing agency"],
+  /** The card's back, printed like a real credential's. */
+  back: {
+    band: ["Access", "All areas"],
+    zonesLabel: "Zones",
+    zones: ["Backstage", "Green room", "Production", "VIP lounge", "Load-in", "Front of house"],
+    returnLabel: "If found, please return to",
+    returnTo: "hello@gthr.com",
+    terms: "Non-transferable · 2026 season",
+  },
 } as const;
 
 /**

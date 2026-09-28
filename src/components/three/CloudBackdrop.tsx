@@ -35,6 +35,11 @@ const fragmentShader = /* glsl */ `
   uniform float uTaper[BLOBS];
   uniform vec3 uRamp[STOPS];
   uniform float uRampAt[STOPS];
+  // The pointer's heat trail: xy a point in screen space (0..1, y down),
+  // z its heat (already faded with age), w its radius in screen heights.
+  uniform vec4 uTrail[TRAIL];
+  // The hero's bottom edge on screen (0..1, y down): the trail stops there.
+  uniform float uTrailEdge;
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -128,6 +133,22 @@ const fragmentShader = /* glsl */ `
     fy = fy < FOLD ? fy : 2.0 * FOLD - fy;
     fy = EXTEND - log(1.0 + exp((EXTEND - fy) / 0.1)) * 0.1;
     float heat = composition(vec2(p.x, fy), uTime);
+
+    /* The pointer is a heat source: where it has just been, the field runs
+       hotter — pulled toward the ramp's magenta/coral peak (0.72) rather than
+       simply up, because past the peak the ramp runs dark again, and adding
+       heat to the core would cool it to brown. Party face only: the business
+       ground never shows this field. */
+    float boost = 0.0;
+    for (int i = 0; i < TRAIL; i++) {
+      vec4 tr = uTrail[i];
+      vec2 d = sv - tr.xy;
+      d.x *= aspect;
+      boost += tr.z * exp(-dot(d, d) / (tr.w * tr.w));
+    }
+    boost *= smoothstep(uTrailEdge, uTrailEdge - 0.04, sv.y);
+    heat = mix(heat, 0.72, clamp(boost, 0.0, 1.0) * 0.95);
+
     vec3 col = thermal(clamp(heat, 0.0, 1.0));
 
     /* Calm, below the hero: the hero is the poster, the rest of the page the
@@ -259,7 +280,11 @@ export const RAMP: [number, string][] = [
   [1, "080a12"],
 ];
 
-const defines = { BLOBS: BLOB_PARAMS.length, STOPS: RAMP.length };
+/** Points kept in the pointer's heat trail, and how long each one glows. */
+const TRAIL = 48;
+const TRAIL_LIFE = 1.1;
+
+const defines = { BLOBS: BLOB_PARAMS.length, STOPS: RAMP.length, TRAIL };
 
 const hex = (s: string) =>
   new Vector3(
@@ -278,6 +303,17 @@ const PARALLAX = 0.75;
 export function CloudBackdrop() {
   const material = useRef<ShaderMaterial>(null);
   const { gl, size } = useThree();
+  /**
+   * The heat trail, a ring of points dropped behind the moving pointer:
+   * screen position, when, and how hard it was moving. Uploaded each frame
+   * with the heat already faded by age.
+   */
+  const trail = useRef({
+    points: Array.from({ length: TRAIL }, () => ({ x: 0, y: 0, born: -99, heat: 0 })),
+    next: 0,
+    lastX: NaN,
+    lastY: NaN,
+  });
 
   const uniforms = useMemo(
     () => ({
@@ -300,6 +336,8 @@ export function CloudBackdrop() {
         ),
       },
       uTaper: { value: BLOB_PARAMS.map((b) => b[7]) },
+      uTrail: { value: Array.from({ length: TRAIL }, () => new Vector4(0, 0, 0, 0.1)) },
+      uTrailEdge: { value: 1 },
       uRamp: { value: RAMP.map(([, c]) => hex(c)) },
       uRampAt: { value: RAMP.map(([at]) => at) },
       // The party face's ground. Dark: the hues below are mixed *onto* it,
@@ -323,7 +361,7 @@ export function CloudBackdrop() {
   useFrame(({ clock }) => {
     const m = material.current;
     if (!m) return;
-    // `thermal` is still published for the Badge, but the backdrop no longer
+    // `thermal` is still published for the Ticket, but the backdrop no longer
     // reacts to it — the statements block keeps the same ground as everywhere
     // else now.
     const { backdrop, reducedMotion } = scrollState;
@@ -342,6 +380,43 @@ export function CloudBackdrop() {
     m.uniforms.uEnd.value = scrollState.end;
     m.uniforms.uScroll.value = (scrollState.y / Math.max(1, scrollState.vh)) * PARALLAX;
     m.uniforms.uBusiness.value = scrollState.businessMix;
+
+    // The heat trail: a new point each time the pointer has moved a little,
+    // hotter the faster it went — a thin line, close-spaced so it reads as
+    // one stroke. The hero only: points drop only over it, and the shader
+    // cuts the glow off at its bottom edge, so "Who are we" never gets it.
+    // Party face only, and not under reduced motion; old points fade out.
+    const now = clock.elapsedTime;
+    const tr = trail.current;
+    const { pointer, pointerActive } = scrollState;
+    const heroBottom = document.getElementById("hero")?.getBoundingClientRect().bottom ?? 0;
+    const edge = heroBottom / Math.max(1, size.height);
+    m.uniforms.uTrailEdge.value = edge;
+    const x = (pointer.x + 1) / 2;
+    const y = (1 - pointer.y) / 2;
+    if (pointerActive && !reducedMotion && scrollState.businessMix < 0.5 && y < edge) {
+      const moved = Number.isNaN(tr.lastX) ? 0 : Math.hypot((x - tr.lastX) * (size.width / size.height), y - tr.lastY);
+      if (moved > 0.006) {
+        const point = tr.points[tr.next];
+        point.x = x;
+        point.y = y;
+        point.born = now;
+        point.heat = Math.min(0.9, 0.45 + moved * 8);
+        tr.next = (tr.next + 1) % TRAIL;
+        tr.lastX = x;
+        tr.lastY = y;
+      } else if (Number.isNaN(tr.lastX)) {
+        tr.lastX = x;
+        tr.lastY = y;
+      }
+    }
+    const slots = m.uniforms.uTrail.value as Vector4[];
+    tr.points.forEach((point, i) => {
+      const age = (now - point.born) / TRAIL_LIFE;
+      const fade = age >= 1 ? 0 : (1 - age) * (1 - age);
+      // Thins as it cools, so the line tapers off behind the pointer.
+      slots[i].set(point.x, point.y, point.heat * fade, 0.022 * (1 - 0.7 * Math.min(1, age)));
+    });
   });
 
   return (

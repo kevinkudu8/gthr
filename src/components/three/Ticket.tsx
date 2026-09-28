@@ -272,7 +272,7 @@ function fitFont(
 const MINT_INK = "#04ea98";
 const CORAL = "#ff7a45";
 
-/** A four-point sparkle — the mark on the stub, and on the sticker sheet. */
+/** A four-point sparkle — the mark on the stub. */
 function sparkle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x, y - r);

@@ -9,7 +9,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 ## Standing rules
 
 - **Switching faces is sequenced**, not a straight crossfade:
-  `partyPresence()` (scrollState) shrinks the glass word and the stickers out
+  `partyPresence()` (scrollState) shrinks the glass word out
   over the first ~0.55 of `businessMix`; the business wordmark's CSS fade-up is
   quick (0.1s delay, ~0.4s) and starts as they finish (and leaves fast the other way); and
   `ModeProvider` sets `data-switching` on `<html>` for 0.9s so the hero line
@@ -25,7 +25,13 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   an immediate `scrollTo`; native `scrollTop` under reduced motion), again on
   the next frame. Add new sections' ids to `ANCHORS`.
 - **Two faces, one page.** A toggle in the top bar switches between `business`
-  (the default, listed first) and `party`. Sections and copy are **identical**;
+  (the default) and `party`, presented to visitors as **light and dark mode**:
+  a small square icon button (`ModeToggle`) filled with the page's own
+  `--paper`, a sun on business and a moon on party,
+  both glyphs drawn and crossfaded in CSS off `data-mode`; its accessible name
+  (`modeToggle` in `site.ts`) says what a press will do. It was a
+  business/party segmented pill. Sections and copy are **nearly identical**
+  (the exceptions: the hero headline, and business has no statements block);
   the business finish is **black and warm off-white with one mint accent**,
   after the client's retro coffee-packaging reference: paper `#f4f2ec` (kept
   in step with CloudBackdrop's `uBusinessPaper`), soft black ink `#141414`,
@@ -46,7 +52,9 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   `suppressHydrationWarning` on purpose.
 - **One page.** Sections in order: Hero → Who are we `#about` → Statement
   (sticky) → Statement (scrolls over it) → Services `#services` → Contact
-  `#contact`. The intro section (paragraph + image) was removed at the
+  `#contact`. **The statements block (`#statements`) is party-only**: on
+  business it is `display: none`, because its line became that face's hero
+  headline and its badge moved into the hero. The intro section (paragraph + image) was removed at the
   client's request. **Except at the very end:** `scrollState.end` (0 until
   the last ~70% of a screen, 1 at the bottom, from contact's rect) lets the
   full-colour field back in along the bottom of the screen
@@ -77,8 +85,8 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   needs an override, because a frosted white card is invisible on white.
 - **The mint is a highlight, never a ground and never type on the paper.**
   `#86dcb2` on `#f4f2ec` is about **1.3:1** and fails AA at any size. It is
-  only ever a *fill* with soft black on it — the CTA, the mode toggle's thumb,
-  the marker behind "without building one", the nav link's hover rule — or
+  only ever a *fill* with soft black on it — the CTA, the marker behind
+  "remembered", the nav link's hover rule — or
   mint type **on black**, which is the small pill labels (12.5:1). Because
   `--accent` cannot be read as ink on this face there is a second token,
   **`--accent-ink`**: the accent where something is *drawn* rather than
@@ -150,7 +158,9 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   moves: `.glass` (a white wash blew out and took the white type with it — it
   is smoked now, with a light rim for the edge) and the backdrop's grid
   hairlines (white on this face, black on business).
-  No `dark:` variants and no theme toggle — the two faces *are* the toggle.
+  No `dark:` variants and no separate theme toggle — the two faces *are* the
+  light/dark toggle. The toggle's icon is the one green glyph on the paper:
+  `#2f8a5c`, a deeper mint (~3.9:1), since the mint itself fails as a glyph.
   **Legibility rule:** the vignette holds the gutters darker, and anything
   dense over colour goes in a `.glass` card.
 - **Type:** Syne (variable, 800 for `.display`) and Martian Mono for nav, clock,
@@ -305,13 +315,19 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     `max-width` and colour) must live outside the layer.
     On the business face the lockup and the hero line are now hidden, and the
     hero is **`.hero-poster`** instead (Hero.tsx, copy is `poster` in
-    `site.ts`): absolutely filling `#hero` as a two-column, four-row grid on
+    `site.ts`): absolutely filling `#hero` as a two-column, five-row grid on
     the flat off-white ground.
     **The headline is the page's primary message and is set like it** —
     sentence case, medium weight, normal tracking, soft black, on its two
-    natural lines from `poster.lines`, with a mint marker behind the phrase
-    whose `mark` flag is set in the copy (which phrase is highlighted is a
-    copy decision, not a string the component slices).
+    natural lines from `poster.lines`, with a mint marker behind the word
+    each line's `mark` names — just "remembered" now (it was the whole second
+    line); which word is highlighted is a copy decision, kept in the copy.
+    Mid-line the marker is only pulled back `-0.06em`
+    (`.hero-poster__mark-word--mid`), or it would butt against "be".
+    Under the headline, **`poster.subline`** says what GTHR is ("An events
+    and experiential marketing agency for web3 and tech."), which the
+    headline alone never did; muted, ~30ch, and it also takes up some of the
+    empty band between the CTA and the wordmark.
     The marker is trimmed to cap height and baseline (`text-box: trim-both
     cap alphabetic`, inline-block) with equal `0.3em` padding, so the room
     above and below the words is equal in every browser; untrimmed, the
@@ -351,43 +367,38 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     some viewport heights and reads as a mistake.
     `hero.businessTagline` is no longer used.
     The **party hero** carries both messages too, as a footer row under the 3D
-    wordmark: `hero.line` on the left, on `poster.lines`' two lines, kept
+    wordmark: `hero.line` on the left, on `hero.lines`' two lines (its own
+    copy — "Your events team, without building one." — since the business
+    headline is `poster.line`, the old statements line), kept
     minimal (display, regular, `text-lg`/`lg:text-2xl`, white; it was small
     grey mono, then a bigger medium-weight headline the client found heavy), and on the right (stacked below it on
     phones) an outlined pill with `poster.index` in brand green and
     `poster.label`, then `poster.text`. That block is `.hero-about`, hidden on
     the business face; it is now the only place that copy appears.
-  - `Stickers` — flat 2D stickers (SVG strings in `stickerDefs.ts`,
-    rasterised to textures once). GTHR's own show-day set — wristband, crew
-    pass, 24/7 starburst, the site's pixel cursor, disco ball, speaker, QR,
-    doors pill, mic, sparkle, run-of-show card — in the party colours; it
-    replaced a generic sticker sheet (coil, asterisk, invader, globe…) that
-    was not the client's own. SVG text is drawn through an `<img>`, which
-    cannot see webfonts, so stickers set type in system faces on unlit planes behind the glass: the whole
-    sheet wanders the hero on per-sticker simplex-noise paths, passing behind
-    the wordmark, which refracts them. Hero props stay flat.
-    **They can be grabbed and thrown.** The noise path is only a *target* now —
-    the authoritative position is per-sticker runtime state, which is what lets
-    a thrown one carry its own momentum, bounce off the frame, and then wander
-    back onto its path (the pull toward it starts weak and firms up, so it
-    drifts home rather than snapping). Velocity is measured from the drag
-    itself, so a flick throws and a slow release drops.
-    Bounds are the frustum half-extent **at each sticker's own z**, not at
-    z = 0. They sit at z -1.2..-2.4 where the frustum is up to 40% wider, so
-    measuring against `viewport` walled a thrown one in at ~75% of the visible
-    width — it bounced off nothing, short of the edge. The *drift* path is
-    deliberately tighter than that (0.58/0.52 of the extent) plus a weak pull
-    back toward the middle while thrown: at rest they belong near the wordmark,
-    where the glass picks them up and refracts them, and only a throw takes
-    them out to the edges.
-    Picking is done by hand from `window` pointer events, *not* R3F's raycaster:
-    the canvas is `pointer-events-none` and `main` covers it, so nothing ever
-    reaches the scene. The hit test undoes the root group's scroll offset and
-    scale and the sticker's own rotation, and takes the frontmost hit. Party
-    face only, and pointer-downs on anything interactive are ignored.
-    They **fade out** over the first half of the hero's scroll (opacity on
-    every sticker material) rather than riding up and vanishing, and cannot
-    be grabbed once mostly faded.
+  - **The pointer is a heat source** (CloudBackdrop, party only): a ring of
+    `TRAIL` points dropped close together behind the moving pointer, faded
+    over `TRAIL_LIFE` and uploaded as `uTrail`; the shader pulls the field's
+    heat toward the ramp's magenta/coral peak (0.72) under them, not simply
+    up, because past the peak the ramp runs dark again. **A thin line that
+    tapers**: each point's radius shrinks as it ages (a wide, spreading glow
+    was the first version; the client wanted it small). **Hero only**: points
+    drop only while the pointer is over `#hero`, and `uTrailEdge` (the hero's
+    bottom on screen) cuts the glow off there, so "Who are we" never gets it.
+    Off under reduced motion.
+  - **The glass word gives when clicked** (HeroLetters): a window
+    `pointerdown` raycasts the word (never through a link, button or
+    field); a squash-and-stretch spring on the whole word, a rock away from
+    the side hit, and in the vertex shader a dent at the click point that
+    springs back as a ring running across the glass (`uPoke*` on the shared
+    `jelly` uniforms). The strong always-on wobble was rejected earlier; this
+    only happens when asked for.
+  - **No stickers.** The party hero had a sheet of flat 2D stickers
+    (`Stickers.tsx`, `stickerDefs.ts`) wandering behind the glass word, which
+    could be grabbed and thrown. Removed at the client's request: with the
+    colour field and the glass letters they made the screen busy and covered
+    the letters. They are in the history. If the screen ever feels empty
+    without them, the agreed direction is more movement (a pointer-led glow
+    in the field, a stronger lean on the letters), not more objects.
   - `Ticket` — the **party** face's prop for the statements block (Scene
     mounts `Ticket` on party, `Badge` on business). An event ticket after the
     client's reference: a holographic stub (a **pearl** foil — pastel bands
@@ -432,7 +443,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     is plain stock (`gl_FrontFacing`).
   - `canvasPaint.ts` — shared by the baked textures: `pageFonts`, the thermal
     ramp on the CPU (`rampAt`, `paintThermal`), `paintPaper`, `hash2`.
-  - `Badge` — the **business** face's prop for the statements block: a
+  - `Badge` — the **business** face's prop, hanging in the hero: a
     solid plastic card on a printed woven strap. The card is one extruded
     rounded slab (`slabGeometry`) with a slot punched through it and the face
     art UV-mapped onto its front cap (texture repeat 1/W, 1/H, offset 0.5), so
@@ -455,53 +466,63 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     Textures are *baked* once. **The card's colours are the CSS tokens painted
     by hand** — a canvas cannot read them — so change them in step with
     `globals.css`.
-    **Two placements.** `Scene` mounts it twice on business. The default
-    (`statements`) travels through the statements block as described below.
-    `placement="hero"` hangs still in the business hero's right half, the
-    strap running off the top of the frame, and scrolls away with the page.
+    **Placement.** It hangs in the business hero's right half, the strap
+    running off the top of the frame. **Scrolling down carries it away:
+    back into the distance (z − 6) and up off the top-right corner**, as if
+    the lanyard were reeled in (`smoothstep(0, 0.7, hero)`, placed in screen
+    pixels at its current depth), gone before "Who are we" comes up. On the
+    way out the strap crosses the nav for a moment — known, and the client's
+    choice: straight back and up (which kept it clear of the nav) was tried
+    and they went back to this. Also rejected: riding up with the page, and
+    down and off the bottom-right (read as falling off the page). The pivot's sideways acceleration feeds the roll, so the
+    card lags as it is carried off and swings back through when scrolling
+    stops or reverses.
     Its strap is placed from the nav's measured left edge (`.top-bar ul`),
     because the nav's black type vanishes on the black strap. It shrinks
     (pushed back in z) into the band above the wordmark when full size would
     sit behind it, and is hidden when even that would cover the headline
-    (roughly under 1200px wide) and on phones — both clearances measured from
-    the text nodes (`heroBoxes`), the wordmark's to its R, not its low full
-    stop. **Both swing when clicked**: the canvas takes no pointer events, so
-    a window `pointerdown` raycasts the card; the side hit sets the swing
-    direction and kicks a yaw spring (capped short of the unprinted back).
-    The pendulum step is shared (`swing()`).
-    **The statement type stays legible over the badge by inversion.**
-    Statement ink is black on this face, so it would vanish over the dark
-    strap and the card's dark art panel. The twin is clipped to both (the
-    panel's outline, rounded corners included, is `PANEL_OUTLINE`, built from
-    the same `PANEL` rect the painter uses) and carries a soft dark
-    `text-shadow`; the panel's glows are held mid-dark (no pale mint or paper
-    glow) so white type reads anywhere on it. Each statement carries a white twin (`.statement-invert`, same grid
-    cell, business only) and Badge's frame loop projects the strap to
-    viewport pixels and sets it as the twin's `clip-path: path(...)` — so
-    letters turn white exactly where they cross it. CSS `mix-blend-mode`
-    cannot do this: the page scrolls inside a fixed wrapper, a separate
-    stacking context, so blending never sees the canvas. The twin's reveal is
-    keyed off the base copy (`.reveal.is-in + .statement-invert`): Chrome
-    counts the clip against IntersectionObserver.
-    **Timing:** the travel runs on `0.12 + statement * 0.685`, so the card's
-    edge reaches the frame at statement ~0.26 — just after the about stat
-    cards scroll off (0.23–0.26 across 720–1080p; the client wants it in only
-    once they are gone) — and clears the frame around 0.8, while "Designed to
-    be remembered" is still up. Tried and rejected: `statement` straight
-    (arrived a third of the way in, screen empty until "Events built to
-    scale"), `(statement + 0.2) / 1.2` (behind the stat cards, and gone by
-    ~0.62, stranding the second statement). It enters
-    mid-left (`cardY` from 0.55 half-heights), clear of the stat cards.
-    Depth is `mid * 2.2 - 1.0` (nearest z 1.2); it was `mid * 3.1 - 0.6`
-    (nearest 2.5), close enough that the card filled the frame and cropped.
+    (roughly under 1300px wide with the current headline) and on phones —
+    both clearances measured from the text nodes (`heroBoxes`), the
+    wordmark's to its R, not its low full stop.
+    **Only a press moves it, and it moves like a real one.** The canvas takes
+    no pointer events, so a window `pointerdown` raycasts the card. The press
+    pushes the card into the screen at the point pressed: it swings back away
+    from the viewer (`pitch`, more the lower the press, for leverage about the
+    pivot) and twists on the strap by how far off centre the press was (`yaw`
+    against the strap's twist stiffness, `TWIST`, softer than gravity, so an
+    edge press spins it a good way round before the strap winds it back with a
+    little overshoot). Pitch, roll and yaw are three damped springs
+    (`swing()`), applied twist-first (`rotation.order = "XZY"`), so it always
+    returns to hanging straight and face-on, in about four seconds. Hover only
+    changes the cursor (`data-badge="hover"` on `<html>`, mint fill):
+    brushing it with the pointer, grab-and-fling, and a canned whole-turn
+    spin were each tried and dropped for this. The card's **back has its own
+    print** (`paintBadgeBack`, copy `badge.back`): a black "All areas" band in
+    the strap's black and mint, ticked access zones, a barcode over the
+    reference, the return line, the wordmark small. The back cap is split
+    into its own group (2) in `slabGeometry`, and since it shares the front
+    cap's x/y UVs, its texture is flipped in u (`repeat.x < 0`) to read the
+    right way from behind. The strap is **two planes back to back** (a plane
+    only draws its front), so it is still there when the card is turned.
+    **Scrolling sways it**: Lenis's velocity, as screens per second, drives
+    the pitch (and a little roll), so the page seems to move under it.
+    **Visitors can put their name on it.** `BadgeNameField`, beside the hero
+    CTA, writes to `three/badgeState.ts` (a module store: name, `version`,
+    `stamps`). Badge repaints the face into the same canvas (at most every
+    0.1s, with a small tick of movement per change): the name takes the pass
+    line (shrunk to fit, max `BADGE_NAME_MAX`) and the chip turns to
+    "ALL-ACCESS". Enter, or leaving the field with a new name, stamps it and
+    the card spins round, as a new pass issued. It is the visitor's **own
+    name** (it was a company name; changed at the client's request), and
+    `ContactForm` writes it into its uncontrolled Name input until the
+    visitor types there themselves. The field only shows while the card is on screen: Badge sets
+    `data-badge-shown` on `<html>`, and the field is held with `visibility`
+    so the CTA never shifts.
     The QR pattern is hashed from the cell index, not `Math.random()`, or it
-    would shimmer on every repaint. The badge's pivot travels upper-left -> close past the camera -> lower
-    right on `scrollState.statement`, nearest the camera before half-way and
-    receding as it exits. It is *present* early (`thermal > 0.02`) but parked
-    far off-screen left (travel starts at -2.3 x half-width) so it slides in
-    rather than popping — a high visibility threshold made it appear
-    mid-frame instead. The card hangs as a clamped simulated pendulum
-    (gravity, damping, driven by the pivot's own acceleration).
+    would shimmer on every repaint.
+    (It used to travel through the statements block on scroll, with the
+    statements clipped to a white twin wherever the strap crossed them. Both
+    went when the block became party-only; they are in the history.)
   - The letters carry a soft pointer lean (wide, low vertex displacement
     injected with `onBeforeCompile`) and the backdrop drifts gently toward
     the pointer. Both are deliberately subtle, matching the reference — the
@@ -509,7 +530,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   - The statements block used to get its own moving treatment (the backdrop
     remapped through thermal-camera bands). **Removed at the client's
     request** — it keeps the same ground as the rest of the page.
-    `scrollState.thermal` is still published, because `Badge` gates its
+    `scrollState.thermal` is still published, because `Ticket` gates its
     visibility on it.
 - **Chrome:** fixed `TopBar` (wordmark + Services/Contact; its nav and the
   hero's CTA share `useScrollTo` from `SmoothScroll.tsx`. It used to track
@@ -594,7 +615,7 @@ src/components/
   chrome/           TopBar, BottomBar, Clock, Socials, SmoothScroll, ModeToggle, SideScrollbar, PixelCursor
   sections/         Hero, HeroCta, WordSheen, Statement, StickyFade, Services, About, Contact, ContactForm
   three/            SceneCanvas → Scene (Canvas + tracker), CloudBackdrop (+ the grid),
-                    HeroLetters, Stickers + stickerDefs, Badge, Ticket,
+                    HeroLetters, Badge, Ticket,
                     canvasPaint, Lighting, noise, scrollState
   ui/               Reveal, CountUp, PhotoSlides
 src/app/actions/    contact.ts — server action for the form

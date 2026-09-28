@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
+import { badgeState, subscribeBadgeName } from "@/components/three/badgeState";
 import { sendInquiry, type ContactState } from "@/app/actions/contact";
 import { contact } from "@/content/site";
 
@@ -15,6 +16,23 @@ const { fields } = contact;
 
 export function ContactForm() {
   const [state, action, pending] = useActionState(sendInquiry, initial);
+  const nameInput = useRef<HTMLInputElement>(null);
+  // Set once the visitor types in Name themselves; from then on it is
+  // theirs and the badge's name no longer writes into it.
+  const nameTouched = useRef(false);
+
+  // The name a visitor put on the hero's badge (BadgeNameField) carries into
+  // Name, so "Start a project" arrives with it filled in. Written to the
+  // uncontrolled input directly: the form posts FormData, so its fields stay
+  // uncontrolled.
+  useEffect(() => {
+    const fill = () => {
+      const el = nameInput.current;
+      if (el && !nameTouched.current) el.value = badgeState.name.trim();
+    };
+    fill();
+    return subscribeBadgeName(fill);
+  }, []);
 
   if (state.status === "sent") {
     return (
@@ -29,8 +47,10 @@ export function ContactForm() {
       <label className="flex flex-col gap-2.5">
         <span className="eyebrow">{fields.name.label}</span>
         <input
+          ref={nameInput}
           name="name"
           type="text"
+          onInput={() => (nameTouched.current = true)}
           autoComplete="name"
           placeholder={fields.name.placeholder}
           required

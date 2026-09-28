@@ -1,4 +1,5 @@
 import { Reveal } from "@/components/ui/Reveal";
+import { BadgeNameField } from "@/components/sections/BadgeNameField";
 import { HeroCta } from "@/components/sections/HeroCta";
 import { WordSheen } from "@/components/sections/WordSheen";
 import { about, hero, poster } from "@/content/site";
@@ -12,14 +13,30 @@ import { about, hero, poster } from "@/content/site";
  * `.hero-about` in a row along the bottom.
  *
  * The business face is a poster (`.hero-poster`, shown on that face only):
- * the headline top-left with a compact stats block opposite it, a call to
- * action under it, and the wordmark large along the bottom — soft black on warm off-white, with the mint used
+ * the headline top-left with a compact stats block opposite it, a line
+ * saying what GTHR is and a call to action under it, and the wordmark large
+ * along the bottom — soft black on warm off-white, with the mint used
  * only as a fill. `.hero-lockup` is hidden there.
  *
  * The headline is the page's primary message and is set as such; the wordmark
  * is deliberately quieter than it was, and keeps clear space above the fixed
  * clock and social links rather than bleeding under them.
  */
+
+/** `text` with `mark` (its first occurrence) wrapped in the mint marker. */
+function marked(text: string, mark: string) {
+  const at = mark ? text.indexOf(mark) : -1;
+  if (at < 0) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span className={at > 0 ? "hero-poster__mark-word hero-poster__mark-word--mid" : "hero-poster__mark-word"}>
+        {mark}
+      </span>
+      {text.slice(at + mark.length)}
+    </>
+  );
+}
 
 export function Hero() {
   return (
@@ -37,17 +54,17 @@ export function Hero() {
       </div>
       {/* Party face: a footer row under the 3D wordmark — the line as the
           headline on the left, and on the right the poster's label and
-          paragraph, so this face also says what GTHR is. Both come from the
-          same copy the business poster uses. */}
+          paragraph, so this face also says what GTHR is. The line is this
+          face's own (`hero.line`); the business headline is `poster.line`. */}
       <Reveal
         as="p"
         className="hero-line col-span-12 row-start-2 self-end px-2 font-display text-lg leading-snug font-normal text-ink-1 lg:col-span-6 lg:text-2xl"
       >
-        {/* On the poster's own two lines, broken after the comma. */}
+        {/* On its two natural lines, broken after the comma. */}
         <span className="sr-only">{hero.line}</span>
-        {poster.lines.map((line) => (
-          <span key={line.text} className="block" aria-hidden="true">
-            {line.text}
+        {hero.lines.map((line) => (
+          <span key={line} className="block" aria-hidden="true">
+            {line}
           </span>
         ))}
       </Reveal>
@@ -64,22 +81,25 @@ export function Hero() {
       <div className="hero-poster">
         <p className="hero-poster__headline">
           {/* Broken for the poster; screen readers get the sentence whole. */}
-          <span className="sr-only">{hero.line}</span>
+          <span className="sr-only">{poster.line}</span>
           {poster.lines.map((line) => (
             <span key={line.text} className="hero-poster__line" aria-hidden="true">
-              {/* The marked phrase carries the mint behind it. The span has to
-                  wrap the words themselves, not the line, so the colour breaks
-                  with them rather than ruling the whole column. */}
-              {line.mark ? (
-                <span className="hero-poster__mark-word">{line.text}</span>
-              ) : (
-                line.text
-              )}
+              {/* The marked word carries the mint behind it. The span has to
+                  wrap the word itself, not the line, so the colour sits on it
+                  rather than ruling the whole column. */}
+              {marked(line.text, line.mark)}
             </span>
           ))}
         </p>
 
-        <HeroCta />
+        <p className="hero-poster__subline">{poster.subline}</p>
+
+        {/* The CTA, and beside it the field that puts the visitor's name on
+            the badge — shown only while the badge is (data-badge-shown). */}
+        <div className="hero-poster__actions">
+          <HeroCta />
+          <BadgeNameField />
+        </div>
 
         {/* The same four numbers the "Who are we" cards count up, read from
             the one array in site.ts. Hidden from assistive tech here: they are

@@ -33,7 +33,7 @@ export const scrollState = {
    * How much of the viewport the statements block covers, 0..1.
    *
    * No longer tints the backdrop — that section keeps the same ground as the
-   * rest of the page now — but Badge still gates its visibility on it, so it
+   * rest of the page now — but Ticket still gates its visibility on it, so it
    * stays published.
    */
   thermal: 0,
@@ -80,7 +80,7 @@ const SECTIONS: { id: string; intensity: number; warm: number; thermal: number; 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 /**
- * How present the party face's 3D props (glass word, stickers) are, 1..0.
+ * How present the party face's 3D props (the glass word) are, 1..0.
  * Eased off `businessMix` and done by the time it reaches 0.55, so they have
  * left before the business wordmark fades up in their place (its CSS fade is
  * delayed to match) rather than shrinking underneath it. Symmetric, so the way

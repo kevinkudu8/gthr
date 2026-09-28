@@ -20,6 +20,7 @@ import {
 } from "three";
 import { badge } from "@/content/site";
 import { hash2, pageFonts, type Fonts } from "./canvasPaint";
+import { badgeState } from "./badgeState";
 import { scrollState } from "./scrollState";
 
 const W = 1.7; // card width, world units
@@ -98,6 +99,18 @@ function slabGeometry(
     curveSegments: 20,
   });
   geometry.translate(0, 0, -(depth - bevel * 2) / 2);
+  // ExtrudeGeometry puts both caps in group 0, the back (z = 0 before the
+  // translate) first. The back gets its own group, 2, for its own print: the
+  // card turns right round when pressed, and a shared group would show the
+  // face art mirrored on the back.
+  const caps = geometry.groups[0];
+  if (caps && caps.materialIndex === 0) {
+    const half = caps.count / 2;
+    geometry.clearGroups();
+    geometry.addGroup(caps.start, half, 2);
+    geometry.addGroup(caps.start + half, half, 0);
+    geometry.addGroup(caps.start + caps.count, Infinity, 1);
+  }
   return geometry;
 }
 
@@ -147,29 +160,6 @@ const FACE_H = Math.round(FACE_W * (H / W));
 const PANEL = { x: 44, y: 104, w: FACE_W - 88, h: Math.round(FACE_H * 0.56), r: 44 };
 
 /**
- * The art panel's outline on the card's front face, card-local, rounded
- * corners included. The statements invert over it as well as over the strap:
- * the panel is dark, and black type crossing it was hard to read.
- */
-const PANEL_OUTLINE: Vector3[] = (() => {
-  const toWorld = (px: number, py: number) =>
-    new Vector3((px / FACE_W - 0.5) * W, (0.5 - py / FACE_H) * H, D / 2 + 0.001);
-  const { x, y, w, h, r } = PANEL;
-  const corners: [number, number, number][] = [
-    [x + w - r, y + r, -Math.PI / 2],
-    [x + w - r, y + h - r, 0],
-    [x + r, y + h - r, Math.PI / 2],
-    [x + r, y + r, Math.PI],
-  ];
-  return corners.flatMap(([cx, cy, a0]) =>
-    Array.from({ length: 6 }, (_, i) => {
-      const a = a0 + (i / 5) * (Math.PI / 2);
-      return toWorld(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    }),
-  );
-})();
-
-/**
  * The badge face, after the client's lanyard reference: a card of the
  * business face's warm off-white stock, most of it given to a rounded art
  * panel, with the event line and two chips under it. The panel is the brand
@@ -178,7 +168,7 @@ const PANEL_OUTLINE: Vector3[] = (() => {
  * Below: the pass line, name and agency chips, the two info columns, the
  * handle and reference, and the QR block. Copy is `badge` in site.ts.
  */
-function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRenderingContext2D) {
+function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRenderingContext2D, holder: string) {
   // The face's tokens, painted by hand because a canvas cannot read CSS.
   // Keep these in step with :root[data-mode="business"] in globals.css.
   const ink = "#141414";
@@ -194,7 +184,7 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
   ctx.fillRect(0, 0, w, h);
 
   // The art panel.
-  // Starts below the slot punch. Shared with PANEL_OUTLINE.
+  // Starts below the slot punch.
   const { x: px, y: py, w: pw, h: ph } = PANEL;
   ctx.save();
   ctx.beginPath();
@@ -209,9 +199,8 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
     ctx.arc(px + pw * x, py + ph * y, r, 0, Math.PI * 2);
     ctx.fill();
   };
-  // Held mid-dark: the statements turn white where they cross the panel, so
-  // no part of it may be pale. (A pale-mint and a paper glow were brighter
-  // and left white type unreadable over them.)
+  // Held mid-dark, so the panel reads as one dark field behind the white
+  // wordmark rather than a pale wash.
   ctx.globalAlpha = 0.72;
   glow(0.3, 0.78, 190, mint);
   ctx.globalAlpha = 0.5;
@@ -246,16 +235,21 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
   ctx.fillText(c.mark, px + 26, py + ph - 34);
   ctx.letterSpacing = "0px";
 
-  // The pass line, as the reference sets its event name.
+  // The pass line, as the reference sets its event name — or the visitor's
+  // own name once they have put it on the pass (badgeState), shrunk to fit.
   let y = py + ph + 64;
   ctx.fillStyle = ink;
+  const passLine = holder || c.headline.join(" ");
   ctx.font = `500 38px ${system}`;
-  ctx.fillText(c.headline.join(" "), pad + 4, y);
+  const passSize = Math.max(22, Math.floor(38 * Math.min(1, (w - pad * 2 - 8) / ctx.measureText(passLine).width)));
+  ctx.font = `500 ${passSize}px ${system}`;
+  ctx.fillText(passLine, pad + 4, y);
 
   // Chips: name on a grey pill, the agency on an outlined one.
   y += 30;
   ctx.font = `500 15px ${fonts.mono}`;
-  const nameText = c.name.toUpperCase();
+  // With a name on the pass, the chip says what it is instead.
+  const nameText = (holder ? c.access : c.name).toUpperCase();
   const nw = ctx.measureText(nameText).width + 36;
   ctx.fillStyle = line;
   ctx.beginPath();
@@ -311,7 +305,140 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
     }
   }
 
-  // Printed grain over everything, as on the page's own .paper-grain.
+  grain(ctx, w, h);
+}
+
+/**
+ * The card's back, printed like a real credential's: a black band carrying
+ * the access level (the strap's black and mint, so the two read as one
+ * object), the zones it opens, ticked, a barcode over the reference number,
+ * the return line, and the wordmark small in the corner. Same stock, tokens
+ * and grain as the face. Painted the right way round; the texture is
+ * mirrored onto the back cap instead (see the texture setup).
+ */
+function paintBadgeBack(fonts: Fonts) {
+  const w = FACE_W;
+  const h = FACE_H;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+  const ink = "#141414";
+  const paper = "#f4f2ec";
+  const mint = "#86dcb2";
+  const line = "#dad7cf";
+  const muted = "#6b6b66";
+  const system = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
+  const c = badge.back;
+  const pad = 44;
+  ctx.fillStyle = paper;
+  ctx.fillRect(0, 0, w, h);
+  ctx.textBaseline = "alphabetic";
+
+  // The band, where the face's art panel starts (below the slot punch).
+  const bandY = PANEL.y;
+  const bandH = 168;
+  ctx.fillStyle = ink;
+  ctx.beginPath();
+  ctx.roundRect(pad, bandY, w - pad * 2, bandH, PANEL.r);
+  ctx.fill();
+  ctx.fillStyle = mint;
+  ctx.font = `500 15px ${fonts.mono}`;
+  ctx.textAlign = "left";
+  ctx.fillText(c.band[0].toUpperCase(), pad + 30, bandY + 46);
+  ctx.textAlign = "right";
+  ctx.fillText(badge.index, w - pad - 30, bandY + 46);
+  ctx.textAlign = "left";
+  ctx.fillStyle = paper;
+  ctx.font = `600 68px ${system}`;
+  ctx.letterSpacing = "-2px";
+  ctx.fillText(c.band[1], pad + 26, bandY + bandH - 34);
+  ctx.letterSpacing = "0px";
+
+  // Zones: two columns of ticks — all of them, it is an all-access pass.
+  let y = bandY + bandH + 58;
+  ctx.fillStyle = muted;
+  ctx.font = `500 13px ${fonts.mono}`;
+  ctx.fillText(c.zonesLabel.toUpperCase(), pad + 4, y);
+  y += 22;
+  const colW = (w - pad * 2) / 2;
+  c.zones.forEach((zone, i) => {
+    const zx = pad + 4 + (i % 2) * colW;
+    const zy = y + Math.floor(i / 2) * 46;
+    ctx.fillStyle = mint;
+    ctx.beginPath();
+    ctx.arc(zx + 13, zy + 20, 13, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(zx + 7, zy + 20);
+    ctx.lineTo(zx + 11.5, zy + 24.5);
+    ctx.lineTo(zx + 19.5, zy + 15.5);
+    ctx.stroke();
+    ctx.fillStyle = ink;
+    ctx.font = `400 21px ${system}`;
+    ctx.fillText(zone, zx + 38, zy + 27);
+  });
+  y += Math.ceil(c.zones.length / 2) * 46 + 18;
+
+  ctx.fillStyle = line;
+  ctx.fillRect(pad, y, w - pad * 2, 2);
+
+  // Barcode over the reference number. Bar widths hashed, not random, or
+  // it would change on every repaint.
+  y += 34;
+  const barH = 96;
+  ctx.fillStyle = ink;
+  let bx = pad + 4;
+  let k = 0;
+  while (bx < w - pad - 6) {
+    const bw = 2 + Math.floor(hash2(k, 7) * 4);
+    const gap = 2 + Math.floor(hash2(k, 13) * 3);
+    ctx.fillRect(bx, y, bw, barH);
+    bx += bw + gap;
+    k++;
+  }
+  y += barH + 30;
+  ctx.fillStyle = muted;
+  ctx.font = `500 15px ${fonts.mono}`;
+  ctx.textAlign = "left";
+  ctx.fillText(badge.reference[0].toUpperCase(), pad + 4, y);
+  ctx.textAlign = "right";
+  ctx.fillStyle = ink;
+  ctx.fillText(badge.reference[1], w - pad - 4, y);
+  ctx.textAlign = "left";
+
+  // Return line.
+  y += 70;
+  ctx.fillStyle = muted;
+  ctx.font = `500 13px ${fonts.mono}`;
+  ctx.fillText(c.returnLabel.toUpperCase(), pad + 4, y);
+  ctx.fillStyle = ink;
+  ctx.font = `500 28px ${system}`;
+  ctx.fillText(c.returnTo, pad + 4, y + 38);
+
+  // Foot: the wordmark, and the terms opposite.
+  ctx.fillStyle = ink;
+  ctx.font = `600 40px ${system}`;
+  ctx.letterSpacing = "-1.5px";
+  ctx.fillText(badge.mark, pad + 2, h - pad + 4);
+  ctx.letterSpacing = "0px";
+  ctx.fillStyle = muted;
+  ctx.font = `400 12px ${fonts.mono}`;
+  ctx.textAlign = "right";
+  ctx.fillText(c.terms.toUpperCase(), w - pad - 4, h - pad);
+  ctx.textAlign = "left";
+
+  grain(ctx, w, h);
+  return canvas;
+}
+
+/** Printed grain over everything, as on the page's own .paper-grain. */
+function grain(ctx: CanvasRenderingContext2D, w: number, h: number) {
   const img = ctx.getImageData(0, 0, w, h);
   for (let gy = 0; gy < h; gy++) {
     for (let gx = 0; gx < w; gx++) {
@@ -325,53 +452,20 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
   ctx.putImageData(img, 0, 0);
 }
 
-/** The strap plane's corners, in its own local space (it is rotated upright). */
-const STRAP_OUTLINE: Vector3[] = [
-  new Vector3(-STRAP_L / 2, -STRAP_W / 2, 0),
-  new Vector3(STRAP_L / 2, -STRAP_W / 2, 0),
-  new Vector3(STRAP_L / 2, STRAP_W / 2, 0),
-  new Vector3(-STRAP_L / 2, STRAP_W / 2, 0),
-];
-
 /**
- * Keeps the statement type legible over the dark strap. The statement is
- * black ink on the business face, so where the strap passes behind it the
- * words would vanish; each statement carries a white copy
- * (`.statement-invert`) and this clips that copy to the strap's on-screen
- * outline every frame, so the letters turn white exactly where they cross it.
- *
- * Done by hand because CSS blending cannot reach the canvas: the page scrolls
- * inside a fixed wrapper, which is its own stacking context, so a
- * `mix-blend-mode` on the text only ever sees the transparent wrapper.
+ * The card face, full bleed, carrying `holder` (the visitor's name, or "")
+ * on its pass line. Repaints into `canvas` when given one, so the texture
+ * over it only needs flagging for upload.
  */
-function clipStatements(outlines: [number, number][][] | null) {
-  document.querySelectorAll<HTMLElement>(".statement-invert").forEach((el) => {
-    if (!outlines) {
-      el.style.clipPath = "inset(50%)";
-      return;
-    }
-    // path() is in the element's own pixels, so offset from the viewport.
-    const r = el.getBoundingClientRect();
-    const d = outlines
-      .map((pts) =>
-        pts.map(([x, y], i) => `${i ? "L" : "M"}${(x - r.left).toFixed(1)} ${(y - r.top).toFixed(1)}`).join(" ") + " Z",
-      )
-      .join(" ");
-    el.style.clipPath = `path("${d}")`;
-  });
-}
-
-/** The card face, full bleed. */
-function paintBadge(fonts: Fonts) {
+function paintBadge(fonts: Fonts, holder: string, canvas = document.createElement("canvas")) {
   const w = FACE_W;
   const h = FACE_H;
-  const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
   // Full bleed: the card geometry supplies the corners.
-  paintBusinessBadge(fonts, w, h, ctx);
+  paintBusinessBadge(fonts, w, h, ctx, holder);
   return canvas;
 }
 
@@ -414,6 +508,11 @@ function paintStrap(fonts: Fonts) {
 /** The scene camera: 40° vertical field of view, at z = 6. See Scene.tsx. */
 const TAN_HALF_FOV = Math.tan((20 * Math.PI) / 180);
 const CAMERA_Z = 6;
+
+const smoothstep = (a: number, b: number, v: number) => {
+  const k = Math.min(1, Math.max(0, (v - a) / (b - a)));
+  return k * k * (3 - 2 * k);
+};
 
 /** CSS pixels per world unit at depth `z`. */
 function pxPerWorld(z: number, heightPx: number) {
@@ -462,243 +561,301 @@ function heroBoxes(width: number, height: number): HeroBoxes | null {
   return heroCache;
 }
 
-type Swing = { theta: number; omega: number; yaw: number; yawV: number };
+/**
+ * How the card hangs, as three damped springs about the pivot up the strap:
+ * `pitch` swings it into and out of the screen, `roll` side to side, and
+ * `yaw` twists it about the strap. Each has its angle and angular velocity.
+ */
+type Swing = { pitch: number; pitchV: number; roll: number; rollV: number; yaw: number; yawV: number };
+
+const GRAVITY = 9.8;
+/**
+ * The strap's twist stiffness and the damping on each motion. The twist is
+ * softer than gravity's pull, so an off-centre press spins it a good way
+ * round before the strap winds it back — overshooting a little, the way a
+ * lanyard does — and every motion dies away to hanging straight, face-on.
+ */
+const TWIST = 12;
+const SWING_DAMP = 0.95;
+const TWIST_DAMP = 1.3;
 
 /**
- * One step of the pendulum. Gravity restores, damping settles, the pivot's
- * horizontal acceleration `ax` swings it (a real hanging card lags its
- * lanyard), and a faint breeze keeps it alive at rest; `t` is 0 under reduced
- * motion, which stills the breeze. Everything is clamped so a scroll jump can
- * never fling it — it should never look like anything but a card hanging from
- * a strap. `yaw` is the turn about the strap a click kicks in, on a damped
- * spring, and capped short of showing the card's unprinted back.
+ * One step. `t` drives a faint breeze on the roll, and is 0 under reduced
+ * motion, which stills it.
  */
-function swing(ph: Swing, ax: number, dt: number, t: number) {
-  const gravity = 9.8;
+function swing(ph: Swing, dt: number, t: number) {
   const breeze = t ? Math.sin(t * 0.8) * 0.05 + Math.sin(t * 2.3) * 0.015 : 0;
-  const alpha = (-gravity * Math.sin(ph.theta) - ax * Math.cos(ph.theta) * 0.3) / PIVOT - ph.omega * 1.1 + breeze;
-  ph.omega = Math.max(-2.5, Math.min(2.5, ph.omega + alpha * dt));
-  ph.theta = Math.max(-0.5, Math.min(0.5, ph.theta + ph.omega * dt));
-  ph.yawV += (-ph.yaw * 18 - ph.yawV * 2.2) * dt;
-  ph.yaw = Math.max(-1.1, Math.min(1.1, ph.yaw + ph.yawV * dt));
+  ph.pitchV += ((-GRAVITY * Math.sin(ph.pitch)) / PIVOT - ph.pitchV * SWING_DAMP) * dt;
+  ph.pitch += ph.pitchV * dt;
+  ph.rollV += ((-GRAVITY * Math.sin(ph.roll)) / PIVOT - ph.rollV * SWING_DAMP * 1.6 + breeze) * dt;
+  ph.roll += ph.rollV * dt;
+  ph.yawV += (-ph.yaw * TWIST - ph.yawV * TWIST_DAMP) * dt;
+  ph.yaw += ph.yawV * dt;
 }
 
 /**
  * The lanyard badge: a solid plastic card on a printed woven strap, hanging
- * from a pivot up the strap as a real pendulum. Two placements:
+ * from a pivot up the strap as a real pendulum, in the business hero's empty
+ * right half. The strap runs off the top of the frame; scrolling down
+ * carries it right and down, off the bottom-right corner. Desktop only — on a phone the right half is the
+ * headline's.
  *
- * - `statements`: travels from upper left, close past the camera, and out
- *   lower right through the statements block, driven by its own acceleration.
- * - `hero`: hangs still in the business hero's empty right half, the strap
- *   running off the top of the frame, and scrolls away with the page. Desktop
- *   only — on a phone the right half is the headline's.
- *
- * Both swing when the card is clicked. The canvas takes no pointer events (it
- * sits behind the page), so the click is hit-tested from a window listener,
- * as Stickers.tsx does for its drag.
+ * Pressing it pushes it into the screen at the point pressed, as a finger
+ * would: it swings back away from you, further the lower down it is pressed
+ * (more leverage about the pivot), and twists on the strap by how far off
+ * centre the press was — an edge press spins it most of the way round, a
+ * central one barely turns it. Then it swings back and unwinds to where it
+ * hung. Only a press moves it; hovering just marks it as clickable. The canvas takes no pointer
+ * events (it sits behind the page), so both are hit-tested from window
+ * listeners, and the custom cursor is told through `data-badge` on <html>.
  */
-export function Badge({
-  reducedMotion,
-  placement = "statements",
-  mobile = false,
-}: {
-  reducedMotion: boolean;
-  placement?: "statements" | "hero";
-  mobile?: boolean;
-}) {
-  const hero = placement === "hero";
+export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolean; mobile?: boolean }) {
   const root = useRef<Group>(null);
   const pivot = useRef<Group>(null);
-  const physics = useRef({ theta: 0, omega: 0, yaw: 0, yawV: 0, lastX: 0, lastVx: 0, warm: 0, primed: false });
-  const [textures, setTextures] = useState<{ face: Texture; strap: Texture } | null>(null);
-  const { viewport, camera, size } = useThree();
+  const physics = useRef<Swing>({ pitch: 0, pitchV: 0, roll: 0, rollV: 0, yaw: 0, yawV: 0 });
+  /** The pivot's last x and its speed, for the lag as scrolling carries it. */
+  const travel = useRef({ x: NaN, vx: 0 });
+  const [textures, setTextures] = useState<{ face: Texture; back: Texture; strap: Texture } | null>(null);
+  const { camera, size } = useThree();
   const cardMesh = useRef<Mesh>(null);
-  const strapMesh = useRef<Mesh>(null);
-  const clipped = useRef(false);
-  const scratch = useRef(new Vector3());
   const card = useMemo(() => slabGeometry(W, H, D, CARD_R, 0, { y: HOLE_Y, w: SLOT_W, h: SLOT_H }), []);
   const hook = useMemo(() => hookGeometry(), []);
   const dRing = useMemo(() => dRingGeometry(), []);
+  /** Pointer in NDC; `fresh` when it has moved since the last hover test. */
+  const input = useRef({ ndc: new Vector2(), fresh: false, over: false });
+  /**
+   * The face as painted: the fonts it was painted with, which name, when,
+   * and the confirmations (stamps) already answered with a spin. Also the
+   * last scroll speed, for the sway, and whether the card is on screen.
+   */
+  const printed = useRef<{
+    fonts: Fonts | null;
+    face: Texture | null;
+    version: number;
+    at: number;
+    stamps: number;
+    shown: boolean;
+  }>({
+    fonts: null,
+    face: null,
+    version: badgeState.version,
+    at: 0,
+    stamps: badgeState.stamps,
+    shown: false,
+  });
+  const hoverRay = useMemo(() => new Raycaster(), []);
 
   useEffect(() => {
     let alive = true;
     document.fonts.ready.then(() => {
       if (!alive) return;
       const fonts = pageFonts();
-      const face = new CanvasTexture(paintBadge(fonts));
+      printed.current.fonts = fonts;
+      printed.current.version = badgeState.version;
+      const face = new CanvasTexture(paintBadge(fonts, badgeState.name));
       face.colorSpace = SRGBColorSpace;
       // Onto the card's front cap, whose UVs are its x/y in world units.
       face.repeat.set(1 / W, 1 / H);
       face.offset.set(0.5, 0.5);
       face.anisotropy = 8;
+      printed.current.face = face;
+      // The back cap has the same x/y UVs as the front, so seen from behind
+      // it would read mirrored: flipped in u here instead.
+      const back = new CanvasTexture(paintBadgeBack(fonts));
+      back.colorSpace = SRGBColorSpace;
+      back.repeat.set(-1 / W, 1 / H);
+      back.offset.set(0.5, 0.5);
+      back.anisotropy = 8;
       const strap = new CanvasTexture(paintStrap(fonts));
       strap.colorSpace = SRGBColorSpace;
       strap.wrapS = strap.wrapT = RepeatWrapping;
       strap.repeat.set(STRAP_L / STRAP_TILE, 1);
-      setTextures({ face, strap });
+      setTextures({ face, back, strap });
     });
     return () => {
       alive = false;
     };
-    // Painted once: the badge is the business face's only — the party face
-    // has the torn ticket (Ticket.tsx) in this slot instead.
   }, []);
 
-  // Click to swing. A hit on one side of the card pushes that side back:
-  // the pendulum swings away from it and the card turns about its strap.
-  // A hit near the middle picks a side, so a click always visibly lands.
   useEffect(() => {
     const raycaster = new Raycaster();
-    const ndc = new Vector2();
+    const inp = input.current;
+    const html = document.documentElement;
+    const setNdc = (event: PointerEvent) => {
+      inp.ndc.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+      inp.fresh = true;
+    };
+
+    const onMove = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") setNdc(event);
+    };
     const onDown = (event: PointerEvent) => {
-      const g = root.current;
+      if (event.button !== 0) return;
+      setNdc(event);
       const mesh = cardMesh.current;
-      if (!g?.visible || !mesh) return;
-      ndc.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
-      raycaster.setFromCamera(ndc, camera);
+      if (!mesh || !root.current?.visible) return;
+      raycaster.setFromCamera(inp.ndc, camera);
       const hit = raycaster.intersectObject(mesh, false)[0];
       if (!hit) return;
+      // Ours: no text selection starting under the card.
+      event.preventDefault();
+      // The press point on the card, -1..1 across and from the pivot down.
       const local = mesh.worldToLocal(hit.point.clone());
-      let side = local.x / (W / 2);
-      if (Math.abs(side) < 0.2) side = Math.random() < 0.5 ? -0.6 : 0.6;
+      const across = Math.max(-1, Math.min(1, local.x / (W / 2)));
+      const lever = (PIVOT - local.y) / PIVOT;
       const ph = physics.current;
-      ph.omega -= side * 2.2;
-      ph.yawV += side * 7;
+      // Into the screen: positive pitch carries the card away from the
+      // camera. Presses add to whatever it is already doing, capped so a
+      // run of clicks cannot wind it up without limit.
+      ph.pitchV = Math.min(1.6, ph.pitchV + 0.75 * lever);
+      // The pressed side goes back, so the card turns about the strap that
+      // way: positive yaw carries +x into the screen.
+      ph.yawV = Math.max(-24, Math.min(24, ph.yawV + across * 16));
     };
+
+    window.addEventListener("pointermove", onMove, { passive: true });
     window.addEventListener("pointerdown", onDown);
-    return () => window.removeEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerdown", onDown);
+      delete html.dataset.badge;
+      delete html.dataset.badgeShown;
+    };
   }, [camera]);
 
   useFrame(({ clock }, rawDelta) => {
     const g = root.current;
     const pv = pivot.current;
     if (!g || !pv) return;
-    const { statement, thermal } = scrollState;
-    const halfW = viewport.width / 2;
-    const halfH = viewport.height / 2;
     const dt = Math.min(0.05, rawDelta);
     const t = reducedMotion ? 0 : clock.elapsedTime;
     const ph = physics.current;
+    const inp = input.current;
+    // Hover only changes the cursor. Tested here rather than on pointermove,
+    // so it also follows the card moving under a still pointer.
+    const setOver = (over: boolean) => {
+      if (over === inp.over) return;
+      inp.over = over;
+      if (over) document.documentElement.dataset.badge = "hover";
+      else delete document.documentElement.dataset.badge;
+    };
 
-    if (hero) {
-      const boxes = heroBoxes(size.width, size.height);
-      g.visible = !mobile && scrollState.hero < 1 && !!boxes;
-      if (!g.visible || !boxes) return;
-      // The strap runs up through the top bar, and the nav's black type
-      // vanishes on it, so it hangs in the gap left of the nav links —
-      // measured, since that gap moves with the viewport width.
-      const navLeft = document.querySelector(".top-bar ul")?.getBoundingClientRect().left ?? size.width;
-      const strapPx = Math.min(size.width * 0.7, navLeft - 60);
-      // Full size, vertically centred, when that clears the wordmark to its
-      // left. Where the nav pins it further left (narrower screens), it would
-      // sit behind the wordmark instead, so it shrinks — pushed back from the
-      // camera — into the band between the top bar and the wordmark's top.
-      let z = 0;
-      let centrePx = size.height / 2;
-      if (strapPx - (W / 2) * pxPerWorld(0, size.height) < boxes.markRight + 16) {
-        const top = 110;
-        const bottom = boxes.markTop - 24;
-        z = Math.max(-4, CAMERA_Z - size.height / (2 * TAN_HALF_FOV * ((bottom - top) / H)));
-        z = Math.min(0, z);
-        centrePx = (top + bottom) / 2;
-      }
-      // Moves up with the page, at its own depth's pixels-per-unit.
-      const ppw = pxPerWorld(z, size.height);
-      // Too narrow for the gap to hold it clear of the headline (small
-      // laptops, tablets): no badge rather than one over the type.
-      if (strapPx - (W / 2) * ppw < boxes.headlineRight + 24) {
-        g.visible = false;
-        return;
-      }
-      const x = (strapPx - size.width / 2) / ppw;
-      const cardY = (size.height / 2 - centrePx + scrollState.y) / ppw;
-      g.position.set(x, cardY + PIVOT, z);
-      swing(ph, 0, dt, t);
-      pv.rotation.z = ph.theta;
-      // Turned a touch toward the headline, so it reads as an object.
-      pv.rotation.y = -0.22 + ph.yaw;
+    // Tells the page whether the card is up, so the field that puts a name
+    // on it (BadgeNameField) only shows while there is a card to print on.
+    const setShown = (shown: boolean) => {
+      if (shown === printed.current.shown) return;
+      printed.current.shown = shown;
+      if (shown) document.documentElement.dataset.badgeShown = "";
+      else delete document.documentElement.dataset.badgeShown;
+    };
+
+    const boxes = heroBoxes(size.width, size.height);
+    g.visible = !mobile && scrollState.hero < 1 && !!boxes;
+    // `hero < 1` is a scroll state; the field sits at the top of the hero,
+    // so it follows the layout only (a card that fits), not the scroll.
+    if (!boxes || mobile) setShown(false);
+    if (!g.visible || !boxes) {
+      setOver(false);
       return;
     }
-
-    // Remapped so the card's edge reaches the frame at statement ~0.26 — just
-    // after the about section's stat cards scroll off (0.23-0.26 across
-    // 720-1080p) — and it clears the frame around 0.8, while "Designed to be
-    // remembered" is still up. At full speed it left at ~0.62 and the second
-    // statement sat alone; entering earlier put it behind the stat cards.
-    const p = 0.12 + statement * 0.685;
-    // Present early but parked far off-screen left, so it slides in rather
-    // than popping into view.
-    g.visible = thermal > 0.02;
-    if (!g.visible) {
-      ph.primed = false;
-      if (clipped.current) {
-        clipStatements(null);
-        clipped.current = false;
-      }
+    // The strap runs up through the top bar, and the nav's black type
+    // vanishes on it, so it hangs in the gap left of the nav links —
+    // measured, since that gap moves with the viewport width.
+    const navLeft = document.querySelector(".top-bar ul")?.getBoundingClientRect().left ?? size.width;
+    const strapPx = Math.min(size.width * 0.7, navLeft - 60);
+    // Full size, vertically centred, when that clears the wordmark to its
+    // left. Where the nav pins it further left (narrower screens), it would
+    // sit behind the wordmark instead, so it shrinks — pushed back from the
+    // camera — into the band between the top bar and the wordmark's top.
+    let z = 0;
+    let centrePx = size.height / 2;
+    if (strapPx - (W / 2) * pxPerWorld(0, size.height) < boxes.markRight + 16) {
+      const top = 110;
+      const bottom = boxes.markTop - 24;
+      z = Math.max(-4, CAMERA_Z - size.height / (2 * TAN_HALF_FOV * ((bottom - top) / H)));
+      z = Math.min(0, z);
+      centrePx = (top + bottom) / 2;
+    }
+    // Its own depth's pixels-per-unit.
+    const ppw = pxPerWorld(z, size.height);
+    // Too narrow for the gap to hold it clear of the headline (small
+    // laptops, tablets): no badge rather than one over the type.
+    if (strapPx - (W / 2) * ppw < boxes.headlineRight + 24) {
+      g.visible = false;
+      setOver(false);
+      setShown(false);
       return;
     }
-    // Travel of the card: upper-left → centre (close) → lower-right, dipping
-    // low at the closest point so the light colour field, not the band, sits
-    // behind the statement text. The pivot sits PIVOT above the card; the
-    // group is positioned at the pivot and the card hangs from it.
-    const e = p * p * (3 - 2 * p);
-    // Closest to the camera a little before half-way, then steadily further
-    // away as it travels right, so it exits smaller and more distant.
-    const rise = Math.min(1, p / 0.38);
-    const near = Math.sin(rise * Math.PI * 0.5);
-    const fall = Math.max(0, (p - 0.38) / 0.62);
-    const mid = near - fall * 1.5;
-    // Held further back than it was (mid * 3.1 - 0.6, nearest z 2.5), so more
-    // of the card and strap stay in frame at the closest point.
-    const z = mid * 2.2 - 1.0;
-    const scaleAtZ = (6 - z) / 6; // the visible half-extent shrinks as it nears the camera
-    const x = (-2.3 + e * 4.6) * halfW * scaleAtZ;
-    // Enters mid-left, into the space under the about section, not high
-    // where it would pass behind the stat cards.
-    const cardY = (0.55 - e * 1.25) * halfH * scaleAtZ - mid * 0.55 * halfH * scaleAtZ;
-    const y = cardY + PIVOT;
-    g.position.set(x, y, z);
+    setShown(true);
 
-    // Pendulum, driven by the pivot's own horizontal acceleration: see swing().
-    if (!ph.primed) {
-      ph.lastX = x;
-      ph.lastVx = 0;
-      ph.omega = 0;
-      ph.theta = 0;
-      ph.warm = 0;
-      ph.primed = true;
+    // A name typed into the hero's field: reprint the face, at most every
+    // tenth of a second while typing, with a small tick of movement per
+    // change so the card visibly takes it. A confirmed name spins it round,
+    // as a new pass being issued.
+    const pr = printed.current;
+    if (pr.fonts && pr.face && pr.version !== badgeState.version && clock.elapsedTime - pr.at > 0.1) {
+      paintBadge(pr.fonts, badgeState.name, pr.face.image as HTMLCanvasElement);
+      pr.face.needsUpdate = true;
+      pr.version = badgeState.version;
+      pr.at = clock.elapsedTime;
+      ph.pitchV += 0.12;
     }
-    const vx = (x - ph.lastX) / dt;
-    const rawAx = (vx - ph.lastVx) / dt;
-    ph.lastX = x;
-    ph.lastVx = vx;
-    ph.warm = Math.min(1, ph.warm + dt * 2); // no drive for the first half second
-    const ax = Math.max(-40, Math.min(40, rawAx)) * ph.warm;
-    swing(ph, ax, dt, t);
-    pv.rotation.z = ph.theta;
-    // A little turn with motion so the card reads as an object.
-    pv.rotation.y = (p - 0.5) * 0.7 + Math.max(-0.25, Math.min(0.25, ph.omega * 0.12)) + ph.yaw;
+    if (pr.stamps !== badgeState.stamps) {
+      pr.stamps = badgeState.stamps;
+      ph.yawV = Math.min(24, ph.yawV + 21);
+      ph.pitchV += 0.35;
+    }
+    // Scrolling down carries it away: back into the distance, and up and off
+    // the top-right corner, as if the lanyard were being reeled in — gone by
+    // 70% of the way through the hero, before "Who are we" comes up. Placed
+    // in screen pixels at its own depth, so it leaves the same way at any
+    // size. On the way out the strap crosses the nav for a moment; the
+    // client preferred this to going straight up, which kept it clear.
+    // (Down and off the bottom-right was tried too, and read as it falling
+    // off the page.)
+    const leave = smoothstep(0, 0.7, scrollState.hero);
+    const zNow = z - leave * 6;
+    const ppwNow = pxPerWorld(zNow, size.height);
+    const exitX = leave * (size.width - strapPx + W * ppwNow);
+    const exitY = leave * (centrePx + H * ppwNow);
+    const x = (strapPx + exitX - size.width / 2) / ppwNow;
+    const cardY = (size.height / 2 - centrePx + exitY) / ppwNow;
+    const pivotY = cardY + PIVOT;
+    g.position.set(x, pivotY, zNow);
 
-    // Project the strap outline to viewport pixels for the statement
-    // inversion. The canvas is fixed at the viewport's top left, so its
-    // pixels are viewport pixels.
-    const sm = strapMesh.current;
-    if (sm) {
-      g.updateWorldMatrix(true, true);
-      const v = scratch.current;
-      const toScreen = (mesh: Mesh) => (local: Vector3): [number, number] => {
-        v.copy(local);
-        mesh.localToWorld(v).project(camera);
-        return [((v.x + 1) / 2) * size.width, ((1 - v.y) / 2) * size.height];
-      };
-      // The strap and the card's dark art panel; the rest of the card is
-      // light, and black type reads on it.
-      const card = cardMesh.current;
-      clipStatements([
-        STRAP_OUTLINE.map(toScreen(sm)),
-        ...(card ? [PANEL_OUTLINE.map(toScreen(card))] : []),
-      ]);
-      clipped.current = true;
+    // Being carried sideways swings it: the card lags its pivot, as a badge
+    // on a moving lanyard does, and swings back through when it stops.
+    if (!reducedMotion) {
+      const tr = travel.current;
+      const vx = Number.isNaN(tr.x) ? 0 : (x - tr.x) / dt;
+      const ax = Number.isNaN(tr.x) ? 0 : Math.max(-30, Math.min(30, (vx - tr.vx) / dt));
+      tr.x = x;
+      tr.vx = vx;
+      ph.rollV -= (ax / PIVOT) * 0.5 * dt;
+    }
+
+    // Scrolling: the page moves under the badge and it lags, swinging back
+    // with the speed and a little to the side. Lenis's velocity is pixels per
+    // frame; as screens per second it is about the same at any size.
+    if (!reducedMotion) {
+      const speed = Math.max(-6, Math.min(6, (scrollState.velocity * 60) / size.height));
+      ph.pitchV += speed * 0.3 * dt;
+      ph.rollV += speed * 0.09 * dt;
+    }
+    swing(ph, dt, t);
+    // Twist first, about the strap, then the swing about the pivot: the
+    // Euler order applies Y, then Z, then X.
+    pv.rotation.order = "XZY";
+    pv.rotation.x = ph.pitch;
+    pv.rotation.z = ph.roll;
+    // Turned a touch toward the headline, so it reads as an object.
+    pv.rotation.y = -0.22 + ph.yaw;
+
+    const mesh = cardMesh.current;
+    if (mesh && (inp.fresh || scrollState.velocity !== 0 || Math.abs(ph.yawV) + Math.abs(ph.pitchV) > 0.02)) {
+      inp.fresh = false;
+      hoverRay.setFromCamera(inp.ndc, camera);
+      setOver(hoverRay.intersectObject(mesh, false).length > 0);
     }
   });
 
@@ -710,7 +867,14 @@ export function Badge({
         <group position={[0, -PIVOT, 0]}>
           {/* Strap: from the crimp up past the pivot and out of frame.
               A plane rotated upright: text reads from the clip upward. */}
-          <mesh ref={strapMesh} position={[0, D_BAR + 0.2 + STRAP_L / 2, -0.012]} rotation={[0, 0, Math.PI / 2]}>
+          <mesh position={[0, D_BAR + 0.2 + STRAP_L / 2, -0.012]} rotation={[0, 0, Math.PI / 2]}>
+            <planeGeometry args={[STRAP_L, STRAP_W]} />
+            <meshStandardMaterial map={textures.strap} roughness={0.85} />
+          </mesh>
+          {/* Its other face, turned to look backwards and printed the same
+              way up, so the strap is still there when the card twists round
+              (a plane only draws its front). */}
+          <mesh position={[0, D_BAR + 0.2 + STRAP_L / 2, -0.012]} rotation={[0, Math.PI, Math.PI / 2]}>
             <planeGeometry args={[STRAP_L, STRAP_W]} />
             <meshStandardMaterial map={textures.strap} roughness={0.85} />
           </mesh>
@@ -744,8 +908,8 @@ export function Badge({
             </mesh>
           </group>
           {/* Card: solid plastic stock. Face art on the front cap (group 0),
-              plain stock on the edges (group 1). The back cap shares group 0,
-              but the swing never turns it to the camera. A little of the face
+              plain stock on the edges (group 1), the back's own print on the
+              back cap (group 2). A little of the face
               as emissive, so the stock lands near the page's own paper
               instead of a lit grey. */}
           <mesh ref={cardMesh} geometry={card}>
@@ -760,6 +924,16 @@ export function Badge({
               clearcoatRoughness={0.2}
             />
             <meshPhysicalMaterial attach="material-1" color="#ecebe6" roughness={0.45} clearcoat={0.3} />
+            <meshPhysicalMaterial
+              attach="material-2"
+              map={textures.back}
+              emissiveMap={textures.back}
+              emissive="#ffffff"
+              emissiveIntensity={0.3}
+              roughness={0.35}
+              clearcoat={0.6}
+              clearcoatRoughness={0.2}
+            />
           </mesh>
         </group>
       </group>

@@ -2,9 +2,9 @@
 
 import { Float, MeshTransmissionMaterial, Text3D } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef, type ComponentProps } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, type ComponentProps } from "react";
 import { toCreasedNormals } from "three-stdlib";
-import { DataTexture, LinearFilter, RepeatWrapping } from "three";
+import { DataTexture, LinearFilter, Raycaster, RepeatWrapping, Vector2 } from "three";
 import type { Group, Mesh, MeshPhysicalMaterial, WebGLProgramParametersWithUniforms } from "three";
 import { fbm } from "./noise";
 import { partyPresence, scrollState } from "./scrollState";
@@ -83,12 +83,19 @@ function makeThicknessMap() {
   return texture;
 }
 
-/** Shared by the letter material: pointer position in the letters' group space. */
+/**
+ * Shared by the letter material: pointer position in the letters' group
+ * space, and the last poke — where the word was clicked (world xy), how long
+ * ago, and how hard.
+ */
 const jelly = {
   uPointer: { value: [0, 0] },
   uRadius: { value: 1 },
   uStrength: { value: 0 },
   uTime: { value: 0 },
+  uPoke: { value: [0, 0] },
+  uPokeAge: { value: 99 },
+  uPokeAmp: { value: 0 },
 };
 
 /**
@@ -106,7 +113,10 @@ function injectJelly(shader: WebGLProgramParametersWithUniforms) {
       uniform vec2 uPointer;
       uniform float uRadius;
       uniform float uStrength;
-      uniform float uTime;`,
+      uniform float uTime;
+      uniform vec2 uPoke;
+      uniform float uPokeAge;
+      uniform float uPokeAmp;`,
     )
     .replace(
       "#include <begin_vertex>",
@@ -121,12 +131,26 @@ function injectJelly(shader: WebGLProgramParametersWithUniforms) {
         float breath = 0.85 + 0.15 * sin(uTime * 2.2);
         transformed += dirLocal * k * 0.06 * uRadius * breath;
         transformed.z += k * 0.03 * uRadius;
+
+        // The poke: a dent pressed in where the word was clicked, springing
+        // back as a ring that runs out across the glass and dies away.
+        float pd = length(wp.xy - uPoke) / uRadius;
+        float dent = exp(-uPokeAge * 7.0) * exp(-pd * pd * 40.0);
+        float ring = sin(uPokeAge * 15.0 - pd * 22.0) * exp(-uPokeAge * 3.2) * exp(-pd * pd * 3.0);
+        transformed.z += (ring * 0.02 - dent * 0.06) * uRadius * uPokeAmp;
       }`,
     );
 }
 
 export function HeroLetters({ reducedMotion, mobile }: Props) {
   const group = useRef<Group>(null);
+  /**
+   * The click: a squash-and-stretch spring on the whole word (`squash`, with
+   * its velocity) and a sideways rock toward the side that was hit (`rock`),
+   * alongside the ripple the shader runs from the click point.
+   */
+  const poke = useRef({ squash: 0, squashV: 0, rock: 0, rockV: 0, at: -99 });
+  const { camera } = useThree();
   const word = useRef<Group>(null);
   const wordMesh = useRef<Mesh>(null);
   const letterMaterial = useRef<MeshPhysicalMaterial>(null);
@@ -143,6 +167,34 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
     };
     mat.needsUpdate = true;
   }, []);
+
+  // Click the glass and it gives: hit-tested from a window listener, as the
+  // badge is, because the canvas takes no pointer events. Party face only,
+  // and never through a link, button or field.
+  useEffect(() => {
+    const raycaster = new Raycaster();
+    const ndc = new Vector2();
+    const onDown = (event: PointerEvent) => {
+      const mesh = wordMesh.current;
+      const g = group.current;
+      if (event.button !== 0 || !mesh || !g?.visible || scrollState.businessMix > 0.5) return;
+      if ((event.target as Element | null)?.closest("a, button, input, textarea, select, label")) return;
+      ndc.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const hit = raycaster.intersectObject(mesh, false)[0];
+      if (!hit) return;
+      event.preventDefault();
+      jelly.uPoke.value = [hit.point.x, hit.point.y];
+      jelly.uPokeAge.value = 0;
+      jelly.uPokeAmp.value = 1;
+      const p = poke.current;
+      p.squashV += 2.4;
+      // Rocks away from the side that was pressed.
+      p.rockV += Math.max(-1, Math.min(1, hit.point.x / (viewport.width * 0.25))) * -1.4;
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [camera, viewport.width]);
 
   // Width from the outline's ink extents. Centring is done by hand rather than
   // with <Center> so both faces share one predictable frame.
@@ -190,6 +242,16 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
     jelly.uStrength.value += (hoverStrength - jelly.uStrength.value) * k;
     jelly.uTime.value = t;
 
+    // The poke's springs: stiff and lightly damped, so it wobbles two or
+    // three times and settles in well under a second.
+    const p = poke.current;
+    const dt = Math.min(0.05, delta);
+    jelly.uPokeAge.value += dt;
+    p.squashV += (-p.squash * 170 - p.squashV * 7) * dt;
+    p.squash += p.squashV * dt;
+    p.rockV += (-p.rock * 90 - p.rockV * 6) * dt;
+    p.rock += p.rockV * dt;
+
     const lift = smoothstep(0.15, 1, hero);
     g.position.y = hero * viewport.height * 0.8;
     g.scale.setScalar(Math.max(0.0001, 1 - lift));
@@ -206,7 +268,10 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
       // (whose wordmark is flat DOM type) takes over.
       const progress = reducedMotion ? 1 : (t - 0.2) / 1.1;
       w.position.y = (1 - Math.min(1, Math.max(0, progress))) * -size * 1.2;
-      w.scale.setScalar(Math.max(0.0001, easeOutBack(progress) * presence));
+      const s = Math.max(0.0001, easeOutBack(progress) * presence);
+      // Squashed flat and wide, then stretched, as a pressed jelly does.
+      w.scale.set(s * (1 + p.squash * 0.5), s * (1 - p.squash), s * (1 + p.squash * 0.3));
+      w.rotation.z = p.rock * 0.12;
       // Sinks a touch as it goes, so it reads as leaving rather than deflating.
       w.position.y -= (1 - presence) * size * 0.25;
     }
