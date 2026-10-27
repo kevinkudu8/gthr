@@ -1,6 +1,9 @@
 "use client";
 
 import {
+  cloneElement,
+  Fragment,
+  isValidElement,
   useLayoutEffect,
   useRef,
   type CSSProperties,
@@ -78,8 +81,7 @@ export function Reveal({
     };
   }, [lines]);
 
-  const content =
-    lines && typeof children === "string" ? splitWords(children) : children;
+  const content = lines ? splitChildren(children) : children;
   const style = { "--d": `${delay}ms` } as CSSProperties;
 
   return (
@@ -94,8 +96,24 @@ export function Reveal({
   );
 }
 
+/**
+ * Splits every string in `node` into rising words, keeping inline elements
+ * (a <strong>, say) around their own words, so marked-up copy can rise line
+ * by line too.
+ */
+function splitChildren(node: ReactNode): ReactNode {
+  if (typeof node === "string") return splitWords(node);
+  if (Array.isArray(node)) {
+    return node.map((child, index) => <Fragment key={index}>{splitChildren(child)}</Fragment>);
+  }
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return cloneElement(node, undefined, splitChildren(node.props.children));
+  }
+  return node;
+}
+
 function splitWords(text: string) {
-  return text.split(/(\s+)/).map((part, index) =>
+  return text.split(/(\s+)/).filter(Boolean).map((part, index) =>
     /^\s+$/.test(part) ? (
       " "
     ) : (

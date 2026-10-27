@@ -45,12 +45,13 @@
 }
 
 /* ---------------------------------------------------------------
-   Business face: warm off-white paper, soft black ink, one mint accent.
-   After the client's retro coffee-packaging reference. Set by
+   Business face: clean white, soft black ink, one mint accent. The
+   palette came from the client's retro coffee-packaging reference; the
+   ground was a warm off-white (#f4f2ec) until the client asked for white. Set by
    ModeProvider as a `data-mode` attribute on <html>.
 
    **The mint is a highlight, never a ground for large areas, and never
-   type on the paper** — #8fd1a0 on #f4f2ec is about 1.7:1, which fails
+   type on the paper** — #86dcb2 on white is about 1.4:1, which fails
    AA at any size. It is only ever a fill with soft black on top of it
    (the CTA, the toggle thumb, a marker behind a word, a link underline)
    or mint type on black (the pill labels). Anything that reads as text
@@ -61,11 +62,11 @@
    printed grain over it (`.paper-grain`).
    --------------------------------------------------------------- */
 :root[data-mode="business"] {
-  /* Warm off-white, and now the whole business ground rather than just what
-     the page settled into below a gradient hero. Kept in step with
-     CloudBackdrop's uBusinessPaper. */
-  --paper: #f4f2ec;
-  --paper-elevated: #eae7df;
+  /* Pure white, the whole business ground. It was a warm off-white
+     (#f4f2ec); the client preferred a clean white. Kept in step with
+     CloudBackdrop's uBusinessPaper and the Badge's card stock. */
+  --paper: #ffffff;
+  --paper-elevated: #f4f4f4;
   --ink-rgb: 20, 20, 20;
   /* Soft black, not pure. --brand is the focus ring and the business
      wordmark, and both want the same ink as the type around them; the mint is
@@ -80,15 +81,16 @@
   --shadow-rgb: 0, 0, 0;
   color-scheme: light;
 
-  /* 0.62 of soft black over this paper lands on #6b6b66, the reference's own
-     muted tone — so the secondary copy and the clock need no colour of their
-     own, they already are it. */
+  /* 0.62 of soft black over white lands near #6e6e6e (~5:1), the muted tone
+     for secondary copy and the clock. */
   --ink-2: rgba(var(--ink-rgb), 0.62);
   --ink-3: rgba(var(--ink-rgb), 0.38);
   --ink-4: rgba(var(--ink-rgb), 0.2);
   /* Named outright rather than derived as an ink alpha: the grid, its "+"
-     markers and every hairline border are one colour in this system. */
-  --line: #dad7cf;
+     markers and every hairline border are one colour in this system. A
+     neutral grey now the ground is white (it was a warm #dad7cf). Kept in
+     step with CloudBackdrop's grid colour. */
+  --line: #e3e3e3;
 }
 
 @theme inline {
@@ -284,7 +286,7 @@
   }
   .pixel-cursor__sleek {
     fill: #141414;
-    stroke: #f4f2ec;
+    stroke: #ffffff;
     transition: fill 0.2s var(--ease-66);
   }
   .pixel-cursor[data-hover] .pixel-cursor__sleek,
@@ -607,18 +609,13 @@
     background: none;
   }
 
-  /* The stat cards in "Who are we", on business: frosted and *lighter* than
-     the paper, as the client's reference cards are — the business .glass
-     above is a faint grey wash, darker than the paper, which read as a hole
-     rather than a panel. White is the glass rim's own colour, so no new
-     colour comes in. */
+  /* The stat cards in "Who are we", on business. They were frosted white,
+     lighter than the old off-white paper as the client's reference cards
+     are; on a white ground nothing is lighter, so they are a very light grey
+     panel now, a step off the paper with the same soft shadow. */
   :root[data-mode="business"] .stat-card {
-    background: linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.72) 0%,
-      rgba(255, 255, 255, 0.5) 100%
-    );
-    border-color: rgba(var(--ink-rgb), 0.08);
+    background: linear-gradient(160deg, #f8f8f8 0%, #f2f2f2 100%);
+    border-color: rgba(var(--ink-rgb), 0.06);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.9),
       0 24px 50px -34px rgba(var(--shadow-rgb), 0.35);

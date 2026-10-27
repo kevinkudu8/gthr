@@ -31,7 +31,15 @@ export function About() {
         delay={60}
         className="col-span-12 max-w-[38ch] px-2 text-base leading-snug text-ink-1 lg:col-span-7 lg:text-2xl"
       >
-        {about.description}
+        {/* The name opens the paragraph in bold; the copy stays one sentence. */}
+        {about.description.startsWith(about.lead) ? (
+          <>
+            <strong className="font-bold">{about.lead}</strong>
+            {about.description.slice(about.lead.length)}
+          </>
+        ) : (
+          about.description
+        )}
       </Reveal>
       <Reveal delay={120} className="col-span-12 mt-10 px-2 lg:col-span-5 lg:col-start-8 lg:mt-0 lg:self-start">
         <PhotoSlides photos={about.photos} labels={about.photoLabels} className="aspect-[3/2] w-full" />

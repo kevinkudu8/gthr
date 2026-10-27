@@ -32,10 +32,13 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   (`modeToggle` in `site.ts`) says what a press will do. It was a
   business/party segmented pill. Sections and copy are **nearly identical**
   (the exceptions: the hero headline, and business has no statements block);
-  the business finish is **black and warm off-white with one mint accent**,
-  after the client's retro coffee-packaging reference: paper `#f4f2ec` (kept
-  in step with CloudBackdrop's `uBusinessPaper`), soft black ink `#141414`,
-  muted `#6b6b66`, hairlines and grid `#dad7cf`, mint `#86dcb2` (sampled from
+  the business finish is **black and clean white with one mint accent**,
+  after the client's retro coffee-packaging reference: paper `#ffffff` (kept
+  in step with CloudBackdrop's `uBusinessPaper` and the Badge's card stock;
+  it was a warm off-white `#f4f2ec` until the client asked for white — a
+  mimosaagency.com-style `/alt` page was built to compare and dropped, only
+  the white was kept), soft black ink `#141414`,
+  muted ~`#6e6e6e`, hairlines `#e3e3e3` (no grid on this face), mint `#86dcb2` (sampled from
   the client's blobby `GTHR` wordmark), a `GTHR` wordmark set in the platform
   UI face
   (`--font-system`, which *is* SF Pro on Apple hardware — closer than any
@@ -64,6 +67,9 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 - **Copy lives in `src/content/`** (`site.ts`, `services.ts`). Components never
   hard-code user-facing strings. Client-supplied and verbatim: both statements,
   the line under the contact form, `hero.line`, and everything in `about`.
+  The about paragraph opens on `about.lead`, "GTHR (Gather)", set in bold
+  (client request); `Reveal lines` splits strings inside inline elements too,
+  so marked-up copy still rises line by line.
 - **Party spacing:** on the party face `#services` has `margin-top: -27svh`,
   halving the scroll from "Designed to be remembered" to Services (the
   second statement is a full screen with its text centred). A margin rather
@@ -84,7 +90,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   so the whole DOM reskins from those lines; `.glass` is the one thing that
   needs an override, because a frosted white card is invisible on white.
 - **The mint is a highlight, never a ground and never type on the paper.**
-  `#86dcb2` on `#f4f2ec` is about **1.3:1** and fails AA at any size. It is
+  `#86dcb2` on white is about **1.4:1** and fails AA at any size. It is
   only ever a *fill* with soft black on it — the CTA, the marker behind
   "remembered", the nav link's hover rule — or
   mint type **on black**, which is the small pill labels (12.5:1). Because
@@ -202,18 +208,19 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   mutable `scrollState` each frame — never React state at 60fps. Reduced motion
   freezes time-based motion but keeps scroll-driven placement.
   - `CloudBackdrop` — full-screen colour field shader (see the party face,
-    above). On the business face it paints **one flat warm off-white**
-    (`uBusinessPaper` / `--paper` `#f4f2ec`) and the grid over it. There was a
+    above). On the business face it paints **one flat white**
+    (`uBusinessPaper` / `--paper` `#ffffff`) and **no grid**. There was a
     green gradient behind the business hero — `businessRoom`, a ramp plus a
     glow, faded into the paper by `uRoom` over hero scroll 0.3–0.85 — and it
     is **gone**, with `uRoom` and `TopBar`'s `data-on-green` scroll listener.
     Four palettes were tried on it first (an NVIDIA-poster sage-teal, a
     yellow-green, a forest green, and a dark face with a luminous crescent);
     the face is black-and-paper now and its texture is `.paper-grain`, not the
-    shader. The grid hairlines are white at 0.1 on party and the `--line`
-    colour `#dad7cf` at full strength on business — named outright, because an
-    alpha of black over this paper lands near that colour but never on it, and
-    the grid, the "+" markers and the CSS borders all have to match.
+    shader. The grid (hairlines plus a "+" at each crossing) is **party
+    only**, white at 0.1: `uGrid` is `scrollState.grid * (1 - businessMix)`,
+    so it fades out with the switch to business. Business had it too, in the
+    `--line` colour, until the client asked for it gone after the ground went
+    white.
   - `HeroLetters` — the wordmark as one connected cursive word, lowercase
     `gthr` in Pacifico. `pacifico-gthr.typeface.json` holds the four glyphs
     **unioned into one outline** (glyph key `w`; rebuild with the scratch
@@ -316,7 +323,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     On the business face the lockup and the hero line are now hidden, and the
     hero is **`.hero-poster`** instead (Hero.tsx, copy is `poster` in
     `site.ts`): absolutely filling `#hero` as a two-column, five-row grid on
-    the flat off-white ground.
+    the flat white ground.
     **The headline is the page's primary message and is set like it** —
     sentence case, medium weight, normal tracking, soft black, on its two
     natural lines from `poster.lines`, with a mint marker behind the word
@@ -456,7 +463,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     squashed). A clear acrylic holder on a braided rope was tried here after a
     second client reference and taken back out at their request — they
     wanted a solid card and a thicker, branded strap. It is in the history.
-    The face is the business stock (`#f4f2ec`, fine grain) with most of it an
+    The face is the business stock (white, fine grain) with most of it an
     **art panel**: soft black with blurred mint glows (mint as light, never
     type on paper), the `01\` pill (mint fill, black type), the access line,
     and `GTHR.` large. Under it the pass line, a grey name chip and an outlined
@@ -571,9 +578,11 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   (`.stat-card__label::before`: mint on party, soft black on business, where
   `--brand` is ink) and the index is just `01`–`04` (a `/ 04` total was tried and removed). The cards are the site's
   own `.glass`, so each face styles them: on party the stock clear glass
-  (a darker smoke was tried and reverted at the client's request); on business `.stat-card` makes them a white frosted
-  panel *lighter* than the paper, as the reference's are — the business
-  `.glass` is a faint grey wash, darker than the paper, and read as a hole.
+  (a darker smoke was tried and reverted at the client's request); on business `.stat-card` makes them a very light grey
+  panel (`#f8f8f8`→`#f2f2f2`) with a soft shadow. They were white frosted,
+  *lighter* than the old off-white paper as the reference's are; on white
+  nothing is lighter. (The business `.glass` alone, a faint grey wash, read
+  as a hole.)
   (The stats first opened on a hairline with a `+`; the client had that
   removed.) The numbers count up once
   (`ui/CountUp`), armed the way `Reveal` arms its transitions: the server

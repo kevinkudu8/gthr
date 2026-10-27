@@ -98,8 +98,10 @@ export const statements = {
 /** "Who are we" section (id `about`). Client copy. */
 export const about = {
   eyebrow: "Who are we",
+  /** The opening of `description`, set in bold. */
+  lead: "GTHR (Gather)",
   description:
-    "GTHR is an events and experiential marketing agency for blockchain and technology brands. We're new as a company but not to the work. Between us, we've spent years producing events around the world for some of the biggest names in the industry.",
+    "GTHR (Gather) is an events and experiential marketing agency for blockchain and technology brands. We're new as a company but not to the work. Between us, we've spent years producing events around the world for some of the biggest names in the industry.",
   /**
    * `value` is what counts up; `suffix` is appended as-is. Kept apart so the
    * count-up never has to parse a string back into a number.

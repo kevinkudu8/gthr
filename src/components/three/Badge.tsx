@@ -161,7 +161,7 @@ const PANEL = { x: 44, y: 104, w: FACE_W - 88, h: Math.round(FACE_H * 0.56), r: 
 
 /**
  * The badge face, after the client's lanyard reference: a card of the
- * business face's warm off-white stock, most of it given to a rounded art
+ * business face's white stock, most of it given to a rounded art
  * panel, with the event line and two chips under it. The panel is the brand
  * in a glow — soft black with blurred mint light, the mint as light rather
  * than type — carrying the index pill, the access line and the wordmark.
@@ -172,10 +172,10 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
   // The face's tokens, painted by hand because a canvas cannot read CSS.
   // Keep these in step with :root[data-mode="business"] in globals.css.
   const ink = "#141414";
-  const paper = "#f4f2ec";
+  const paper = "#ffffff";
   const mint = "#86dcb2";
-  const line = "#dad7cf";
-  const muted = "#6b6b66";
+  const line = "#e3e3e3";
+  const muted = "#6e6e6e";
   const system = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
   const c = badge;
   const pad = 44;
@@ -325,10 +325,10 @@ function paintBadgeBack(fonts: Fonts) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
   const ink = "#141414";
-  const paper = "#f4f2ec";
+  const paper = "#ffffff";
   const mint = "#86dcb2";
-  const line = "#dad7cf";
-  const muted = "#6b6b66";
+  const line = "#e3e3e3";
+  const muted = "#6e6e6e";
   const system = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
   const c = badge.back;
   const pad = 44;

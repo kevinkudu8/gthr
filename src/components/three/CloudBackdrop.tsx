@@ -180,7 +180,7 @@ const fragmentShader = /* glsl */ `
     // The vignette still darkens the gutters, which is what keeps the chrome
     // and the hairline grid legible over the warm band.
     float strength = (0.88 + 0.12 * uIntensity) * mix(0.80, 1.0, vig) * (1.0 - uBusiness);
-    /* Business: one flat warm off-white, the whole way down. There used to be
+    /* Business: one flat white, the whole way down. There used to be
        a green gradient behind the hero here (businessRoom) that uRoom faded
        into this colour as the page scrolled on; the face is black-and-paper
        with a single mint accent now, so the gradient is gone and uRoom with
@@ -226,15 +226,13 @@ const fragmentShader = /* glsl */ `
         line = max(line, 1.0 - smoothstep(0.0, 1.0, abs(px.y - h * float(j) / 3.0)));
       }
 
-      /* Party's hairlines are white at a low alpha (the face is dark, black
-         ones were invisible). Business names its grid colour outright — the
-         --line token, #dad7cf — so it is laid on at full strength rather than
-         mixed toward from the ink; an alpha of black over this paper lands
-         somewhere near it but never on it, and the grid, the "+" markers and
-         the CSS hairline borders all have to be the one colour. */
-      vec3 ink = mix(vec3(1.0), hexc(218.0, 215.0, 207.0), uBusiness);
-      col2 = mix(col2, ink, line * mix(0.1, 1.0, uBusiness) * uGrid);
-      col2 = mix(col2, ink, cross * mix(0.45, 1.0, uBusiness) * uGrid);
+      /* Party only: white hairlines at a low alpha (the face is dark, black
+         ones were invisible). The business face has no grid -- removed at the
+         client's request once its ground went white -- so uGrid is scaled
+         down to nothing as the face switches to business (see useFrame). */
+      vec3 ink = vec3(1.0);
+      col2 = mix(col2, ink, line * 0.1 * uGrid);
+      col2 = mix(col2, ink, cross * 0.45 * uGrid);
     }
 
     /* Film grain. Applied last, over everything including the grid, and at a
@@ -353,7 +351,7 @@ export function CloudBackdrop() {
       // It matters here because this is a near-white the eye can measure.
       // The calm tone the hero's grey settles into below it. Kept in step
       // with the --paper token.
-      uBusinessPaper: { value: [0xf4 / 255, 0xf2 / 255, 0xec / 255] },
+      uBusinessPaper: { value: [1, 1, 1] },
     }),
     [],
   );
@@ -368,7 +366,9 @@ export function CloudBackdrop() {
     const dpr = gl.getPixelRatio();
     m.uniforms.uResolution.value = [size.width * dpr, size.height * dpr];
     m.uniforms.uDpr.value = dpr;
-    m.uniforms.uGrid.value = scrollState.grid;
+    // Party face only: the business face has no grid. Eased off businessMix,
+    // so it fades out with the switch rather than vanishing.
+    m.uniforms.uGrid.value = scrollState.grid * (1 - scrollState.businessMix);
     // Party face only — the business ground is clean stock.
     // Subtle, a touch under the original 0.075. 0.11 and 0.09 read as TV
     // static; an ordered (Bayer) dither was tried with it and removed — its
