@@ -199,15 +199,21 @@ export const contact = {
   eyebrow: "Contact",
   heading: "Tell us what you're planning.",
   email: site.email,
+  /**
+   * `short` is the placeholder on phones, where the labels are hidden (kept
+   * for screen readers) and the field says what it is itself (client: the
+   * form read wordy on a phone).
+   */
   fields: {
-    name: { label: "Name", placeholder: "Your name" },
-    email: { label: "Email", placeholder: "you@company.com" },
-    company: { label: "Company (optional)", placeholder: "Company name" },
-    location: { label: "Location", placeholder: "City or region" },
+    name: { label: "Name", placeholder: "Your name", short: "Name" },
+    email: { label: "Email", placeholder: "you@company.com", short: "Email" },
+    company: { label: "Company (optional)", placeholder: "Company name", short: "Company" },
+    location: { label: "Location", placeholder: "City or region", short: "Location" },
     message: {
       label: "Tell us what you need",
       placeholder:
         "Tell us about your goals, timeline, audience, or anything else we should know.",
+      short: "What are you planning?",
     },
   },
   submit: "Send inquiry",

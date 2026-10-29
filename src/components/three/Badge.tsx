@@ -836,7 +836,21 @@ function swing(ph: Swing, dt: number, t: number) {
  * events (it sits behind the page), so both are hit-tested from window
  * listeners, and the custom cursor is told through `data-badge` on <html>.
  */
-export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolean; mobile?: boolean }) {
+export function Badge({
+  reducedMotion,
+  mobile = false,
+  inPage = false,
+}: {
+  reducedMotion: boolean;
+  mobile?: boolean;
+  /**
+   * Drawn in its own canvas inside the hero (PhoneBadge), which scrolls with
+   * the page natively: no scroll to follow and no scroll sway. The fixed
+   * canvas tracking the scroll in JS shook against the CTA on phones, whose
+   * scrolling runs ahead of the page's frames.
+   */
+  inPage?: boolean;
+}) {
   const root = useRef<Group>(null);
   const pivot = useRef<Group>(null);
   const physics = useRef<Swing>({ pitch: 0, pitchV: 0, roll: 0, rollV: 0, yaw: 0, yawV: 0 });
@@ -848,7 +862,7 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     strap: Texture;
     fade: Texture;
   } | null>(null);
-  const { camera, size } = useThree();
+  const { camera, size, gl } = useThree();
   const cardMesh = useRef<Mesh>(null);
   const card = useMemo(() => slabGeometry(W, H, D, CARD_R, 0, { y: HOLE_Y, w: SLOT_W, h: SLOT_H }), []);
   const hook = useMemo(() => hookGeometry(), []);
@@ -920,8 +934,11 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     const raycaster = new Raycaster();
     const inp = input.current;
     const html = document.documentElement;
+    // Relative to this canvas: the viewport for the fixed one, the hero's
+    // box for the in-page one.
     const setNdc = (event: PointerEvent) => {
-      inp.ndc.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+      const r = gl.domElement.getBoundingClientRect();
+      inp.ndc.set(((event.clientX - r.left) / r.width) * 2 - 1, -((event.clientY - r.top) / r.height) * 2 + 1);
       inp.fresh = true;
     };
 
@@ -965,7 +982,7 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
       delete html.dataset.badge;
       delete html.dataset.badgeShown;
     };
-  }, [camera]);
+  }, [camera, gl]);
 
   useFrame(({ clock }, rawDelta) => {
     const g = root.current;
@@ -1067,7 +1084,7 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     const zNow = z - leave * 6;
     const ppwNow = pxPerWorld(zNow, size.height);
     const exitX = leave * (size.width - strapPx + W * ppwNow);
-    const exitY = mobile ? scrollState.y : leave * (centrePx + H * ppwNow);
+    const exitY = inPage ? 0 : mobile ? scrollState.y : leave * (centrePx + H * ppwNow);
     const x = (strapPx + exitX - size.width / 2) / ppwNow;
     const cardY = (size.height / 2 - centrePx + exitY) / ppwNow;
     const pivotY = cardY + PIVOT;
@@ -1087,7 +1104,7 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     // Scrolling: the page moves under the badge and it lags, swinging back
     // with the speed and a little to the side. Lenis's velocity is pixels per
     // frame; as screens per second it is about the same at any size.
-    if (!reducedMotion) {
+    if (!reducedMotion && !inPage) {
       const speed = Math.max(-6, Math.min(6, (scrollState.velocity * 60) / size.height));
       ph.pitchV += speed * 0.3 * dt;
       ph.rollV += speed * 0.09 * dt;

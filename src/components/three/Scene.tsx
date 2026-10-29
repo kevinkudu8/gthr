@@ -23,11 +23,10 @@ export function Scene() {
   return (
     <Canvas
       shadows="soft"
-      // Phones on the light face draw at up to 2x, so the badge is sharp;
-      // the backdrop is plain paper there and skips its field, so it costs
-      // little. The dark face's field and glass draw at 1.5x on phones (was
-      // 1.25, which left the glass soft and its grain coarse).
-      dpr={[1, mobile ? (business ? 2 : 1.5) : 1.75]}
+      // The dark face's field and glass draw at 1.5x on phones (was 1.25,
+      // which left the glass soft and its grain coarse). The light face is
+      // plain paper here; its badge has its own canvas (PhoneBadge).
+      dpr={[1, mobile ? (business ? 1.25 : 1.5) : 1.75]}
       camera={{ position: [0, 0, 6], fov: 40, near: 0.1, far: 30 }}
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       frameloop="always"
@@ -42,7 +41,8 @@ export function Scene() {
             hero, the tearing ticket in the party face's statements block
             (business has no statements block). */}
         {business ? (
-          <Badge reducedMotion={reducedMotion} mobile={mobile} />
+          // Phones draw it in the hero instead (PhoneBadge).
+          mobile ? null : <Badge reducedMotion={reducedMotion} />
         ) : (
           <Ticket reducedMotion={reducedMotion} />
         )}

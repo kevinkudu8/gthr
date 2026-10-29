@@ -261,8 +261,17 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 - **Contact fits one screen:** form is 2 columns everywhere (Company +
   Location pair up on phones), shorter fields, 3-row message, tighter
   section padding; ~900px tall on a 1440×900 desktop, card ~520px on a phone.
-- **Phone badge stays on the CTA:** no reel-off on scroll; it scrolls with
-  the page (`exitY = scrollState.y`, `leave` 0 on mobile).
+- **Phone badge stays on the CTA, in its own canvas** (`PhoneBadge`, via
+  `PhoneBadgeSlot` in Hero): below lg on business, the badge is drawn in a
+  screen-tall canvas at the top of the hero, behind its type, so it scrolls
+  with the page natively. Following the scroll in JS from the fixed canvas
+  shook against the CTA on iPhone (native scrolling runs ahead of rAF).
+  `Badge inPage`: no scroll follow, no scroll sway, NDC from its own canvas
+  rect. The fixed Scene skips Badge on mobile; its business DPR is back to
+  1.25 (plain paper). The in-page canvas stops drawing off screen.
+- **Contact on phones (< sm):** labels hidden (sr-only) and short
+  placeholders (`fields.*.short`: Name, Email, Company, Location, "What are
+  you planning?") — client: the form read wordy.
 - **Party hero on phones** (client review of a real iPhone shot):
   * The glass word is 0.82 of the screen's width on phones (was 0.66) and
     raised `PHONE_RAISE` (0.08 viewport heights; 0.13 put it over the

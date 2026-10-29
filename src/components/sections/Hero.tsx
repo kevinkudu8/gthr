@@ -2,6 +2,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { BadgeNameField } from "@/components/sections/BadgeNameField";
 import { HeroCta } from "@/components/sections/HeroCta";
 import { WordSheen } from "@/components/sections/WordSheen";
+import { PhoneBadgeSlot } from "@/components/three/PhoneBadgeSlot";
 import { about, hero, poster } from "@/content/site";
 
 /**
@@ -46,6 +47,9 @@ export function Hero() {
       aria-label="Introduction"
     >
       <h1 className="sr-only">{hero.wordmark}</h1>
+      {/* Phones, business: the badge's own canvas, behind the poster's type
+          and scrolling with it. */}
+      <PhoneBadgeSlot />
       <div className="hero-lockup col-span-12 row-start-1" aria-hidden="true">
         <span className="hero-lockup__word">
           {hero.businessWordmark}
