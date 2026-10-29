@@ -48,6 +48,11 @@ const easeOutBack = (t: number) => {
 
 type Props = { reducedMotion: boolean; mobile: boolean };
 
+/** How far up the word sits on phones, in viewport heights from centre. */
+const PHONE_RAISE = 0.13;
+/** The glass's tint on phones, darker than desktop's #c2ccda. */
+const PHONE_GLASS = "#7f8996";
+
 /**
  * A soft noise field used as the film thickness of the letters' iridescence.
  *
@@ -267,7 +272,10 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
       // Entrance spring, and it shrinks away entirely as the business face
       // (whose wordmark is flat DOM type) takes over.
       const progress = reducedMotion ? 1 : (t - 0.2) / 1.1;
-      w.position.y = (1 - Math.min(1, Math.max(0, progress))) * -size * 1.2;
+      // Phones: raised into the upper half, clear of the copy under it (it
+      // sat low, the g's tail on the line, with the top third empty).
+      const rest = mobile ? viewport.height * PHONE_RAISE : 0;
+      w.position.y = rest + (1 - Math.min(1, Math.max(0, progress))) * -size * 1.2;
       const s = Math.max(0.0001, easeOutBack(progress) * presence);
       // Squashed flat and wide, then stretched, as a pressed jelly does.
       w.scale.set(s * (1 + p.squash * 0.5), s * (1 - p.squash), s * (1 + p.squash * 0.3));
@@ -337,7 +345,9 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
                 distortion={0}
                 distortionScale={0}
                 temporalDistortion={0}
-                samples={mobile ? 10 : 18}
+                // Phones were at 10, and the sampling noise read as a
+                // sandpaper grain over the glass.
+                samples={mobile ? 14 : 18}
                 // The transmission buffer. The refracted image is only ever as
                 // sharp as this, so the last of the softness was resolution,
                 // not a blur setting — none of the three above are on. Desktop
@@ -374,7 +384,9 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
                 metalness={0}
                 // Near-clear, and darker than the old paper-face value: a
                 // near-white diffuse term sat as milk over the dark ground.
-                color="#c2ccda"
+                // Darker on phones: the word sits over the brightest band of
+                // the field there and read as frosted pastel plastic.
+                color={mobile ? PHONE_GLASS : "#c2ccda"}
                 // Long distance: only a whisper of blue, so the backdrop comes
                 // through rather than being absorbed.
                 attenuationColor="#d8ebff"

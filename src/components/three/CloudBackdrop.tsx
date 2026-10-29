@@ -55,6 +55,7 @@ const fragmentShader = /* glsl */ `
   uniform float uGrain;
   uniform float uScroll;
   uniform float uLift;
+  uniform float uPhoneGrid;
   uniform vec4 uBlobA[BLOBS];
   uniform vec4 uBlobB[BLOBS];
   uniform float uTaper[BLOBS];
@@ -95,6 +96,9 @@ const fragmentShader = /* glsl */ `
 
   // The reference artwork's width, in units of its height.
   const float REF_W = 1.736;
+  // The phone grid's one row, as a fraction of the screen's height: under
+  // the raised glass word, above the copy.
+  const float PHONE_ROW = 0.56;
   // Below the reference's own bottom edge the field is held constant in y...
   const float EXTEND = 0.95;
   // ...and the page folds back on itself (a vertical mirror) every FOLD.
@@ -296,12 +300,16 @@ const fragmentShader = /* glsl */ `
 
       float line = 0.0;
       float cross = 0.0;
+      /* Phones: one row instead of two (client: fewer lines across a
+         phone), set between the glass word and the copy under it, and the
+         whole grid fainter -- on a small screen it cut through both. */
+      bool phone = uPhoneGrid > 0.5;
       for (int k = 0; k < 4; k++) {
         float gx = gutter + (w - 2.0 * gutter) * float(k) / 3.0;
         float dx = abs(px.x - gx);
         line = max(line, 1.0 - smoothstep(0.0, 1.0, dx));
         for (int j = 1; j < 3; j++) {
-          float gy = h * float(j) / 3.0;
+          float gy = phone ? (j == 1 ? h * PHONE_ROW : -100.0) : h * float(j) / 3.0;
           float dy = abs(px.y - gy);
           float armV = step(dy, 5.5) * (1.0 - smoothstep(0.0, 1.0, dx));
           float armH = step(dx, 5.5) * (1.0 - smoothstep(0.0, 1.0, dy));
@@ -309,7 +317,8 @@ const fragmentShader = /* glsl */ `
         }
       }
       for (int j = 1; j < 3; j++) {
-        line = max(line, 1.0 - smoothstep(0.0, 1.0, abs(px.y - h * float(j) / 3.0)));
+        float gy = phone ? (j == 1 ? h * PHONE_ROW : -100.0) : h * float(j) / 3.0;
+        line = max(line, 1.0 - smoothstep(0.0, 1.0, abs(px.y - gy)));
       }
 
       /* Party only: white hairlines at a low alpha (the face is dark, black
@@ -317,8 +326,9 @@ const fragmentShader = /* glsl */ `
          client's request once its ground went white -- so uGrid is scaled
          down to nothing as the face switches to business (see useFrame). */
       vec3 ink = vec3(1.0);
-      col2 = mix(col2, ink, line * 0.1 * uGrid);
-      col2 = mix(col2, ink, cross * 0.45 * uGrid);
+      float gridA = uGrid * (phone ? 0.55 : 1.0);
+      col2 = mix(col2, ink, line * 0.1 * gridA);
+      col2 = mix(col2, ink, cross * 0.45 * gridA);
     }
 
     /* Film grain. Applied last, over everything including the grid, and at a
@@ -467,6 +477,7 @@ export function CloudBackdrop() {
       uGrain: { value: 0 },
       uScroll: { value: 0 },
       uLift: { value: 0 },
+      uPhoneGrid: { value: 0 },
       uBlobA: {
         value: BLOB_PARAMS.map(([x, y, rx, ry]) => new Vector4(x, y, 1 / rx, 1 / ry)),
       },
@@ -521,6 +532,7 @@ export function CloudBackdrop() {
     // grain is a few device pixels wide and read as a crawling static.
     m.uniforms.uGrain.value = mobile ? 0.035 : 0.06;
     m.uniforms.uQuadCoords.value = mobile ? 1 : 0;
+    m.uniforms.uPhoneGrid.value = mobile ? 1 : 0;
     m.uniforms.uTime.value = reducedMotion ? 12 : clock.elapsedTime;
     m.uniforms.uIntensity.value = backdrop;
     m.uniforms.uCalm.value = scrollState.calm;

@@ -253,6 +253,29 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     gradient should fill more of a phone — its black top was ~40% of it).
   * Film grain 0.035 on phones (0.06 desktop): at 1.25x scaled up, each
     grain is several device pixels and crawled.
+- **Six services, one screen** (client: add "Content Capture & Media", and
+  still fit on one page): from lg, business #services is `min-height:
+  100vh`, content centred, rows/type sized off `vh`; a tighter step at
+  `max-height: 50rem` (1280×720 fits). Phones scroll it as before.
+- **Contact fits one screen:** form is 2 columns everywhere (Company +
+  Location pair up on phones), shorter fields, 3-row message, tighter
+  section padding; ~900px tall on a 1440×900 desktop, card ~520px on a phone.
+- **Phone badge stays on the CTA:** no reel-off on scroll; it scrolls with
+  the page (`exitY = scrollState.y`, `leave` 0 on mobile).
+- **Party hero on phones** (client review of a real iPhone shot):
+  * The glass word is raised `PHONE_RAISE` (0.13 viewport heights) into the
+    upper half — it sat low, the g's tail on the copy, the top third empty.
+    (Applied in HeroLetters' useFrame, which sets the word's y every frame;
+    the JSX `position` on that group is overwritten.)
+  * Glass on phones: tint `PHONE_GLASS` #7f8996 (desktop #c2ccda) so it
+    reads as dark glass over the bright band, 14 samples (10 left a
+    sandpaper grain), party canvas DPR 1.5 (was 1.25).
+  * Copy centred, the "01\ Events & experiences" pill hidden below lg.
+  * Grid on phones (`uPhoneGrid`): one row at `PHONE_ROW` 0.56 (between the
+    word and the copy) instead of two, and at 0.55 of desktop's strength.
+- **Phone tilt on the glass word: built and taken out.** Device
+  orientation turned the party word on phones; dropped by the client
+  because iOS needs a permission prompt for it. In the history.
 - **Services, business only:** numbers are mint pills (the badge's `01\`
   pill), and the active row's title gets the hero's mint marker swept in
   (`.service-mark`, background-size 0 → 100%); its pill inverts to black
@@ -643,7 +666,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     `stamps`). Badge repaints the face into the same canvas (at most every
     0.1s, with a small tick of movement per change): the name takes the pass
     line (shrunk to fit, max `BADGE_NAME_MAX`) and the chip turns to
-    "AAA" (`badge.access`, also the panel's top-right mark; was "ALL-ACCESS"). Enter, or leaving the field with a new name, stamps it and
+    "AAA" — gone now: the access mark (top-right of the panel, and the chip with a name on) was removed at the client's request; the chip stays "Your team". Enter, or leaving the field with a new name, stamps it and
     the card spins round, as a new pass issued. It is the visitor's **own
     name** (it was a company name; changed at the client's request), and
     `ContactForm` writes it into its uncontrolled Name input until the

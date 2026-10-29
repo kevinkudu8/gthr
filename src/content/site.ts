@@ -138,7 +138,6 @@ export const about = {
  */
 export const badge = {
   mark: "GTHR.",
-  access: "AAA",
   headline: ["Access", "All Areas"],
   index: "01\\",
   columns: [

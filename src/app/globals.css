@@ -1218,12 +1218,51 @@
     padding-block: 9rem;
   }
 
+  /* Six services on one screen (client: "fill on 1 page"): the section is
+     a viewport tall, its rows spaced and the lines sized off the screen's
+     height, so a laptop fits all six between the top bar and the clock. */
   :root[data-mode="business"] #services {
-    padding-block: 7rem 9rem;
+    min-height: 100vh;
+    padding-block: 6.5rem 5.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   :root[data-mode="business"] #services ol > li {
-    padding-block: 2.25rem;
+    padding-block: clamp(0.8rem, 2vh, 2rem);
+  }
+
+  :root[data-mode="business"] #services ol > li p {
+    max-width: 58ch;
+    font-size: clamp(0.95rem, 1.8vh, 1.125rem);
+    line-height: 1.4;
+  }
+
+  :root[data-mode="business"] #services ol > li h3 {
+    font-size: clamp(1.25rem, 2.5vh, 1.5rem);
+  }
+}
+
+/* Short laptop screens (~720px tall): a step tighter again so the six rows
+   still fit between the bar and the clock. */
+@media (min-width: 64rem) and (max-height: 50rem) {
+  :root[data-mode="business"] #services {
+    padding-block: 5.25rem 5rem;
+  }
+
+  :root[data-mode="business"] #services ol > li {
+    padding-block: 0.6rem;
+  }
+
+  :root[data-mode="business"] #services ol > li p {
+    max-width: 62ch;
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+
+  :root[data-mode="business"] #services ol > li h3 {
+    font-size: 1.125rem;
   }
 }
 
@@ -1657,5 +1696,27 @@ html[data-spilling]::view-transition-old(root) {
 @media (prefers-reduced-motion: reduce) {
   :root[data-mode="business"] .service-mark {
     transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Party hero on phones (client: tidy the stack under the glass word):
+   the line and the paragraph centred under the centred word, and the
+   "01\ Events & experiences" pill dropped -- loud at this size, and it
+   repeats the line.
+   --------------------------------------------------------------- */
+@media (max-width: 63.99rem) {
+  :root[data-mode="party"] .hero-line,
+  :root[data-mode="party"] .hero-about {
+    text-align: center;
+  }
+
+  :root[data-mode="party"] .hero-about > span:first-child {
+    display: none;
+  }
+
+  :root[data-mode="party"] .hero-about p {
+    margin-top: 0;
+    margin-inline: auto;
   }
 }

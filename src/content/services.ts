@@ -2,7 +2,7 @@
  * Services rows: a title and a line. Keep `number` zero-padded so it lines
  * up in tabular mono.
  *
- * All five lines are client copy. The three tags per row were removed at
+ * All six lines are client copy. The three tags per row were removed at
  * the client's request.
  */
 
@@ -37,5 +37,10 @@ export const services: Service[] = [
     number: "05",
     title: "Event Marketing, Strategy & Advisory",
     line: "Know why you’re hosting before you book the venue. We help you define the goal, target the right audience and choose the right format to align with your brand marketing roadmap.",
+  },
+  {
+    number: "06",
+    title: "Content Capture & Media",
+    line: "Amplify your brand beyond the IRL — reach the people in the room and the people who aren’t. We provide the content and the creators to turn your activation into viral moments that travel.",
   },
 ];

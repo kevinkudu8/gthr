@@ -217,8 +217,7 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
   // Chips: name on a grey pill, the agency on an outlined one.
   y += 30;
   ctx.font = `500 15px ${fonts.mono}`;
-  // With a name on the pass, the chip says what it is instead.
-  const nameText = (holder ? c.access : c.name).toUpperCase();
+  const nameText = c.name.toUpperCase();
   const nw = ctx.measureText(nameText).width + 36;
   ctx.fillStyle = line;
   ctx.beginPath();
@@ -282,7 +281,7 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
 /**
  * The art panel's type, on its own transparent layer so it sits over the
  * drifting glows: the index pill (mint fill, soft black type — mint is never
- * type on paper), the access line, and the wordmark bottom-left.
+ * type on paper) and the wordmark bottom-left.
  */
 function paintPanelText(fonts: Fonts, ctx: CanvasRenderingContext2D) {
   const ink = "#141414";
@@ -301,10 +300,9 @@ function paintPanelText(fonts: Fonts, ctx: CanvasRenderingContext2D) {
   ctx.fill();
   ctx.fillStyle = ink;
   ctx.fillText(c.index, px + 45, py + 50);
+  // (The panel's top-right access mark, "ALL-ACCESS" then "AAA", was taken
+  // off at the client's request.)
   ctx.fillStyle = paper;
-  ctx.textAlign = "right";
-  ctx.fillText(c.access.toUpperCase(), px + pw - 30, py + 50);
-  ctx.textAlign = "left";
 
   ctx.font = `600 100px ${system}`;
   ctx.letterSpacing = "-5px";
@@ -1063,11 +1061,13 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     // client preferred this to going straight up, which kept it clear.
     // (Down and off the bottom-right was tried too, and read as it falling
     // off the page.)
-    const leave = smoothstep(0, 0.7, scrollState.hero);
+    // Phones: no reeling in. The card hangs from the CTA, so it scrolls with
+    // the page and stays on the button (client request).
+    const leave = mobile ? 0 : smoothstep(0, 0.7, scrollState.hero);
     const zNow = z - leave * 6;
     const ppwNow = pxPerWorld(zNow, size.height);
     const exitX = leave * (size.width - strapPx + W * ppwNow);
-    const exitY = leave * (centrePx + H * ppwNow);
+    const exitY = mobile ? scrollState.y : leave * (centrePx + H * ppwNow);
     const x = (strapPx + exitX - size.width / 2) / ppwNow;
     const cardY = (size.height / 2 - centrePx + exitY) / ppwNow;
     const pivotY = cardY + PIVOT;
