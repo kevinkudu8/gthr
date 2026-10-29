@@ -11,8 +11,11 @@ export default function Home() {
       <Hero />
       <About />
       {/* Sticky + over share one relative parent (see Statement.tsx); the id
-          lets the WebGL particle field track this block's scroll position. */}
-      <div id="statements" className="relative">
+          lets the WebGL particle field track this block's scroll position.
+          Click-through: on party, services is pulled up under its lower half,
+          and the block sat over the first row and took its hover. It holds
+          only type. */}
+      <div id="statements" className="pointer-events-none relative">
         <Statement variant="sticky">{statements.first}</Statement>
         <Statement variant="over">{statements.second}</Statement>
       </div>

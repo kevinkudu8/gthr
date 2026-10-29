@@ -267,6 +267,10 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   pills and a pink→orange marker (`--service-mark`, #ff4f9a→#ff7a45) with
   white type — the brand green was too loud there, and a white marker read
   as selected text.
+- **#statements is `pointer-events-none`:** on party, services is pulled
+  up under the block's lower half, and it sat over the first service row
+  and took its hover (the marker never came on for "Fractional Event
+  Management"). The block holds only type.
 - **Ticket matches the services:** its run of show is built from
   services.ts (`short` per service: Fractional, Design & production, VIP,
   Activations, Strategy & advisory, Content & media; 01–06, all ticked —
