@@ -76,7 +76,7 @@ export function Hero() {
           <span className="text-brand">{poster.index}</span>
           {poster.label}
         </span>
-        <p className="mt-3 max-w-[40ch] text-sm leading-relaxed text-ink-2 lg:text-base">{poster.text}</p>
+        <p className="mt-3 max-w-[40ch] text-balance text-sm leading-relaxed text-ink-2 lg:text-base">{poster.text}</p>
       </Reveal>
       <div className="hero-poster">
         <p className="hero-poster__headline">

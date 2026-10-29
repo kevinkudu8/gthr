@@ -222,7 +222,43 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   round button beside the mode toggle (two bars → cross), opening a
   full-screen sheet in `--paper` with the nav links large and centred
   (`.menu-sheet`, z −1 inside the fixed header so the bar stays on top).
-  Escape, a link (which closes, then smooth-scrolls) or the button closes it.
+  Escape, a link (which closes, then smooth-scrolls), a tap on the sheet's
+  empty space or the button closes it. The button has a ~46px hit area
+  (`::before`) — the client found the X didn't always close it — and
+  Badge's window `pointerdown` ignores presses on controls and the top bar
+  (the card passes under the bar on its way out).
+- **Party hero copy** (client): the line under the glass word is "An
+  experiential marketing and events agency." (`hero.line`/`lines`, was "Your
+  events team, without building one."), and the footer paragraph is
+  "Experiences built to scale, designed to be remembered" (`poster.text`,
+  `text-balance` so it breaks after the comma). The party ticket's own
+  headline (`ticket.headline`) still carries the old line.
+- **Phones, rendering** (client: badge low-res, party glass "off
+  colourwise", grain on the party ground):
+  * Canvas DPR on phones is mode-dependent: 2 on business (badge sharp),
+    1.25 on party (field + glass cost). Business is cheap at 2 because the
+    backdrop early-outs to `uBusinessPaper` once settled (no spill, no
+    crossfade, not the mask pass). The DPR change at the light → dark flip
+    happens under the view-transition snapshot, so it never shows.
+  * The backdrop read screen position from `gl_FragCoord` against the
+    screen size, but the glass's transmission pass draws the same quad into
+    its own square buffer (512 on phones), so the glass refracted a
+    magnified bottom-left corner of the field: pastel colours, coarse
+    grain. On phones it now reads the quad's own 0..1 (`vScreen`,
+    `uQuadCoords` = 1). Desktop keeps the old read (`uQuadCoords` 0): its
+    buffer covers most of the screen, and the glass was tuned on it — the
+    fix there shows more pink/blue through the g; not taken without asking.
+  * The field is lifted on portrait screens (`uLift`, `PORTRAIT_LIFT` 0.2
+    screen heights at phone aspect, scaled to 0 at square; client: the
+    gradient should fill more of a phone — its black top was ~40% of it).
+  * Film grain 0.035 on phones (0.06 desktop): at 1.25x scaled up, each
+    grain is several device pixels and crawled.
+- **Services, business only:** numbers are mint pills (the badge's `01\`
+  pill), and the active row's title gets the hero's mint marker swept in
+  (`.service-mark`, background-size 0 → 100%); its pill inverts to black
+  with mint. Active = `:hover` with a mouse; on touch, the row crossing the
+  middle of the screen (`ServicesActive`, an IntersectionObserver band,
+  sets `data-active`). Event photos on hover were offered and not taken.
 - **Contact glow, business only:** a mint (`--accent`) glow around the form
   card, drifting over 24s (`.contact-glow`, sized past the card). Around,
   not through (client): the business contact card is solid (the stat
@@ -607,7 +643,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     `stamps`). Badge repaints the face into the same canvas (at most every
     0.1s, with a small tick of movement per change): the name takes the pass
     line (shrunk to fit, max `BADGE_NAME_MAX`) and the chip turns to
-    "ALL-ACCESS". Enter, or leaving the field with a new name, stamps it and
+    "AAA" (`badge.access`, also the panel's top-right mark; was "ALL-ACCESS"). Enter, or leaving the field with a new name, stamps it and
     the card spins round, as a new pass issued. It is the visitor's **own
     name** (it was a company name; changed at the client's request), and
     `ContactForm` writes it into its uncontrolled Name input until the

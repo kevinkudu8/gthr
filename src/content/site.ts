@@ -61,7 +61,7 @@ export const poster = {
   subline: "An experiential marketing and events agency.",
   index: "01\\",
   label: "Events & experiences",
-  text: "GTHR is an events and experiential marketing agency — from pitch to post, embedded with your team at every step.",
+  text: "Experiences built to scale, designed to be remembered",
   /** Scrolls to the contact section. */
   cta: { label: "Start a project", href: "#contact" },
   /**
@@ -85,8 +85,8 @@ export const hero = {
    */
   businessWordmark: "GTHR.",
   /** The party face's line, under its 3D wordmark; `lines` is it broken. */
-  line: "Your events team, without building one.",
-  lines: ["Your events team,", "without building one."],
+  line: "An experiential marketing and events agency.",
+  lines: ["An experiential marketing", "and events agency."],
 } as const;
 
 /** Rendered in caps by `.statement`. Party face only. */
@@ -138,8 +138,8 @@ export const about = {
  */
 export const badge = {
   mark: "GTHR.",
-  access: "All-access",
-  headline: ["All-access", "Event pass"],
+  access: "AAA",
+  headline: ["Access", "All Areas"],
   index: "01\\",
   columns: [
     ["Focus", "Frontier technology and", "blockchain brands"],

@@ -81,7 +81,15 @@ export function TopBar() {
           <span className="menu-toggle__bar" />
         </button>
       </div>
-      <div id="site-menu" className="menu-sheet" data-open={open || undefined}>
+      {/* A tap on the sheet's empty space closes it too. */}
+      <div
+        id="site-menu"
+        className="menu-sheet"
+        data-open={open || undefined}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}
+      >
         <nav aria-label="Menu">
           <ul className="menu-sheet__list">
             {nav.map((item, index) => (

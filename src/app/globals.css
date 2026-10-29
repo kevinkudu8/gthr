@@ -1440,6 +1440,19 @@ html[data-spilling]::view-transition-old(root) {
   outline-offset: 3px;
 }
 
+/* A finger-sized hit area (~46px) around the small disc: tapped near
+   its edge, the X used to miss and land on the sheet behind it. Kept off
+   the mode toggle's side so the two never overlap. */
+.menu-toggle::before {
+  content: "";
+  position: absolute;
+  inset: -0.5rem -0.5rem -0.5rem -0.2rem;
+}
+
+.menu-toggle {
+  touch-action: manipulation;
+}
+
 .menu-toggle__bar {
   grid-area: 1 / 1;
   width: 0.72rem;
@@ -1584,5 +1597,65 @@ html[data-spilling]::view-transition-old(root) {
   .menu-toggle,
   .menu-sheet {
     display: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Services, business face: colour (client request). Each number is a
+   small mint pill (the badge's "01\" pill: mint fill, black type), and
+   the active row's title gets the hero's mint marker swept in behind it,
+   left to right — on hover with a mouse, and on touch screens for the row
+   crossing the middle of the screen (ServicesActive sets data-active).
+   The active row's pill swaps to black with mint type, the CTA's hover.
+   Party keeps the plain list.
+   --------------------------------------------------------------- */
+:root[data-mode="business"] .service-num {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3em 0.7em;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--ink-1);
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  transition:
+    background-color 0.35s var(--ease-66),
+    color 0.35s var(--ease-66);
+}
+
+:root[data-mode="business"] .service-mark {
+  background: linear-gradient(var(--accent), var(--accent)) no-repeat left center / 0% 100%;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0.04em 0.16em;
+  margin: 0 -0.16em;
+  border-radius: 0.14em;
+  transition: background-size 0.6s var(--ease-66);
+}
+
+@media (hover: hover) {
+  :root[data-mode="business"] #services li:hover .service-mark {
+    background-size: 100% 100%;
+  }
+
+  :root[data-mode="business"] #services li:hover .service-num {
+    background: var(--ink-1);
+    color: var(--accent);
+  }
+}
+
+:root[data-mode="business"] #services li[data-active] .service-mark {
+  background-size: 100% 100%;
+}
+
+:root[data-mode="business"] #services li[data-active] .service-num {
+  background: var(--ink-1);
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-mode="business"] .service-mark {
+    transition: none;
   }
 }

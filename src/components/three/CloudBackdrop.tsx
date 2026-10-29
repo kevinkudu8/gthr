@@ -14,10 +14,14 @@ import {
   WebGLRenderTarget,
   type ShaderMaterial,
 } from "three";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import { scrollState } from "./scrollState";
 
 const vertexShader = /* glsl */ `
+  varying vec2 vScreen;
   void main() {
+    // 0..1 across the screen, whatever this is being drawn into.
+    vScreen = position.xy * 0.5 + 0.5;
     gl_Position = vec4(position.xy, 0.0, 1.0);
   }
 `;
@@ -28,6 +32,8 @@ const vertexShader = /* glsl */ `
 // draws behind the 3D objects.
 const fragmentShader = /* glsl */ `
   precision highp float;
+  varying vec2 vScreen;
+  uniform float uQuadCoords;
   uniform float uTime;
   uniform vec2 uResolution;
   uniform float uIntensity;
@@ -48,6 +54,7 @@ const fragmentShader = /* glsl */ `
   uniform float uDpr;
   uniform float uGrain;
   uniform float uScroll;
+  uniform float uLift;
   uniform vec4 uBlobA[BLOBS];
   uniform vec4 uBlobB[BLOBS];
   uniform float uTaper[BLOBS];
@@ -137,8 +144,24 @@ const fragmentShader = /* glsl */ `
   vec3 hexc(float r, float g, float b) { return vec3(r, g, b) / 255.0; }
 
   void main() {
+    /* Screen position from the quad, not gl_FragCoord: the glass letters'
+       transmission pass draws this same quad into its own small square
+       buffer, and read through gl_FragCoord against the screen's size it
+       painted only a magnified corner of the field there -- the letters
+       refracted the wrong colours (pastel, coarse grain on phones, where
+       that buffer is a third of the screen's width). Phones only for now
+       (uQuadCoords): desktop's buffer covers most of the screen, and its
+       glass, as tuned with the client, was tuned on the old read. */
+    vec2 fragPx = uQuadCoords > 0.5 ? vScreen * uResolution : gl_FragCoord.xy;
+    /* The light face, settled: plain paper, the same colour everything
+       below would come to (no field, no grid, no grain). Skips the field
+       so phones can draw it at full sharpness for the badge. */
+    if (uBusiness > 0.999 && uSpillOn < 0.5 && uMaskOnly < 0.5) {
+      gl_FragColor = vec4(uBusinessPaper, 1.0);
+      return;
+    }
     float aspect = uResolution.x / uResolution.y;
-    vec2 uv = (gl_FragCoord.xy / uResolution) * 2.0 - 1.0;
+    vec2 uv = (fragPx / uResolution) * 2.0 - 1.0;
     uv.x *= aspect;
 
 
@@ -161,9 +184,9 @@ const fragmentShader = /* glsl */ `
        inside that zone, where a mirror has nothing to crease. A meander that
        only grows in below the hero keeps that zone from reading as vertical
        streaks, and makes each fold differ from the last. */
-    vec2 sv = vec2(gl_FragCoord.x, uResolution.y - gl_FragCoord.y) / uResolution;
+    vec2 sv = vec2(fragPx.x, uResolution.y - fragPx.y) / uResolution;
     float span = REF_W * clamp(aspect / REF_W, 0.5, 1.0);
-    vec2 p = vec2(0.5 * REF_W + (sv.x - 0.5) * span, sv.y + uScroll);
+    vec2 p = vec2(0.5 * REF_W + (sv.x - 0.5) * span, sv.y + uScroll + uLift);
     // A slow, low-amplitude warp so edges stay organic as they drift.
     p += vec2(sin(p.y * 5.1 + p.x * 2.3 + uTime * 0.07),
               sin(p.x * 4.3 - p.y * 1.7 - uTime * 0.05)) * 0.022;
@@ -266,7 +289,7 @@ const fragmentShader = /* glsl */ `
        11px + at every crossing. */
     if (uGrid > 0.001) {
       // CSS pixels, y running down, to match the layout this mirrors.
-      vec2 px = vec2(gl_FragCoord.x, uResolution.y - gl_FragCoord.y) / uDpr;
+      vec2 px = vec2(fragPx.x, uResolution.y - fragPx.y) / uDpr;
       float w = uResolution.x / uDpr;
       float h = uResolution.y / uDpr;
       float gutter = w >= 1024.0 ? 56.0 : 16.0;
@@ -393,6 +416,13 @@ const SPILL_S = 0.72;
 /** How far through the spill (0..1 of its time) the glass word starts in. */
 const WORD_AT = 0.6;
 
+/**
+ * How far up the field is lifted on a phone held upright, in screen heights
+ * (0.15, 0.25 and 0.35 tried; past ~0.25 the bottom, behind the hero copy,
+ * runs dark).
+ */
+const PORTRAIT_LIFT = 0.2;
+
 /** How fast the ground travels against the page: below 1 it sits behind it. */
 const PARALLAX = 0.75;
 
@@ -401,6 +431,7 @@ const PARALLAX = 0.75;
  * The business face fades it to clean paper.
  */
 export function CloudBackdrop() {
+  const mobile = useIsMobile();
   const material = useRef<ShaderMaterial>(null);
   /** The face the spill last saw as the target, whether one is running, and when it began. */
   const spill = useRef({ target: scrollState.business, on: false, start: 0 });
@@ -435,6 +466,7 @@ export function CloudBackdrop() {
       uDpr: { value: 1 },
       uGrain: { value: 0 },
       uScroll: { value: 0 },
+      uLift: { value: 0 },
       uBlobA: {
         value: BLOB_PARAMS.map(([x, y, rx, ry]) => new Vector4(x, y, 1 / rx, 1 / ry)),
       },
@@ -462,6 +494,7 @@ export function CloudBackdrop() {
       // The calm tone the hero's grey settles into below it. Kept in step
       // with the --paper token.
       uBusinessPaper: { value: [1, 1, 1] },
+      uQuadCoords: { value: 0 },
     }),
     [],
   );
@@ -484,12 +517,21 @@ export function CloudBackdrop() {
     // static; an ordered (Bayer) dither was tried with it and removed — its
     // 4x4 pattern showed as fine lines on the smooth gradients.
     // Scaled per pixel in the shader, by how much of it is still light.
-    m.uniforms.uGrain.value = 0.06;
+    // Lighter on phones: drawn at a low pixel ratio there and scaled up, each
+    // grain is a few device pixels wide and read as a crawling static.
+    m.uniforms.uGrain.value = mobile ? 0.035 : 0.06;
+    m.uniforms.uQuadCoords.value = mobile ? 1 : 0;
     m.uniforms.uTime.value = reducedMotion ? 12 : clock.elapsedTime;
     m.uniforms.uIntensity.value = backdrop;
     m.uniforms.uCalm.value = scrollState.calm;
     m.uniforms.uEnd.value = scrollState.end;
     m.uniforms.uScroll.value = (scrollState.y / Math.max(1, scrollState.vh)) * PARALLAX;
+    // Portrait screens: the composition is a landscape one stretched over a
+    // tall screen, which left its black top as the upper ~40% of a phone.
+    // Lifted up the field there (0 on landscape, PORTRAIT_LIFT at a phone's
+    // ~0.46), so the colour comes up behind the wordmark too.
+    const aspect = size.width / Math.max(1, size.height);
+    m.uniforms.uLift.value = PORTRAIT_LIFT * Math.min(1, Math.max(0, (1 - aspect) / 0.54));
     m.uniforms.uBusiness.value = scrollState.businessMix;
 
     // The spill, light to dark only: started when the target face flips to

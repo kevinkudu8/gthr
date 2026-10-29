@@ -932,6 +932,11 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     };
     const onDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
+      // A press on the page's own controls is theirs, never the card's. On
+      // the way out the card passes under the top bar (the menu button on
+      // phones), and taking the tap there stopped the menu closing.
+      const target = event.target as Element | null;
+      if (target?.closest?.("a, button, input, textarea, label, .top-bar, .menu-sheet")) return;
       setNdc(event);
       const mesh = cardMesh.current;
       if (!mesh || !root.current?.visible) return;

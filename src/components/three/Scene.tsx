@@ -23,7 +23,10 @@ export function Scene() {
   return (
     <Canvas
       shadows="soft"
-      dpr={[1, mobile ? 1.25 : 1.75]}
+      // Phones on the light face draw at up to 2x, so the badge is sharp;
+      // the backdrop is plain paper there and skips its field, so it costs
+      // little. The dark face's field and glass stay at 1.25x on phones.
+      dpr={[1, mobile ? (business ? 2 : 1.25) : 1.75]}
       camera={{ position: [0, 0, 6], fov: 40, near: 0.1, far: 30 }}
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       frameloop="always"
