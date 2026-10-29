@@ -269,6 +269,14 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   `Badge inPage`: no scroll follow, no scroll sway, NDC from its own canvas
   rect. The fixed Scene skips Badge on mobile; its business DPR is back to
   1.25 (plain paper). The in-page canvas stops drawing off screen.
+  On phones it swings from the CTA's middle (`pivotPx` → pendulum length
+  card-to-button, set on the `hang` group each frame), with pitch held to
+  ±0.45 rad and roll ±0.25: from the usual pivot up the strap (level with
+  the top bar there) a few presses swung it up over the button.
+- **Badge glows without canvas filters:** Safari on iPhone ignores
+  `ctx.filter`, so the blurred glow sprites drew as hard discs. Where the
+  filter does not take, each sprite is a radial gradient with the blurred
+  disc's falloff (0.5·erfc((d − r)/(σ√2)), 17 stops); Chrome keeps the blur.
 - **Contact on phones (< sm):** labels hidden (sr-only) and short
   placeholders (`fields.*.short`: Name, Email, Company, Location, "What are
   you planning?") — client: the form read wordy.

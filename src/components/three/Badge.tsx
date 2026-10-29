@@ -328,6 +328,16 @@ const GLOWS = [
 ];
 const GLOW_BLUR = 70;
 
+/** Complementary error function (Abramowitz-Stegun 7.1.26), for the glows' falloff. */
+function erfc(x: number) {
+  const z = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * z);
+  const y =
+    t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429)))) *
+    Math.exp(-z * z);
+  return x >= 0 ? y : 2 - y;
+}
+
 /** Each glow blurred once into its own canvas; a frame only places them. */
 let glowSprites: HTMLCanvasElement[] | null = null;
 function glowSprite(i: number) {
@@ -337,13 +347,29 @@ function glowSprite(i: number) {
       const sprite = document.createElement("canvas");
       sprite.width = sprite.height = size;
       const ctx = sprite.getContext("2d");
-      if (ctx) {
-        ctx.filter = `blur(${GLOW_BLUR}px)`;
+      if (!ctx) return sprite;
+      const c = size / 2;
+      ctx.filter = `blur(${GLOW_BLUR}px)`;
+      if (ctx.filter === `blur(${GLOW_BLUR}px)`) {
         ctx.fillStyle = g.color;
         ctx.beginPath();
-        ctx.arc(size / 2, size / 2, g.r, 0, Math.PI * 2);
+        ctx.arc(c, c, g.r, 0, Math.PI * 2);
         ctx.fill();
+        return sprite;
       }
+      // No canvas filters (Safari on iPhone drew the glows as hard discs):
+      // the same blurred disc as a radial gradient, its falloff the
+      // Gaussian's, 0.5 * erfc((d - r) / (blur * sqrt 2)).
+      const [cr, cg, cb] = [1, 3, 5].map((k) => parseInt(g.color.slice(k, k + 2), 16));
+      const reach = c;
+      const ramp = ctx.createRadialGradient(c, c, 0, c, c, reach);
+      for (let k = 0; k <= 16; k++) {
+        const d = (reach * k) / 16;
+        const a = 0.5 * erfc((d - g.r) / (GLOW_BLUR * Math.SQRT2));
+        ramp.addColorStop(k / 16, `rgba(${cr}, ${cg}, ${cb}, ${a.toFixed(4)})`);
+      }
+      ctx.fillStyle = ramp;
+      ctx.fillRect(0, 0, size, size);
       return sprite;
     });
   }
@@ -681,7 +707,14 @@ function heroBoxes(width: number, height: number): HeroBoxes | null {
 }
 
 /** Where the card hangs: the strap's x and the card's centre y in pixels, its depth, and on phones the strap's fade. */
-type Placement = { strapPx: number; z: number; centrePx: number; fade?: [number, number] };
+type Placement = {
+  strapPx: number;
+  z: number;
+  centrePx: number;
+  fade?: [number, number];
+  /** Where it swings from, page pixels: phones only, the CTA's middle. */
+  pivotPx?: number;
+};
 
 /**
  * Desktop: in the hero's empty right half, the strap in the gap left of the
@@ -785,7 +818,9 @@ function phonePlacement(boxes: HeroBoxes, width: number, height: number): Placem
   // From fully there just inside the button's bottom edge to gone just
   // inside its top, in world units up the strap from its foot.
   const up = (px: number) => (centrePx - px) / ppw - STRAP_FOOT;
-  return { strapPx, z, centrePx, fade: [up(cta.bottom - 4), up(cta.top + 6)] };
+  // It swings from the button itself: from the pivot up the strap (level
+  // with the top bar here), a few presses swung the card up over the CTA.
+  return { strapPx, z, centrePx, fade: [up(cta.bottom - 4), up(cta.top + 6)], pivotPx: (cta.top + cta.bottom) / 2 };
 }
 
 /**
@@ -810,11 +845,11 @@ const TWIST_DAMP = 1.3;
  * One step. `t` drives a faint breeze on the roll, and is 0 under reduced
  * motion, which stills it.
  */
-function swing(ph: Swing, dt: number, t: number) {
+function swing(ph: Swing, dt: number, t: number, pivot = PIVOT) {
   const breeze = t ? Math.sin(t * 0.8) * 0.05 + Math.sin(t * 2.3) * 0.015 : 0;
-  ph.pitchV += ((-GRAVITY * Math.sin(ph.pitch)) / PIVOT - ph.pitchV * SWING_DAMP) * dt;
+  ph.pitchV += ((-GRAVITY * Math.sin(ph.pitch)) / pivot - ph.pitchV * SWING_DAMP) * dt;
   ph.pitch += ph.pitchV * dt;
-  ph.rollV += ((-GRAVITY * Math.sin(ph.roll)) / PIVOT - ph.rollV * SWING_DAMP * 1.6 + breeze) * dt;
+  ph.rollV += ((-GRAVITY * Math.sin(ph.roll)) / pivot - ph.rollV * SWING_DAMP * 1.6 + breeze) * dt;
   ph.roll += ph.rollV * dt;
   ph.yawV += (-ph.yaw * TWIST - ph.yawV * TWIST_DAMP) * dt;
   ph.yaw += ph.yawV * dt;
@@ -893,6 +928,9 @@ export function Badge({
     shown: false,
   });
   const hoverRay = useMemo(() => new Raycaster(), []);
+  /** The pendulum's length: PIVOT, or on phones from the card to the CTA. */
+  const pivotLen = useRef(PIVOT);
+  const hang = useRef<Group>(null);
   /** The strap's fade ramp, placed each frame (see `makeStrapFade`). */
   const strapFade = useRef<Texture | null>(null);
 
@@ -963,7 +1001,7 @@ export function Badge({
       // The press point on the card, -1..1 across and from the pivot down.
       const local = mesh.worldToLocal(hit.point.clone());
       const across = Math.max(-1, Math.min(1, local.x / (W / 2)));
-      const lever = (PIVOT - local.y) / PIVOT;
+      const lever = (pivotLen.current - local.y) / pivotLen.current;
       const ph = physics.current;
       // Into the screen: positive pitch carries the card away from the
       // camera. Presses add to whatever it is already doing, capped so a
@@ -1087,7 +1125,10 @@ export function Badge({
     const exitY = inPage ? 0 : mobile ? scrollState.y : leave * (centrePx + H * ppwNow);
     const x = (strapPx + exitX - size.width / 2) / ppwNow;
     const cardY = (size.height / 2 - centrePx + exitY) / ppwNow;
-    const pivotY = cardY + PIVOT;
+    const L = place.pivotPx !== undefined ? Math.max(1.2, (centrePx - place.pivotPx) / ppwNow) : PIVOT;
+    pivotLen.current = L;
+    if (hang.current) hang.current.position.y = -L;
+    const pivotY = cardY + L;
     g.position.set(x, pivotY, zNow);
 
     // Being carried sideways swings it: the card lags its pivot, as a badge
@@ -1098,7 +1139,7 @@ export function Badge({
       const ax = Number.isNaN(tr.x) ? 0 : Math.max(-30, Math.min(30, (vx - tr.vx) / dt));
       tr.x = x;
       tr.vx = vx;
-      ph.rollV -= (ax / PIVOT) * 0.5 * dt;
+      ph.rollV -= (ax / L) * 0.5 * dt;
     }
 
     // Scrolling: the page moves under the badge and it lags, swinging back
@@ -1109,7 +1150,18 @@ export function Badge({
       ph.pitchV += speed * 0.3 * dt;
       ph.rollV += speed * 0.09 * dt;
     }
-    swing(ph, dt, t);
+    swing(ph, dt, t, L);
+    // Phones: held to a modest swing, so presses never carry it up over
+    // the button it hangs from.
+    if (inPage) {
+      const hold = (angle: "pitch" | "roll", vel: "pitchV" | "rollV", lim: number) => {
+        if (Math.abs(ph[angle]) <= lim) return;
+        ph[angle] = Math.sign(ph[angle]) * lim;
+        ph[vel] *= -0.3;
+      };
+      hold("pitch", "pitchV", 0.45);
+      hold("roll", "rollV", 0.25);
+    }
     // Twist first, about the strap, then the swing about the pivot: the
     // Euler order applies Y, then Z, then X.
     pv.rotation.order = "XZY";
@@ -1132,7 +1184,7 @@ export function Badge({
   return (
     <group ref={root} visible={false}>
       <group ref={pivot}>
-        <group position={[0, -PIVOT, 0]}>
+        <group ref={hang} position={[0, -PIVOT, 0]}>
           {/* Strap: from the crimp up past the pivot and out of frame.
               A plane rotated upright: text reads from the clip upward. */}
           <mesh position={[0, D_BAR + 0.2 + STRAP_L / 2, -0.012]} rotation={[0, 0, Math.PI / 2]}>
