@@ -1234,7 +1234,7 @@
   }
 
   :root[data-mode="business"] #services ol > li p {
-    max-width: 58ch;
+    max-width: 64ch;
     font-size: clamp(0.95rem, 1.8vh, 1.125rem);
     line-height: 1.4;
   }
@@ -1256,7 +1256,7 @@
   }
 
   :root[data-mode="business"] #services ol > li p {
-    max-width: 62ch;
+    max-width: 68ch;
     font-size: 0.875rem;
     line-height: 1.35;
   }
@@ -1640,21 +1640,32 @@ html[data-spilling]::view-transition-old(root) {
 }
 
 /* ---------------------------------------------------------------
-   Services, business face: colour (client request). Each number is a
-   small mint pill (the badge's "01\" pill: mint fill, black type), and
-   the active row's title gets the hero's mint marker swept in behind it,
-   left to right — on hover with a mouse, and on touch screens for the row
-   crossing the middle of the screen (ServicesActive sets data-active).
-   The active row's pill swaps to black with mint type, the CTA's hover.
-   Party keeps the plain list.
+   Services: colour (client request), on both faces. Each number is a
+   small pill in the face's fill (the badge's "01\" pill), and the active
+   row's title gets the hero's marker swept in behind it, left to right —
+   on hover with a mouse, and on touch screens for the row crossing the
+   middle of the screen (ServicesActive sets data-active). Business: mint
+   with soft black type, the active pill swapping to black with mint type
+   (the CTA's hover). Party: the brand green with near-black type, the
+   title's white turning dark on it.
    --------------------------------------------------------------- */
-:root[data-mode="business"] .service-num {
+:root {
+  --service-fill: var(--brand);
+  --service-on-fill: #0a0b0e;
+}
+
+:root[data-mode="business"] {
+  --service-fill: var(--accent);
+  --service-on-fill: var(--ink-1);
+}
+
+.service-num {
   display: inline-flex;
   align-items: center;
   padding: 0.3em 0.7em;
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--ink-1);
+  background: var(--service-fill);
+  color: var(--service-on-fill);
   font-size: 0.6875rem;
   line-height: 1;
   letter-spacing: 0.06em;
@@ -1663,19 +1674,22 @@ html[data-spilling]::view-transition-old(root) {
     color 0.35s var(--ease-66);
 }
 
-:root[data-mode="business"] .service-mark {
-  background: linear-gradient(var(--accent), var(--accent)) no-repeat left center / 0% 100%;
+.service-mark {
+  background: linear-gradient(var(--service-fill), var(--service-fill)) no-repeat left center / 0% 100%;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   padding: 0.04em 0.16em;
   margin: 0 -0.16em;
   border-radius: 0.14em;
-  transition: background-size 0.6s var(--ease-66);
+  transition:
+    background-size 0.6s var(--ease-66),
+    color 0.4s var(--ease-66);
 }
 
 @media (hover: hover) {
-  :root[data-mode="business"] #services li:hover .service-mark {
+  #services li:hover .service-mark {
     background-size: 100% 100%;
+    color: var(--service-on-fill);
   }
 
   :root[data-mode="business"] #services li:hover .service-num {
@@ -1684,8 +1698,9 @@ html[data-spilling]::view-transition-old(root) {
   }
 }
 
-:root[data-mode="business"] #services li[data-active] .service-mark {
+#services li[data-active] .service-mark {
   background-size: 100% 100%;
+  color: var(--service-on-fill);
 }
 
 :root[data-mode="business"] #services li[data-active] .service-num {
@@ -1694,9 +1709,41 @@ html[data-spilling]::view-transition-old(root) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root[data-mode="business"] .service-mark {
+  .service-mark {
     transition: none;
   }
+}
+
+/* Party: glass instead of a fill (the brand green read as loud on the dark
+   ground). The pills are the page's own smoked glass. */
+:root[data-mode="party"] .service-num {
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* The marker takes the field's own pink-to-orange (white type on it), so
+   the list belongs to the colour field and the glass word. A plain white
+   marker was tried beside it; it read as selected text. */
+:root[data-mode="party"] {
+  --service-mark: linear-gradient(100deg, #ff4f9a, #ff7a45);
+  --service-on-fill: #ffffff;
+}
+
+:root[data-mode="party"] .service-mark {
+  background-image: var(--service-mark);
+}
+
+@media (hover: hover) {
+  :root[data-mode="party"] #services li:hover .service-num {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+  }
+}
+
+:root[data-mode="party"] #services li[data-active] .service-num {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
 }
 
 /* ---------------------------------------------------------------

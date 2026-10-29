@@ -15,7 +15,8 @@ import {
   type Group,
   type Texture,
 } from "three";
-import { ticket } from "@/content/site";
+import qrcode from "qrcode-generator";
+import { socials, ticket } from "@/content/site";
 import {
   hash2,
   pageFonts,
@@ -23,6 +24,8 @@ import {
   type Fonts,
 } from "./canvasPaint";
 import { scrollState } from "./scrollState";
+
+const TELEGRAM = socials.find((s) => s.id === "telegram")!.href;
 
 /*
  * The party face's prop for the statements block: an event ticket that is
@@ -87,7 +90,20 @@ const TEAR_FRAGMENT = /* glsl */ `
   uniform float uHoles;
   uniform vec3 uBack;
   uniform vec3 uFiber;
+  uniform float uHolo;
   varying vec2 vLocal;
+  // The foil's colours: the field's own pink, orange, teal and violet, cycled.
+  vec3 holoRamp(float t) {
+    vec3 c0 = vec3(1.0, 0.31, 0.60);
+    vec3 c1 = vec3(1.0, 0.55, 0.30);
+    vec3 c2 = vec3(0.22, 0.86, 0.78);
+    vec3 c3 = vec3(0.56, 0.45, 1.0);
+    float f = fract(t) * 4.0;
+    vec3 a = f < 1.0 ? c0 : f < 2.0 ? c1 : f < 3.0 ? c2 : c3;
+    vec3 b = f < 1.0 ? c1 : f < 2.0 ? c2 : f < 3.0 ? c3 : c0;
+    float k = fract(f);
+    return mix(a, b, k * k * (3.0 - 2.0 * k));
+  }
   float tearHash(float x) { return fract(sin(x * 127.1) * 43758.5453); }
   float tearNoise(float x) {
     float i = floor(x);
@@ -155,6 +171,7 @@ function tearMaterial(piece: Piece, map: Texture) {
     uHoles: { value: piece === "stub" ? 1 : 0 },
     uBack: { value: new Color(piece === "stub" ? "#dcd8d0" : "#e6e3dc") },
     uFiber: { value: new Color("#f3efe6") },
+    uHolo: { value: piece === "stub" ? 1 : 0 },
   };
   const material =
     piece === "stub"
@@ -170,7 +187,9 @@ function tearMaterial(piece: Piece, map: Texture) {
           clearcoat: 0.6,
           clearcoatRoughness: 0.2,
         })
-      : new MeshStandardMaterial({ map, roughness: 0.85 });
+      : // A little of the print as its own light, so the body reads as bright
+        // white stock under the party face's dim lighting (it read grey-green).
+        new MeshStandardMaterial({ map, roughness: 0.85, emissiveMap: map, emissive: new Color("#ffffff"), emissiveIntensity: 0.28 });
   material.side = DoubleSide;
   material.transparent = true;
   material.onBeforeCompile = (shader) => {
@@ -204,6 +223,22 @@ function tearMaterial(piece: Piece, map: Texture) {
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
+        if (uHolo > 0.5) {
+          /* Holographic foil (client: "more iridescent"): where the print
+             is pale foil -- light and unsaturated, so never the black type
+             or the coloured band -- its colour runs through the field's
+             pink, orange, teal and violet in diagonal bands that slide as
+             the stub turns toward or away from the viewer. */
+          vec3 holoN = normalize(vNormal);
+          vec3 holoV = normalize(vViewPosition);
+          float facing = dot(holoN, holoV);
+          float hi = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+          float lo = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b));
+          float lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+          float foil = smoothstep(0.5, 0.78, lum) * (1.0 - smoothstep(0.22, 0.42, hi - lo));
+          vec3 holo = holoRamp((vLocal.x * 0.55 - vLocal.y * 0.8) + facing * 2.2 + holoN.x * 0.9);
+          diffuseColor.rgb = mix(diffuseColor.rgb, mix(holo, vec3(1.0), 0.18), foil * 0.82);
+        }
         diffuseColor.rgb = mix(diffuseColor.rgb, uFiber, tearFiber * 0.85);
         // The back is plain stock, not the art seen through.
         if (!gl_FrontFacing) diffuseColor.rgb = uBack;
@@ -269,7 +304,13 @@ function fitFont(
   return size;
 }
 
-const MINT_INK = "#04ea98";
+/** The accent, as on the party services marker: the field's pink into orange. */
+function accent(ctx: CanvasRenderingContext2D, x0: number, x1: number) {
+  const g = ctx.createLinearGradient(x0, 0, x1, 0);
+  g.addColorStop(0, "#ff4f9a");
+  g.addColorStop(1, "#ff7a45");
+  return g;
+}
 const CORAL = "#ff7a45";
 
 /** A four-point sparkle — the mark on the stub. */
@@ -323,13 +364,15 @@ function paintStub(fonts: Fonts) {
   ctx.fillText(c.title, pad - size * 0.04, base);
   sparkle(ctx, right - 30, base - size * 0.72 - 44, 34);
 
-  // A black band along the foot, the label repeated across it.
+  // A band along the foot in the accent, the label repeated across it in
+  // black (it was black with mint type).
+  ctx.fillStyle = accent(ctx, 0, w);
   ctx.fillRect(0, bandY, w, 58);
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, bandY, w, 58);
   ctx.clip();
-  ctx.fillStyle = MINT_INK;
+  ctx.fillStyle = INK;
   ctx.font = `700 22px ${fonts.mono}`;
   const unit = `${c.label.toUpperCase()}  ✦  `;
   const uw = ctx.measureText(unit).width;
@@ -355,7 +398,8 @@ function paintBody(fonts: Fonts) {
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
-  paintPaper(ctx, w, h, [238, 237, 233]);
+  // Bright, a touch warm: the clean half the foil stands against.
+  paintPaper(ctx, w, h, [249, 246, 240]);
   const c = ticket.body;
   const pad = 56;
   const gw = w - pad * 2;
@@ -366,7 +410,7 @@ function paintBody(fonts: Fonts) {
 
   // Header band: eyebrow on black, start on the right.
   ctx.fillRect(pad, 48, gw, 52);
-  ctx.fillStyle = MINT_INK;
+  ctx.fillStyle = accent(ctx, pad, pad + gw);
   ctx.font = `700 18px ${fonts.mono}`;
   ctx.fillText(c.eyebrow.toUpperCase(), pad + 20, 81);
   ctx.textAlign = "right";
@@ -398,13 +442,11 @@ function paintBody(fonts: Fonts) {
     leader(ctx, pad + 108 + ctx.measureText(text).width, end - 14, y - 4);
     ctx.lineWidth = 3;
     ctx.strokeRect(end, y - 26, 24, 24);
-    if (value !== "0") {
-      ctx.beginPath();
-      ctx.moveTo(end + 5, y - 14);
-      ctx.lineTo(end + 11, y - 8);
-      ctx.lineTo(end + 20, y - 22);
-      ctx.stroke();
-    }
+    ctx.beginPath();
+    ctx.moveTo(end + 5, y - 14);
+    ctx.lineTo(end + 11, y - 8);
+    ctx.lineTo(end + 20, y - 22);
+    ctx.stroke();
     ctx.fillRect(pad, y + 22, gw, 1);
   });
 
@@ -432,26 +474,25 @@ function paintBody(fonts: Fonts) {
   ctx.restore();
   ctx.textAlign = "left";
 
-  // Footer: a QR block, the fine print beside it.
+  // Footer: a real QR code, the badge's — scanned, it opens Telegram — and
+  // the fine print beside it.
   const fy = listEnd + 20;
-  const cell = 9;
-  const n = 13;
-  const eye = (x: number, y: number) => x < 3 && y < 3 || x > n - 4 && y < 3 || x < 3 && y > n - 4;
+  const qr = qrcode(0, "L");
+  qr.addData(TELEGRAM);
+  qr.make();
+  const n = qr.getModuleCount();
+  const qrSize = 136;
+  const at = (i: number) => Math.round((i * qrSize) / n);
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
-      if (eye(x, y)) continue;
-      if (hash2(x + 11, y + 29) < 0.45) ctx.fillRect(pad + x * cell, fy + y * cell, cell, cell);
+      if (qr.isDark(y, x)) ctx.fillRect(pad + at(x), fy + at(y), at(x + 1) - at(x), at(y + 1) - at(y));
     }
   }
-  for (const [ex, ey] of [[0, 0], [n - 3, 0], [0, n - 3]]) {
-    ctx.lineWidth = 5;
-    ctx.strokeRect(pad + ex * cell + 2.5, fy + ey * cell + 2.5, cell * 3 - 5, cell * 3 - 5);
-  }
-  const tx = pad + n * cell + 28;
+  const tx = pad + qrSize + 28;
   ctx.font = `500 14px ${fonts.mono}`;
   c.fine.forEach((line, i) => ctx.fillText(line.toUpperCase(), tx, fy + 22 + i * 24));
   ctx.font = `600 14px ${fonts.mono}`;
-  ctx.fillText(c.footer.toUpperCase(), tx, fy + n * cell - 4);
+  ctx.fillText(c.footer.toUpperCase(), tx, fy + qrSize - 4);
   return canvas;
 }
 

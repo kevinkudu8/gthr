@@ -38,8 +38,9 @@ export const scrollState = {
    */
   thermal: 0,
   /**
-   * Hairline grid opacity, 1..0. Fades out as services arrives and stays off
-   * below it. Drawn by CloudBackdrop, which is the only thing in the scene
+   * Hairline grid opacity, 1..0. The hero's alone: it fades out as the hero
+   * leaves and stays off below it (it used to hold until services, and cut
+   * through the "Who are we" copy and stat cards). Drawn by CloudBackdrop, which is the only thing in the scene
    * that renders behind the 3D objects.
    */
   grid: 1,
@@ -125,6 +126,10 @@ export function updateScrollState() {
   const heroTop = hero ? hero.getBoundingClientRect().top : 0;
   scrollState.y = -heroTop;
   scrollState.hero = clamp01(-heroTop / vh);
+  // Full while the hero fills the screen, gone once its bottom edge is a
+  // third of the way up.
+  const heroBottom = hero ? hero.getBoundingClientRect().bottom : vh;
+  scrollState.grid = clamp01((heroBottom - vh * 0.35) / (vh * 0.45));
 
   let intensity = 0;
   let warm = 0;
@@ -146,11 +151,6 @@ export function updateScrollState() {
       // Contact is the last section, so its bottom meets the viewport's
       // bottom exactly at the end of the page.
       scrollState.end = clamp01(1 - (bottom - vh) / (vh * 0.7));
-    }
-    if (section.id === "services") {
-      // 1 while services is well below the fold, 0 once its top passes 30% of
-      // the viewport — and it never comes back further down.
-      scrollState.grid = clamp01((top - vh * 0.3) / (vh * 0.5));
     }
   }
   scrollState.backdrop = clamp01(intensity);

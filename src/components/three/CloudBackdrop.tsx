@@ -221,7 +221,8 @@ const fragmentShader = /* glsl */ `
        fought the text, black against neon. Desaturate a little, then flatten
        the range: blacks lift to a soft near-black and the peaks drop to
        about half, so the bands read as ambient glow rather than stripes.
-       uCalm is per section (scrollState), blended as sections scroll past. */
+       uCalm is per section (scrollState), blended as sections scroll past.
+       (It also desaturated by 35%; dropped, see below.) */
     /* At the very end of the page the full colour comes back, rising from
        the bottom edge of the screen only: strongest along the bottom, gone by
        a little over half-way up, and only as uEnd reaches the last stretch of
@@ -230,9 +231,10 @@ const fragmentShader = /* glsl */ `
     float calmHere = uCalm * (1.0 - peek);
     float calm1 = clamp(calmHere, 0.0, 1.0);
     float calm2 = clamp(calmHere - 1.0, 0.0, 1.0);
-    float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
-    col = mix(col, vec3(lum), 0.35 * calm1);
-    col = mix(col, vec3(0.05, 0.045, 0.06) + col * 0.42, calm1);
+    // Dimmed, not greyed: desaturating the ramp turned it brown and olive,
+    // and the lifted blacks hazed it (client: the "Who are we" ground looked
+    // muddy). The true colours at a third, over a near-black.
+    col = mix(col, vec3(0.024, 0.022, 0.03) + col * 0.36, calm1);
     // Level 2 (services, contact): near-black, only a trace of the colour.
     col = mix(col, vec3(0.028, 0.026, 0.034) + col * 0.16, calm2);
 

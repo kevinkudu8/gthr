@@ -1,3 +1,5 @@
+import { services } from "./services";
+
 /**
  * Every piece of user-facing copy on the site. Components import from here;
  * nothing user-facing is hard-coded in a component.
@@ -176,20 +178,19 @@ export const ticket = {
   },
   body: {
     eyebrow: "GTHR event operations",
-    headline: ["Your events team,", "without building one"],
+    headline: ["An experiential marketing", "and events agency"],
     startLabel: "Starts",
     start: "Day one",
-    /** Run of show: `[label, number]`, numbered down the left. */
-    rows: [
-      ["Fractional", "01"],
-      ["Production", "02"],
-      ["VIP", "03"],
-      ["Activations", "04"],
-      ["Strategy", "05"],
-      ["New hires", "0"],
-    ],
+    /**
+     * Run of show: the six services (`short` in services.ts), numbered down
+     * the left and all ticked. (It was five and an unticked "0 New hires".)
+     */
+    rows: services.map((s) => [s.short, s.number] as const),
     stamp: ["24/7", "On call"],
-    fine: ["Session: GTHR-26    Price level: bespoke", "Pass type: all access    Services: 05"],
+    fine: [
+      "Session: GTHR-26    Price level: bespoke",
+      `Pass type: all access    Services: ${String(services.length).padStart(2, "0")}`,
+    ],
     footer: "Non-transferable — designed to be remembered",
   },
 } as const;

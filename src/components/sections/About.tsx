@@ -6,9 +6,10 @@ import { about } from "@/content/site";
 /**
  * "Who are we": label, the about paragraph with a photo slideshow to its
  * right (stacked below it on phones), and a row of four stats. Each stat sits in a frosted card after the client's reference —
- * its label top-left in the mono, the number large and centred, an index
- * bottom-left — on the page's own 12-column grid, four across (3 columns
- * each) on desktop and two by two below it.
+ * its label top-left in the mono and the number large and centred under it
+ * (the 01-04 index bottom-left was removed as clutter) — on the page's own
+ * 12-column grid, four across (3 columns each) on desktop and two by two
+ * below it.
  *
  * The cards are the site's own `.glass`, so each face styles them: smoked on
  * party, and on business a light frosted panel (`.stat-card`, globals.css),
@@ -50,17 +51,17 @@ export function About() {
             key={stat.label}
             as="li"
             delay={120 + index * 80}
-            className="glass stat-card col-span-6 flex aspect-[5/4] flex-col justify-between rounded-[1.1rem] p-4 lg:col-span-3 lg:rounded-[1.5rem] lg:p-6"
+            // The label, and the figure centred in the room under it. (An
+            // index, 01-04, sat bottom-left; removed as clutter, and the cards
+            // shortened with it.)
+            className="glass stat-card col-span-6 grid aspect-[5/4] grid-rows-[auto_1fr] rounded-[1.1rem] p-4 lg:col-span-3 lg:aspect-[16/10] lg:rounded-[1.5rem] lg:p-6"
           >
             <span className="eyebrow stat-card__label">{stat.label}</span>
             <CountUp
               value={stat.value}
               suffix={stat.suffix}
-              className="self-center font-display text-[12svw] leading-[0.9] font-bold tracking-[-0.02em] text-ink-1 sm:text-[8svw] lg:text-[5.4svw]"
+              className="place-self-center font-display text-[12svw] leading-[0.9] font-bold tracking-[-0.02em] text-ink-1 sm:text-[8svw] lg:text-[5.4svw]"
             />
-            <span className="eyebrow tabular-nums">
-              {String(index + 1).padStart(2, "0")}
-            </span>
           </Reveal>
         ))}
       </ul>

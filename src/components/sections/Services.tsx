@@ -23,13 +23,15 @@ export function Services() {
             <span className="col-span-2 pt-1 font-mono text-xs tabular-nums text-ink-3 lg:col-span-1">
               <span className="service-num">{service.number}</span>
             </span>
-            <h3 className="col-span-10 font-display text-lg leading-tight font-medium text-ink-1 lg:col-span-5 lg:text-2xl">
+            <h3 className="col-span-10 font-display text-lg leading-tight font-medium text-ink-1 lg:col-span-4 lg:text-2xl">
               {/* Business: the mint marker sweeps in behind the active row's
                   title (hover, or the middle of the screen on touch). */}
               <span className="service-mark">{service.title}</span>
             </h3>
-            <div className="col-span-10 col-start-3 lg:col-span-6 lg:col-start-7">
-              <p className="max-w-[48ch] text-sm leading-snug text-ink-1 lg:text-lg">{service.line}</p>
+            {/* A narrower title column and a wider line, so the gap between
+                them closes and most lines run to three rows. */}
+            <div className="col-span-10 col-start-3 lg:col-span-7 lg:col-start-6">
+              <p className="max-w-[62ch] text-sm leading-snug text-ink-1 lg:text-lg">{service.line}</p>
             </div>
           </Reveal>
         ))}

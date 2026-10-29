@@ -254,6 +254,39 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     0.2 left the reference's black top behind the raised word).
   * Film grain 0.035 on phones (0.06 desktop): at 1.25x scaled up, each
     grain is several device pixels and crawled.
+- **Party grid is the hero's only** (`scrollState.grid` from the hero's
+  bottom edge, gone once it is a third of the way up): it used to hold
+  until services and cut through the "Who are we" copy and stat cards.
+- **Stat cards:** no 01–04 index (clutter); grid rows label / figure
+  (figure `place-self-center`), `lg:aspect-[16/10]` (was 5/4).
+- **Services columns:** title `lg:col-span-4`, line `lg:col-span-7
+  lg:col-start-6` at up to 62ch (business 64ch / 68ch short screens), so
+  the gap between them closes; "Event Marketing, Strategy & Advisory"
+  wraps to two lines at 1440. The colour treatment runs on both faces
+  (business: mint + ink, the active pill inverting). Party: smoked-glass
+  pills and a pink→orange marker (`--service-mark`, #ff4f9a→#ff7a45) with
+  white type — the brand green was too loud there, and a white marker read
+  as selected text.
+- **Ticket matches the services:** its run of show is built from
+  services.ts (`short` per service: Fractional, Design & production, VIP,
+  Activations, Strategy & advisory, Content & media; 01–06, all ticked —
+  it was five plus an unticked "0 New hires"), "Services: 06" from the
+  count, and its QR is real (qrcode-generator, the badge's Telegram link,
+  136px), checked by decoding a screenshot. Headline "An experiential
+  marketing / and events agency" (was "Your events team, without building
+  one").
+- **Ticket colours** (client: it read pale and cool against the field):
+  the stub is holographic foil — in its fragment shader (`uHolo`), wherever
+  the print is light and unsaturated (never the type or the band) the
+  colour runs through the field's pink, orange, teal and violet
+  (`holoRamp`) in diagonal bands that slide with the facing angle, so it
+  shifts as the ticket turns and tears. The band and the body's header type
+  are the party accent, pink→orange (`accent()`; were mint). The body is
+  brighter, warmer stock (249, 246, 240) with an emissive of its own print
+  at 0.28 — under the party lights it read grey-green.
+- **Party calm level 1** ("Who are we"): the field at 0.36 over a
+  near-black (0.024, 0.022, 0.03), no desaturation — the old 35% greying
+  plus lifted blacks turned the ramp brown/olive and read as muddy.
 - **Six services, one screen** (client: add "Content Capture & Media", and
   still fit on one page): from lg, business #services is `min-height:
   100vh`, content centred, rows/type sized off `vh`; a tighter step at
