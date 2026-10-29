@@ -19,7 +19,7 @@ import { scrollState } from "@/components/three/scrollState";
  */
 
 /** A touch longer than the spill itself (SPILL_S), so it is done first. */
-const HOLD_MS = 1060;
+const HOLD_MS = 800;
 
 export function spillToDark(apply: () => void) {
   const root = document.documentElement;

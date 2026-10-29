@@ -389,7 +389,7 @@ function makeMaskPass(): MaskPass {
 }
 
 /** How long the light-to-dark spill takes to swallow the white, seconds. */
-const SPILL_S = 0.96;
+const SPILL_S = 0.72;
 /** How far through the spill (0..1 of its time) the glass word starts in. */
 const WORD_AT = 0.8;
 

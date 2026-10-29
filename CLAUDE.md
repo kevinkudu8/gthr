@@ -264,7 +264,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     through each pixel's *order* — its distance from the nearest screen edge,
     plus drifting fbm noise (`uSpillSeed`, random per switch) and minus the
     field's own heat, so colour pours in from its shapes along ragged fronts.
-    `uSpill` runs on its own clock (`SPILL_S` 0.96 — 20% quicker than the first 1.2 — ease-out), not
+    `uSpill` runs on its own clock (`SPILL_S` 0.72 — 0.96 then 25% quicker, after the first 1.2 — ease-out; `HOLD_MS` in spill.ts tracks it), not
     `businessMix`, which the scene's sequencing is built on; the front spans
     -0.32..1.48 (the orders actually reached — wider and nothing happened for
     the first third, while the dark face's white type sat on white). Grain is
