@@ -79,8 +79,8 @@ function SceneTracker({ reducedMotion }: { reducedMotion: boolean }) {
     // faces dissolve into each other instead of cutting.
     const step = reducedMotion ? 1 : 1 - Math.exp(-delta * 3.2);
     scrollState.businessMix += (scrollState.business - scrollState.businessMix) * step;
-    // The glass word's gate after a spill: grows it in over ~0.6s.
-    const gateStep = reducedMotion ? 1 : 1 - Math.exp(-delta * 5);
+    // The glass word's gate after a spill: grows it in over ~0.75s.
+    const gateStep = reducedMotion ? 1 : 1 - Math.exp(-delta * 4);
     scrollState.wordGateMix += (scrollState.wordGate - scrollState.wordGateMix) * gateStep;
     scrollState.pointerSpeed *= Math.exp(-delta * 3);
     scrollState.pointerWorld.x = (scrollState.pointer.x * viewport.width) / 2;

@@ -269,8 +269,8 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     -0.32..1.48 (the orders actually reached — wider and nothing happened for
     the first third, while the dark face's white type sat on white). Grain is
     per pixel by `light` too. Dark → light drops `uSpillOn` and crossfades.
-    The glass word waits for it: `wordGate` is 0 until `WORD_AT` (0.8; 1 read
-    as late, 0.65 as early) of the spill's time — the screen is mostly covered by then — and 1 after, eased (`wordGateMix`, ~0.6s) and multiplied into
+    The glass word waits for it: `wordGate` is 0 until `WORD_AT` (0.7; 0.8 read as late once the spill sped up; 1 read
+    as late, 0.65 as early) of the spill's time — the screen is mostly covered by then — and 1 after, eased (`wordGateMix`, ~0.75s, rate 4; 7 read as abrupt) and multiplied into
     `partyPresence()`, so `gthr` grows in as the colour finishes filling
     the screen (at the very end it read as late).
   - `HeroLetters` — the wordmark as one connected cursive word, lowercase
