@@ -111,7 +111,7 @@ export function Hero() {
             <span key={stat.label} className="hero-poster__stat">
               <span className="hero-poster__stat-value">
                 {stat.value}
-                {stat.suffix}
+                {stat.suffix && <span className="stat-suffix">{stat.suffix}</span>}
               </span>
               <span className="hero-poster__stat-label">{stat.label}</span>
             </span>

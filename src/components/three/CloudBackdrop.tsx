@@ -391,7 +391,7 @@ function makeMaskPass(): MaskPass {
 /** How long the light-to-dark spill takes to swallow the white, seconds. */
 const SPILL_S = 0.72;
 /** How far through the spill (0..1 of its time) the glass word starts in. */
-const WORD_AT = 0.7;
+const WORD_AT = 0.6;
 
 /** How fast the ground travels against the page: below 1 it sits behind it. */
 const PARALLAX = 0.75;

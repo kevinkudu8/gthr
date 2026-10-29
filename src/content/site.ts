@@ -109,8 +109,8 @@ export const about = {
   stats: [
     { value: 15, suffix: "+", label: "Years combined" },
     { value: 250, suffix: "+", label: "Events delivered" },
-    { value: 30, suffix: "+", label: "Cities" },
-    { value: 15, suffix: "", label: "Countries" },
+    { value: 50, suffix: "+", label: "Cities" },
+    { value: 25, suffix: "+", label: "Countries" },
   ],
   photoLabels: { region: "Events we've produced", previous: "Previous photo", next: "Next photo" },
   /**

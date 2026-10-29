@@ -3,6 +3,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  LinearFilter,
   CanvasTexture,
   CatmullRomCurve3,
   ExtrudeGeometry,
@@ -621,6 +622,8 @@ type HeroBoxes = {
   headlineRight: number;
   headlineBottom: number;
   bodyRight: number;
+  /** The CTA button: x in viewport pixels, y in page pixels. Phones hang the card from it. */
+  cta: { left: number; right: number; top: number; bottom: number } | null;
 };
 let heroCache: HeroBoxes = {
   key: "",
@@ -629,6 +632,7 @@ let heroCache: HeroBoxes = {
   headlineRight: 0,
   headlineBottom: 0,
   bodyRight: 0,
+  cta: null,
 };
 function textBox(selector: string, dropLast = false) {
   const el = document.querySelector(selector);
@@ -663,6 +667,7 @@ function heroBoxes(width: number, height: number): HeroBoxes | null {
   if (!mark || !headline) return null;
   const subline = textBox(".hero-poster__subline");
   const actions = document.querySelector(".hero-poster__actions")?.getBoundingClientRect();
+  const cta = document.querySelector(".hero-poster__cta")?.getBoundingClientRect();
   heroCache = {
     key,
     markTop: mark.top + scrollState.y,
@@ -670,8 +675,119 @@ function heroBoxes(width: number, height: number): HeroBoxes | null {
     headlineRight: headline.right,
     headlineBottom: headline.bottom + scrollState.y,
     bodyRight: Math.max(subline?.right ?? 0, actions?.right ?? 0),
+    cta: cta
+      ? { left: cta.left, right: cta.right, top: cta.top + scrollState.y, bottom: cta.bottom + scrollState.y }
+      : null,
   };
   return heroCache;
+}
+
+/** Where the card hangs: the strap's x and the card's centre y in pixels, its depth, and on phones the strap's fade. */
+type Placement = { strapPx: number; z: number; centrePx: number; fade?: [number, number] };
+
+/**
+ * Desktop: in the hero's empty right half, the strap in the gap left of the
+ * nav links (the nav's black type vanishes on the black strap), measured,
+ * since that gap moves with the viewport width.
+ */
+function deskPlacement(boxes: HeroBoxes, width: number, height: number): Placement | null {
+  const navLeft = document.querySelector(".top-bar ul")?.getBoundingClientRect().left ?? width;
+  const strapPx = Math.min(width * 0.7, navLeft - 60);
+  // Full size, vertically centred, when that clears the wordmark to its
+  // left. Where the nav pins it further left (narrower screens), it would
+  // sit behind the wordmark instead, so it shrinks — pushed back from the
+  // camera — into the band between the top bar and the wordmark's top.
+  // Where even that band would put the card over the headline, it hangs
+  // lower: the band starts under the headline instead, the card has to
+  // clear only the subline and CTA beside it, and just the strap runs up
+  // past the headline's end.
+  let z = 0;
+  let centrePx = height / 2;
+  const ppw0 = pxPerWorld(0, height);
+  let top = 110;
+  let clearRight = boxes.headlineRight;
+  if (
+    strapPx - (W / 2) * ppw0 < boxes.headlineRight + 24 &&
+    strapPx - (STRAP_W / 2) * ppw0 > boxes.headlineRight + 16
+  ) {
+    top = boxes.headlineBottom + 36;
+    clearRight = boxes.bodyRight;
+  }
+  if (strapPx - (W / 2) * ppw0 < boxes.markRight + 16 || top > 110) {
+    const bottom = boxes.markTop - 24;
+    z = Math.max(-4, CAMERA_Z - height / (2 * TAN_HALF_FOV * ((bottom - top) / H)));
+    z = Math.min(0, z);
+    centrePx = (top + bottom) / 2;
+  }
+  // Too narrow for the gap to hold it clear of the type beside it (small
+  // laptops, tablets).
+  if (strapPx - (W / 2) * pxPerWorld(z, height) < clearRight + 24) return null;
+  return { strapPx, z, centrePx };
+}
+
+/**
+ * The strap's alpha along its length: a ramp from solid to clear, placed
+ * per frame through its offset and repeat (clamped either side), so the
+ * phone layout can fade the strap out behind the CTA. Desktop pushes the
+ * ramp past the strap's end, leaving it solid.
+ */
+function makeStrapFade() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d")!;
+  const ramp = ctx.createLinearGradient(0, 0, 256, 0);
+  ramp.addColorStop(0, "#fff");
+  ramp.addColorStop(1, "#000");
+  ctx.fillStyle = ramp;
+  ctx.fillRect(0, 0, 256, 1);
+  const fade = new CanvasTexture(canvas);
+  // Stretched over a few pixels of strap, mipmaps would sample the ramp's
+  // average and leave a ghost of the strap above the button.
+  fade.generateMipmaps = false;
+  fade.minFilter = LinearFilter;
+  return fade;
+}
+
+/** Card-local height of the strap's lower end, over the clasp. */
+const STRAP_FOOT = D_BAR + 0.2;
+/** Pixels of strap left showing between the CTA and the clasp, on phones. */
+const PHONE_STRAP_PX = 16;
+/** The card's widest on phones, as a share of the screen. */
+const PHONE_CARD_W = 0.48;
+
+/**
+ * Phones: every line of the hero runs near the full width, so a strap up
+ * the screen would cross the type. The card hangs instead from the CTA, in
+ * the empty stretch between it and the wordmark: centred under the button,
+ * the strap running up behind it (the button is solid, so it hides the
+ * strap) and fading out there, so nothing shows above it. Sized to the gap,
+ * never larger than full size; hidden if the gap is too short (phones held
+ * sideways).
+ */
+function phonePlacement(boxes: HeroBoxes, width: number, height: number): Placement | null {
+  const cta = boxes.cta;
+  if (!cta) return null;
+  const strapPx = (cta.left + cta.right) / 2;
+  const reach = STRAP_FOOT - H / 2; // the clasp's height over the card
+  const room = boxes.markTop - 24 - cta.bottom - PHONE_STRAP_PX;
+  const ppw = Math.min(
+    pxPerWorld(0, height),
+    room / (H + reach),
+    (2 * (Math.min(strapPx, width - strapPx) - 12)) / W,
+    // Under the headline in weight: about half the screen wide at most.
+    (width * PHONE_CARD_W) / W,
+  );
+  if (W * ppw < 90) return null;
+  const z = CAMERA_Z - height / (2 * TAN_HALF_FOV * ppw);
+  // Most of the room left over goes to the strap, so it reads as hanging
+  // from the button rather than clipped to it; the rest sits under the card.
+  const spare = room - (H + reach) * ppw;
+  const centrePx = cta.bottom + PHONE_STRAP_PX + spare * 0.6 + (reach + H / 2) * ppw;
+  // From fully there just inside the button's bottom edge to gone just
+  // inside its top, in world units up the strap from its foot.
+  const up = (px: number) => (centrePx - px) / ppw - STRAP_FOOT;
+  return { strapPx, z, centrePx, fade: [up(cta.bottom - 4), up(cta.top + 6)] };
 }
 
 /**
@@ -710,8 +826,8 @@ function swing(ph: Swing, dt: number, t: number) {
  * The lanyard badge: a solid plastic card on a printed woven strap, hanging
  * from a pivot up the strap as a real pendulum, in the business hero's empty
  * right half. The strap runs off the top of the frame; scrolling down
- * carries it right and down, off the bottom-right corner. Desktop only — on a phone the right half is the
- * headline's.
+ * carries it back and up, off the top-right corner. On phones and tablets
+ * (stacked hero) it hangs from the CTA instead — see `phonePlacement`.
  *
  * Pressing it pushes it into the screen at the point pressed, as a finger
  * would: it swings back away from you, further the lower down it is pressed
@@ -728,7 +844,12 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
   const physics = useRef<Swing>({ pitch: 0, pitchV: 0, roll: 0, rollV: 0, yaw: 0, yawV: 0 });
   /** The pivot's last x and its speed, for the lag as scrolling carries it. */
   const travel = useRef({ x: NaN, vx: 0 });
-  const [textures, setTextures] = useState<{ face: Texture; back: Texture; strap: Texture } | null>(null);
+  const [textures, setTextures] = useState<{
+    face: Texture;
+    back: Texture;
+    strap: Texture;
+    fade: Texture;
+  } | null>(null);
   const { camera, size } = useThree();
   const cardMesh = useRef<Mesh>(null);
   const card = useMemo(() => slabGeometry(W, H, D, CARD_R, 0, { y: HOLE_Y, w: SLOT_W, h: SLOT_H }), []);
@@ -760,6 +881,8 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     shown: false,
   });
   const hoverRay = useMemo(() => new Raycaster(), []);
+  /** The strap's fade ramp, placed each frame (see `makeStrapFade`). */
+  const strapFade = useRef<Texture | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -786,7 +909,9 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
       strap.colorSpace = SRGBColorSpace;
       strap.wrapS = strap.wrapT = RepeatWrapping;
       strap.repeat.set(STRAP_L / STRAP_TILE, 1);
-      setTextures({ face, back, strap });
+      const fade = makeStrapFade();
+      strapFade.current = fade;
+      setTextures({ face, back, strap, fade });
     });
     return () => {
       alive = false;
@@ -866,56 +991,40 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     };
 
     const boxes = heroBoxes(size.width, size.height);
-    g.visible = !mobile && scrollState.hero < 1 && !!boxes;
+    g.visible = scrollState.hero < 1 && !!boxes;
     // `hero < 1` is a scroll state; the field sits at the top of the hero,
     // so it follows the layout only (a card that fits), not the scroll.
+    // Phones have no name field (no room beside the CTA).
     if (!boxes || mobile) setShown(false);
     if (!g.visible || !boxes) {
       setOver(false);
       return;
     }
-    // The strap runs up through the top bar, and the nav's black type
-    // vanishes on it, so it hangs in the gap left of the nav links —
-    // measured, since that gap moves with the viewport width.
-    const navLeft = document.querySelector(".top-bar ul")?.getBoundingClientRect().left ?? size.width;
-    const strapPx = Math.min(size.width * 0.7, navLeft - 60);
-    // Full size, vertically centred, when that clears the wordmark to its
-    // left. Where the nav pins it further left (narrower screens), it would
-    // sit behind the wordmark instead, so it shrinks — pushed back from the
-    // camera — into the band between the top bar and the wordmark's top.
-    // Where even that band would put the card over the headline, it hangs
-    // lower: the band starts under the headline instead, the card has to
-    // clear only the subline and CTA beside it, and just the strap runs up
-    // past the headline's end.
-    let z = 0;
-    let centrePx = size.height / 2;
-    const ppw0 = pxPerWorld(0, size.height);
-    let top = 110;
-    let clearRight = boxes.headlineRight;
-    if (
-      strapPx - (W / 2) * ppw0 < boxes.headlineRight + 24 &&
-      strapPx - (STRAP_W / 2) * ppw0 > boxes.headlineRight + 16
-    ) {
-      top = boxes.headlineBottom + 36;
-      clearRight = boxes.bodyRight;
-    }
-    if (strapPx - (W / 2) * ppw0 < boxes.markRight + 16 || top > 110) {
-      const bottom = boxes.markTop - 24;
-      z = Math.max(-4, CAMERA_Z - size.height / (2 * TAN_HALF_FOV * ((bottom - top) / H)));
-      z = Math.min(0, z);
-      centrePx = (top + bottom) / 2;
-    }
-    // Its own depth's pixels-per-unit.
-    const ppw = pxPerWorld(z, size.height);
-    // Too narrow for the gap to hold it clear of the type beside it (small
-    // laptops, tablets): no badge rather than one over the type.
-    if (strapPx - (W / 2) * ppw < clearRight + 24) {
+    const place = mobile
+      ? phonePlacement(boxes, size.width, size.height)
+      : deskPlacement(boxes, size.width, size.height);
+    // No room to hang it clear of the type: no badge rather than one over it.
+    if (!place) {
       g.visible = false;
       setOver(false);
       setShown(false);
       return;
     }
-    setShown(true);
+    const { strapPx, z, centrePx } = place;
+    if (!mobile) setShown(true);
+    // The strap fades out where the phone layout tucks it behind the CTA;
+    // on desktop it runs solid off the top of the frame.
+    const fade = strapFade.current;
+    if (!fade) {
+      // Not painted yet.
+    } else if (place.fade) {
+      const [s0, s1] = place.fade;
+      fade.repeat.x = STRAP_L / (s1 - s0);
+      fade.offset.x = -s0 / (s1 - s0);
+    } else {
+      fade.repeat.x = 1;
+      fade.offset.x = -2;
+    }
 
     // A name typed into the hero's field: reprint the face, at most every
     // tenth of a second while typing, with a small tick of movement per
@@ -984,8 +1093,9 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     pv.rotation.order = "XZY";
     pv.rotation.x = ph.pitch;
     pv.rotation.z = ph.roll;
-    // Turned a touch toward the headline, so it reads as an object.
-    pv.rotation.y = -0.22 + ph.yaw;
+    // Turned a touch toward the headline, so it reads as an object. Face-on
+    // in the centred phone layout, where the turn only looked crooked.
+    pv.rotation.y = (mobile ? 0 : -0.22) + ph.yaw;
 
     const mesh = cardMesh.current;
     if (mesh && (inp.fresh || scrollState.velocity !== 0 || Math.abs(ph.yawV) + Math.abs(ph.pitchV) > 0.02)) {
@@ -1005,14 +1115,14 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
               A plane rotated upright: text reads from the clip upward. */}
           <mesh position={[0, D_BAR + 0.2 + STRAP_L / 2, -0.012]} rotation={[0, 0, Math.PI / 2]}>
             <planeGeometry args={[STRAP_L, STRAP_W]} />
-            <meshStandardMaterial map={textures.strap} roughness={0.85} />
+            <meshStandardMaterial map={textures.strap} alphaMap={textures.fade} transparent roughness={0.85} />
           </mesh>
           {/* Its other face, turned to look backwards and printed the same
               way up, so the strap is still there when the card twists round
               (a plane only draws its front). */}
           <mesh position={[0, D_BAR + 0.2 + STRAP_L / 2, -0.012]} rotation={[0, Math.PI, Math.PI / 2]}>
             <planeGeometry args={[STRAP_L, STRAP_W]} />
-            <meshStandardMaterial map={textures.strap} roughness={0.85} />
+            <meshStandardMaterial map={textures.strap} alphaMap={textures.fade} transparent roughness={0.85} />
           </mesh>
           {/* The strap's end, folded round the D-ring's bar and stitched: a
               slightly thicker band with the crimp across its top. */}

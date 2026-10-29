@@ -22,11 +22,13 @@ const easeOut = (t: number) => 1 - (1 - t) ** 3;
  *
  * The final value is laid out invisibly underneath the counting one, so the
  * width is fixed from the start and nothing beside it shifts as digits change.
- * Screen readers get the final value only.
+ * Screen readers get the final value only. The suffix (the "+") is its own
+ * smaller span (`.stat-suffix`), outside the digits that count.
  */
 export function CountUp({ value, suffix = "", className = "" }: Props) {
   const ref = useRef<HTMLSpanElement>(null);
   const final = `${value}${suffix}`;
+  const tail = suffix ? <span className="stat-suffix">{suffix}</span> : null;
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -36,7 +38,7 @@ export function CountUp({ value, suffix = "", className = "" }: Props) {
     // already reading is noise.
     if (el.getBoundingClientRect().top < window.innerHeight * 0.92) return;
 
-    el.textContent = `0${suffix}`;
+    el.textContent = "0";
     let frame = 0;
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -45,7 +47,7 @@ export function CountUp({ value, suffix = "", className = "" }: Props) {
         const start = performance.now();
         const tick = (now: number) => {
           const t = Math.min(1, (now - start) / DURATION);
-          el.textContent = `${Math.round(easeOut(t) * value)}${suffix}`;
+          el.textContent = String(Math.round(easeOut(t) * value));
           if (t < 1) frame = requestAnimationFrame(tick);
         };
         frame = requestAnimationFrame(tick);
@@ -56,19 +58,21 @@ export function CountUp({ value, suffix = "", className = "" }: Props) {
     return () => {
       observer.disconnect();
       cancelAnimationFrame(frame);
-      el.textContent = final;
+      el.textContent = String(value);
     };
-  }, [value, suffix, final]);
+  }, [value]);
 
   return (
     <span className={`relative inline-grid ${className}`}>
       <span className="sr-only">{final}</span>
       {/* Sizes the box to the final value, so counting never reflows. */}
       <span aria-hidden="true" className="invisible [grid-area:1/1]">
-        {final}
+        {value}
+        {tail}
       </span>
-      <span ref={ref} aria-hidden="true" className="[grid-area:1/1]">
-        {final}
+      <span aria-hidden="true" className="[grid-area:1/1]">
+        <span ref={ref}>{value}</span>
+        {tail}
       </span>
     </span>
   );

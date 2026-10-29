@@ -209,6 +209,27 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   headline and the card only has to clear the subline and CTA
   (`headlineBottom`, `bodyRight` in `heroBoxes`), with the strap alone
   passing the headline's end.
+- **Business hero below lg is centred** (client request): headline,
+  subline, CTA and wordmark on one axis (unlayered block in globals.css);
+  the name field is `display: none` there so it cannot pull the CTA off
+  centre, and the badge hangs from the CTA's centre. Headline 6vw and the
+  wordmark 14vw (was 24vw) there — the client kept a "GTHR." on the page,
+  but at full size it, the card and the headline fought for the screen.
+  The phone card is face-on (no −0.22 turn: crooked when centred), at most
+  48% of the screen wide (`PHONE_CARD_W`), with 60% of the spare height
+  given to the strap so it reads as hanging rather than clipped on.
+- **Menu below lg** (client request) in place of the section links: a
+  round button beside the mode toggle (two bars → cross), opening a
+  full-screen sheet in `--paper` with the nav links large and centred
+  (`.menu-sheet`, z −1 inside the fixed header so the bar stays on top).
+  Escape, a link (which closes, then smooth-scrolls) or the button closes it.
+- **Contact glow, business only:** a mint (`--accent`) glow around the form
+  card, drifting over 24s (`.contact-glow`, sized past the card). Around,
+  not through (client): the business contact card is solid (the stat
+  cards' grey gradient, no backdrop blur).
+- **Stats:** 15+, 250+, 50+ cities, 25+ countries (`about.stats`). The "+"
+  is `.stat-suffix`, 0.72em on the baseline (lifted read as superscript);
+  `CountUp` counts the digits only.
 - **Grid:** every section is `grid grid-cols-12 px-4 lg:px-14 py-18 lg:py-24`,
   except Hero, About and Services, which sit in from the sides at `lg:px-24
   xl:px-36` — at `px-14` their text, stat cards and rows ran too wide (the
@@ -269,7 +290,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     -0.32..1.48 (the orders actually reached — wider and nothing happened for
     the first third, while the dark face's white type sat on white). Grain is
     per pixel by `light` too. Dark → light drops `uSpillOn` and crossfades.
-    The glass word waits for it: `wordGate` is 0 until `WORD_AT` (0.7; 0.8 read as late once the spill sped up; 1 read
+    The glass word waits for it: `wordGate` is 0 until `WORD_AT` (0.6; 0.7 and 0.8 read as late once the spill sped up; 1 read
     as late, 0.65 as early) of the spill's time — the screen is mostly covered by then — and 1 after, eased (`wordGateMix`, ~0.75s, rate 4; 7 read as abrupt) and multiplied into
     `partyPresence()`, so `gthr` grows in as the colour finishes filling
     the screen (at the very end it read as late).
@@ -546,9 +567,19 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     because the nav's black type vanishes on the black strap. It shrinks
     (pushed back in z) into the band above the wordmark when full size would
     sit behind it, and is hidden when even that would cover the headline
-    (roughly under 1300px wide with the current headline) and on phones —
-    both clearances measured from the text nodes (`heroBoxes`), the
-    wordmark's to its R, not its low full stop.
+    (roughly under 1300px wide with the current headline) —
+    clearances measured from the text nodes (`heroBoxes`), the
+    wordmark's to its R, not its low full stop (`deskPlacement`).
+    **Below `lg` (phones, tablets) it hangs from the CTA** (`phonePlacement`;
+    it used to be hidden there, and the client asked for it): every hero line
+    runs near full width, so a strap up the screen would cross the type.
+    Centred under "Start a project", sized to the gap between the button and
+    the wordmark (never above full size; hidden below ~90px wide, i.e. phones
+    held sideways), with the strap running up behind the button — solid mint,
+    so it hides it — and fading out there through an `alphaMap` ramp placed
+    per frame by offset/repeat (desktop pushes the ramp off the end; no
+    mipmaps on it, or the averaged ramp leaves a ghost strap over the
+    headline). No name field on phones.
     **Only a press moves it, and it moves like a real one.** The canvas takes
     no pointer events, so a window `pointerdown` raycasts the card. The press
     pushes the card into the screen at the point pressed: it swings back away

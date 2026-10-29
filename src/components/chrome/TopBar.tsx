@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ModeToggle } from "@/components/chrome/ModeToggle";
 import { nav, site } from "@/content/site";
 import { useScrollTo } from "./SmoothScroll";
@@ -13,9 +14,28 @@ import { useScrollTo } from "./SmoothScroll";
  * gradient, the bar's ink turned white over it and back to black below —
  * a scroll listener and a `data-on-green` attribute, both gone with that
  * gradient. The business ground is one flat paper colour now.
+ *
+ * Below lg the links fold into a menu (client request): a round button
+ * beside the mode toggle opens a full-screen sheet with the same links,
+ * large and centred. Escape, a link, or the button again closes it.
  */
 export function TopBar() {
   const scrollTo = useScrollTo();
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const firstLink = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    firstLink.current?.focus({ preventScroll: true });
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      button.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   return (
     <header
@@ -32,7 +52,7 @@ export function TopBar() {
       </Link>
       <div className="flex items-center gap-x-2.5 sm:gap-x-3 lg:gap-x-6">
         <nav aria-label="Sections">
-          <ul className="pointer-events-auto flex items-center gap-x-2.5 sm:gap-x-3 lg:gap-x-7">
+          <ul className="pointer-events-auto hidden items-center lg:flex gap-x-2.5 sm:gap-x-3 lg:gap-x-7">
             {nav.map((item) => (
               <li key={item.href}>
                 <a
@@ -48,6 +68,40 @@ export function TopBar() {
           </ul>
         </nav>
         <ModeToggle />
+        <button
+          ref={button}
+          type="button"
+          className="menu-toggle pointer-events-auto"
+          aria-expanded={open}
+          aria-controls="site-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          onClick={() => setOpen((was) => !was)}
+        >
+          <span className="menu-toggle__bar" />
+          <span className="menu-toggle__bar" />
+        </button>
+      </div>
+      <div id="site-menu" className="menu-sheet" data-open={open || undefined}>
+        <nav aria-label="Menu">
+          <ul className="menu-sheet__list">
+            {nav.map((item, index) => (
+              <li key={item.href}>
+                <a
+                  ref={index === 0 ? firstLink : undefined}
+                  href={item.href}
+                  onClick={(event) => {
+                    setOpen(false);
+                    scrollTo(event, item.href);
+                  }}
+                  className="menu-sheet__link"
+                  style={{ "--i": index } as CSSProperties}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
     </header>
   );

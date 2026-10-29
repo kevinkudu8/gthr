@@ -1359,3 +1359,230 @@ html[data-spilling]::view-transition-old(root) {
     opacity: 1;
   }
 }
+
+/* ---------------------------------------------------------------
+   Stats: the "+" after a figure is set a size down (client: "a little
+   smaller", since every stat carries one), on the digits' baseline: the
+   display face's "+" already sits high, and lifting it read as a
+   superscript. Hero stats and the "Who are we" cards (ui/CountUp) both
+   wrap it in .stat-suffix.
+   --------------------------------------------------------------- */
+.stat-suffix {
+  font-size: 0.72em;
+  margin-left: 0.04em;
+}
+
+/* ---------------------------------------------------------------
+   Business hero below lg (phones, tablets): centred (client request).
+   The headline, subline, CTA and wordmark share the axis, and the badge
+   hangs from the CTA's centre (Badge's phonePlacement). The name field
+   never shows here (no badge name on phones), and is taken out of the
+   row so it cannot pull the CTA off centre.
+   --------------------------------------------------------------- */
+@media (max-width: 63.99rem) {
+  :root[data-mode="business"] .hero-poster {
+    text-align: center;
+  }
+
+  :root[data-mode="business"] .hero-poster__actions {
+    justify-self: center;
+  }
+
+  :root[data-mode="business"] .badge-name {
+    display: none;
+  }
+
+  /* Shrink-wrapped and centred. The tracking leaves negative space after
+     the full stop, given back on the right so the word sits on centre.
+     A sign-off rather than a headline here (14vw, was 24vw): at full size
+     it, the badge and the headline all fought for the screen. */
+  :root[data-mode="business"] .hero-poster__mark {
+    justify-self: center;
+    margin-left: 0;
+    margin-right: -0.045em;
+    font-size: 14vw;
+  }
+
+  /* A step smaller, so the marker on "remembered" clears the gutter. */
+  :root[data-mode="business"] .hero-poster__headline {
+    font-size: clamp(1.4rem, 6vw, 2.6rem);
+  }
+}
+
+/* ---------------------------------------------------------------
+   Menu (chrome/TopBar.tsx), below lg in place of the section links: a
+   round button beside the mode toggle, the same size, two bars turning to
+   a cross. It opens a full-screen sheet in the page's own ground, under
+   the bar (z -1 inside the fixed header), with the links large and
+   centred, coming up one after another.
+   --------------------------------------------------------------- */
+.menu-toggle {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--brand);
+  transition: border-color 0.3s var(--ease-66);
+}
+
+:root[data-mode="business"] .menu-toggle {
+  width: 1.8rem;
+  height: 1.8rem;
+  color: var(--ink-1);
+}
+
+.menu-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.menu-toggle__bar {
+  grid-area: 1 / 1;
+  width: 0.72rem;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+  transition: transform 0.4s var(--ease-66);
+}
+
+.menu-toggle__bar:first-child {
+  transform: translateY(-2.5px);
+}
+
+.menu-toggle__bar:last-child {
+  transform: translateY(2.5px);
+}
+
+.menu-toggle[aria-expanded="true"] .menu-toggle__bar:first-child {
+  transform: rotate(45deg);
+}
+
+.menu-toggle[aria-expanded="true"] .menu-toggle__bar:last-child {
+  transform: rotate(-45deg);
+}
+
+.menu-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.35s var(--ease-66),
+    visibility 0s linear 0.35s;
+}
+
+.menu-sheet[data-open] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.35s var(--ease-66);
+}
+
+.menu-sheet__list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.menu-sheet__link {
+  display: inline-block;
+  font-family: var(--font-system);
+  font-weight: 500;
+  font-size: clamp(2rem, 9vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--ink-1);
+  opacity: 0;
+  transform: translateY(0.4em);
+  transition:
+    opacity 0.45s var(--ease-66),
+    transform 0.55s var(--ease-66);
+}
+
+.menu-sheet[data-open] .menu-sheet__link {
+  opacity: 1;
+  transform: none;
+  transition-delay: calc(0.08s + var(--i) * 0.06s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-sheet__link {
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Contact, business face: a soft mint glow around the form (client
+   request), the hero marker's colour, drifting slowly. Around it, not
+   through it: on this face the card is solid (the stat cards' light
+   grey), so the glow shows only past its edges, and is sized past the
+   card for that. Party has its own colour field behind everything.
+   --------------------------------------------------------------- */
+.contact-glow {
+  display: none;
+}
+
+:root[data-mode="business"] .contact-glow {
+  display: block;
+  position: absolute;
+  inset: -3.5rem -2rem;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--accent) 75%, transparent) 55%,
+    color-mix(in srgb, var(--accent) 35%, transparent) 78%,
+    transparent
+  );
+  filter: blur(42px);
+  pointer-events: none;
+  animation: contact-glow-drift 24s ease-in-out infinite alternate;
+}
+
+@media (min-width: 64rem) {
+  :root[data-mode="business"] .contact-glow {
+    inset: -5rem -8rem;
+  }
+}
+
+:root[data-mode="business"] .contact-glass {
+  background: linear-gradient(160deg, #f8f8f8 0%, #f2f2f2 100%);
+  backdrop-filter: none;
+}
+
+@keyframes contact-glow-drift {
+  0% {
+    transform: translate(-4%, -3%) scale(1);
+  }
+  50% {
+    transform: translate(4%, 2%) scale(1.04);
+  }
+  100% {
+    transform: translate(-1%, 4%) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-mode="business"] .contact-glow {
+    animation: none;
+  }
+}
+
+/* The menu is the small-screen nav; from lg the links show in the bar. */
+@media (min-width: 64rem) {
+  .menu-toggle,
+  .menu-sheet {
+    display: none;
+  }
+}

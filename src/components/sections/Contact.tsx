@@ -8,7 +8,7 @@ export function Contact() {
   return (
     <section
       id="contact"
-      className="flex min-h-dvh w-full scroll-mt-16 flex-col items-center justify-center px-4 py-24 lg:min-h-screen lg:scroll-mt-24 lg:px-14 lg:py-32"
+      className="flex min-h-dvh w-full scroll-mt-16 flex-col overflow-x-clip items-center justify-center px-4 py-24 lg:min-h-screen lg:scroll-mt-24 lg:px-14 lg:py-32"
       aria-labelledby="contact-heading"
     >
       <div className="w-full max-w-2xl">
@@ -23,9 +23,13 @@ export function Contact() {
         >
           {contact.heading}
         </Reveal>
-        <Reveal delay={160} className="glass contact-glass p-6 lg:p-10">
-          <ContactForm />
-        </Reveal>
+        <div className="relative">
+          {/* Business only: a mint glow behind the card, drifting slowly. */}
+          <div className="contact-glow" aria-hidden="true" />
+          <Reveal delay={160} className="glass contact-glass relative z-[1] p-6 lg:p-10">
+            <ContactForm />
+          </Reveal>
+        </div>
         <Reveal
           as="p"
           delay={240}
