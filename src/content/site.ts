@@ -11,7 +11,7 @@ export const site = {
   description:
     "GTHR is an end-to-end creative collaborator for events — from pitch to post, embedded with your team at every step.",
   url: "https://gthr.com",
-  email: "hello@gthr.com",
+  email: "hello@gthr.agency",
 } as const;
 
 /** Bottom-right links. X is confirmed; the Telegram handle is still a PLACEHOLDER. */
@@ -52,13 +52,13 @@ export const nav = [
  * that block is party-only now.
  */
 export const poster = {
-  line: "Events built to scale, designed to be remembered",
+  line: "Experiences built to scale, designed to be remembered",
   lines: [
-    { text: "Events built to scale,", mark: "" },
+    { text: "Experiences built to scale,", mark: "" },
     { text: "designed to be remembered", mark: "remembered" },
   ],
   /** Under the headline: what GTHR is, which the headline alone never says. */
-  subline: "An events and experiential marketing agency for web3 and tech.",
+  subline: "An experiential marketing and events agency.",
   index: "01\\",
   label: "Events & experiences",
   text: "GTHR is an events and experiential marketing agency — from pitch to post, embedded with your team at every step.",
@@ -91,7 +91,7 @@ export const hero = {
 
 /** Rendered in caps by `.statement`. Party face only. */
 export const statements = {
-  first: "Events built to scale,",
+  first: "Experiences built to scale,",
   second: "designed to be remembered",
 } as const;
 
@@ -101,7 +101,7 @@ export const about = {
   /** The opening of `description`, set in bold. */
   lead: "GTHR (Gather)",
   description:
-    "GTHR (Gather) is an events and experiential marketing agency for blockchain and technology brands. We're new as a company but not to the work. Between us, we've spent years producing events around the world for some of the biggest names in the industry.",
+    "GTHR (Gather) is an experiential marketing and events agency for frontier technology and blockchain brands who want to be memorable, creative and unique. We specialize in curated activations designed to push boundaries and cut through the noise.",
   /**
    * `value` is what counts up; `suffix` is appended as-is. Kept apart so the
    * count-up never has to parse a string back into a number.
@@ -112,7 +112,6 @@ export const about = {
     { value: 30, suffix: "+", label: "Cities" },
     { value: 15, suffix: "", label: "Countries" },
   ],
-  founders: "Founded by Polly and Kevin. Working with clients globally.",
   photoLabels: { region: "Events we've produced", previous: "Previous photo", next: "Next photo" },
   /**
    * The slideshow beside the paragraph, in order. Files in `public/about/`.
@@ -143,8 +142,8 @@ export const badge = {
   headline: ["All-access", "Event pass"],
   index: "01\\",
   columns: [
-    ["Focus", "Blockchain &", "technology events"],
-    ["Web", "gthr.com", "hello@gthr.com"],
+    ["Focus", "Frontier technology and", "blockchain brands"],
+    ["Web", "gthr.agency", site.email],
   ],
   handle: "@gthragency",
   name: "Your team",
@@ -156,7 +155,7 @@ export const badge = {
     zonesLabel: "Zones",
     zones: ["Backstage", "Green room", "Production", "VIP lounge", "Load-in", "Front of house"],
     returnLabel: "If found, please return to",
-    returnTo: "hello@gthr.com",
+    returnTo: site.email,
     terms: "Non-transferable · 2026 season",
   },
 } as const;
@@ -215,13 +214,13 @@ export const contact = {
   submit: "Send inquiry",
   sending: "Sending…",
   sent: "Got it. We'll be in touch.",
-  /** Client copy. The email and "Telegram" are links. */
-  orEmail: {
-    before: "Or write to us by email:",
-    after: "and we will respond within 48 hours.",
-  },
-  urgent: {
-    before: "Need something more urgent? Send us a DM on",
+  /**
+   * The line under the form: "Or email hello@gthr.agency. Urgent? DM us on
+   * Telegram." The email and "Telegram" are links.
+   */
+  reach: {
+    before: "Or email",
+    middle: ". Urgent? DM us on",
     link: "Telegram",
     after: ".",
   },

@@ -18,7 +18,8 @@ import {
   type Mesh,
   type Texture,
 } from "three";
-import { badge } from "@/content/site";
+import qrcode from "qrcode-generator";
+import { badge, socials } from "@/content/site";
 import { hash2, pageFonts, type Fonts } from "./canvasPaint";
 import { badgeState } from "./badgeState";
 import { scrollState } from "./scrollState";
@@ -155,6 +156,9 @@ function dRingGeometry() {
 }
 
 /** Face texture size, and the art panel on it, in texture pixels. */
+/** Where the face's QR code goes when scanned. */
+const TELEGRAM = socials.find((s) => s.id === "telegram")!.href;
+
 const FACE_W = 680;
 const FACE_H = Math.round(FACE_W * (H / W));
 const PANEL = { x: 44, y: 104, w: FACE_W - 88, h: Math.round(FACE_H * 0.56), r: 44 };
@@ -173,7 +177,6 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
   // Keep these in step with :root[data-mode="business"] in globals.css.
   const ink = "#141414";
   const paper = "#ffffff";
-  const mint = "#86dcb2";
   const line = "#e3e3e3";
   const muted = "#6e6e6e";
   const system = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
@@ -192,48 +195,13 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
   ctx.clip();
   ctx.fillStyle = ink;
   ctx.fillRect(px, py, pw, ph);
-  ctx.filter = "blur(70px)";
-  const glow = (x: number, y: number, r: number, color: string) => {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(px + pw * x, py + ph * y, r, 0, Math.PI * 2);
-    ctx.fill();
-  };
-  // Held mid-dark, so the panel reads as one dark field behind the white
-  // wordmark rather than a pale wash.
-  ctx.globalAlpha = 0.72;
-  glow(0.3, 0.78, 190, mint);
-  ctx.globalAlpha = 0.5;
-  glow(0.78, 0.3, 150, mint);
-  ctx.globalAlpha = 1;
-  glow(0.08, 0.12, 110, "#2f5f4b");
-  ctx.filter = "none";
   ctx.restore();
+  // The glows and the panel's own type are separate layers, composed over
+  // this one by paintBadge, so the glows can drift (paintGlows,
+  // paintPanelText).
 
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
-  // Index pill: mint fill, soft black type (mint is never type on paper).
-  ctx.font = `500 17px ${fonts.mono}`;
-  const pillW = ctx.measureText(c.index).width + 34;
-  ctx.fillStyle = mint;
-  ctx.beginPath();
-  ctx.roundRect(px + 28, py + 28, pillW, 32, 16);
-  ctx.fill();
-  ctx.fillStyle = ink;
-  ctx.fillText(c.index, px + 45, py + 50);
-  ctx.fillStyle = paper;
-  ctx.textAlign = "right";
-  ctx.fillText(c.access.toUpperCase(), px + pw - 30, py + 50);
-  ctx.textAlign = "left";
-
-  // Wordmark, bottom-left of the panel.
-  ctx.font = `600 100px ${system}`;
-  ctx.letterSpacing = "-5px";
-  const fit = Math.min(1.7, (pw * 0.62) / ctx.measureText(c.mark).width);
-  ctx.font = `600 ${Math.floor(100 * fit)}px ${system}`;
-  ctx.letterSpacing = `${-5 * fit}px`;
-  ctx.fillText(c.mark, px + 26, py + ph - 34);
-  ctx.letterSpacing = "0px";
 
   // The pass line, as the reference sets its event name — or the visitor's
   // own name once they have put it on the pass (badgeState), shrunk to fit.
@@ -284,28 +252,121 @@ function paintBusinessBadge(fonts: Fonts, w: number, h: number, ctx: CanvasRende
   ctx.font = `400 13px ${fonts.mono}`;
   ctx.fillText(`${c.handle}   ${c.reference.join(" ")}`.toUpperCase(), pad + 4, h - pad);
 
-  const cell = 4;
-  const n = 23;
-  const qx = w - pad - cell * n;
-  const qy = h - pad - cell * n + 4;
-  const finder = (fx: number, fy: number) =>
-    (fx < 7 && fy < 7) || (fx > n - 8 && fy < 7) || (fx < 7 && fy > n - 8);
-  const finderBit = (fx: number, fy: number) => {
-    const lx = fx > n - 8 ? fx - (n - 7) : fx;
-    const ly = fy > n - 8 ? fy - (n - 7) : fy;
-    const ring = lx === 0 || ly === 0 || lx === 6 || ly === 6;
-    const core = lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4;
-    return ring || core;
-  };
+  // A real QR code: scanned, it opens GTHR's Telegram (`socials` in
+  // site.ts, so it follows the link wherever it changes). Built to be read
+  // off a screen, where the card is small: low error correction (a screen
+  // never smudges, and fewer modules means bigger ones), solid modules with
+  // no gaps between them, as large as the corner allows, and the plain stock
+  // all round it as the quiet zone.
+  const qr = qrcode(0, "L");
+  qr.addData(TELEGRAM);
+  qr.make();
+  const n = qr.getModuleCount();
+  const qrSize = 128;
+  const qx = w - pad - qrSize;
+  const qy = h - 32 - qrSize;
+  const at = (i: number) => Math.round((i * qrSize) / n);
   ctx.fillStyle = ink;
-  for (let qy2 = 0; qy2 < n; qy2++) {
-    for (let qx2 = 0; qx2 < n; qx2++) {
-      const on = finder(qx2, qy2) ? finderBit(qx2, qy2) : hash2(qx2 + 11, qy2 + 29) > 0.52;
-      if (on) ctx.fillRect(qx + qx2 * cell, qy + qy2 * cell, cell - 0.5, cell - 0.5);
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect(qx + at(col), qy + at(row), at(col + 1) - at(col), at(row + 1) - at(row));
+      }
     }
   }
 
   grain(ctx, w, h);
+}
+
+/**
+ * The art panel's type, on its own transparent layer so it sits over the
+ * drifting glows: the index pill (mint fill, soft black type — mint is never
+ * type on paper), the access line, and the wordmark bottom-left.
+ */
+function paintPanelText(fonts: Fonts, ctx: CanvasRenderingContext2D) {
+  const ink = "#141414";
+  const paper = "#ffffff";
+  const mint = "#86dcb2";
+  const system = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
+  const c = badge;
+  const { x: px, y: py, w: pw, h: ph } = PANEL;
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  ctx.font = `500 17px ${fonts.mono}`;
+  const pillW = ctx.measureText(c.index).width + 34;
+  ctx.fillStyle = mint;
+  ctx.beginPath();
+  ctx.roundRect(px + 28, py + 28, pillW, 32, 16);
+  ctx.fill();
+  ctx.fillStyle = ink;
+  ctx.fillText(c.index, px + 45, py + 50);
+  ctx.fillStyle = paper;
+  ctx.textAlign = "right";
+  ctx.fillText(c.access.toUpperCase(), px + pw - 30, py + 50);
+  ctx.textAlign = "left";
+
+  ctx.font = `600 100px ${system}`;
+  ctx.letterSpacing = "-5px";
+  const fit = Math.min(1.7, (pw * 0.62) / ctx.measureText(c.mark).width);
+  ctx.font = `600 ${Math.floor(100 * fit)}px ${system}`;
+  ctx.letterSpacing = `${-5 * fit}px`;
+  ctx.fillText(c.mark, px + 26, py + ph - 34);
+  ctx.letterSpacing = "0px";
+}
+
+/**
+ * The glows behind the panel's type, as fractions of the panel: where each
+ * sits, its radius, colour and strength, and its drift — a small loop
+ * (`ax`, `ay`) taking `period` seconds, each on its own period and phase so
+ * the light never visibly repeats. Very slow on purpose: a few pixels a
+ * second. Held mid-dark, so the panel reads as one dark field behind the
+ * white wordmark rather than a pale wash.
+ */
+const GLOWS = [
+  { x: 0.3, y: 0.78, r: 190, color: "#86dcb2", alpha: 0.72, ax: 0.12, ay: 0.08, period: 95, phase: 0 },
+  { x: 0.78, y: 0.3, r: 150, color: "#86dcb2", alpha: 0.5, ax: 0.1, ay: 0.12, period: 120, phase: 2.1 },
+  { x: 0.08, y: 0.12, r: 110, color: "#2f5f4b", alpha: 1, ax: 0.08, ay: 0.1, period: 80, phase: 4.2 },
+];
+const GLOW_BLUR = 70;
+
+/** Each glow blurred once into its own canvas; a frame only places them. */
+let glowSprites: HTMLCanvasElement[] | null = null;
+function glowSprite(i: number) {
+  if (!glowSprites) {
+    glowSprites = GLOWS.map((g) => {
+      const size = Math.ceil((g.r + GLOW_BLUR * 3) * 2);
+      const sprite = document.createElement("canvas");
+      sprite.width = sprite.height = size;
+      const ctx = sprite.getContext("2d");
+      if (ctx) {
+        ctx.filter = `blur(${GLOW_BLUR}px)`;
+        ctx.fillStyle = g.color;
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, g.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return sprite;
+    });
+  }
+  return glowSprites[i];
+}
+
+/** The glows at time `t` (seconds), clipped to the panel. At 0 they sit home. */
+function paintGlows(ctx: CanvasRenderingContext2D, t: number) {
+  const { x: px, y: py, w: pw, h: ph } = PANEL;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(px, py, pw, ph, PANEL.r);
+  ctx.clip();
+  GLOWS.forEach((g, i) => {
+    const a = (t / g.period) * Math.PI * 2;
+    const dx = g.ax * (Math.sin(a + g.phase) - Math.sin(g.phase));
+    const dy = g.ay * (Math.cos(a * 0.77 + g.phase) - Math.cos(g.phase));
+    const sprite = glowSprite(i);
+    ctx.globalAlpha = g.alpha;
+    ctx.drawImage(sprite, px + pw * (g.x + dx) - sprite.width / 2, py + ph * (g.y + dy) - sprite.height / 2);
+  });
+  ctx.restore();
 }
 
 /**
@@ -457,17 +518,42 @@ function grain(ctx: CanvasRenderingContext2D, w: number, h: number) {
  * on its pass line. Repaints into `canvas` when given one, so the texture
  * over it only needs flagging for upload.
  */
-function paintBadge(fonts: Fonts, holder: string, canvas = document.createElement("canvas")) {
+function paintBadge(fonts: Fonts, holder: string, canvas = document.createElement("canvas"), t = 0) {
   const w = FACE_W;
   const h = FACE_H;
-  canvas.width = w;
-  canvas.height = h;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
-  // Full bleed: the card geometry supplies the corners.
-  paintBusinessBadge(fonts, w, h, ctx, holder);
+  // The still layers are painted once per name (the grain pass is far too
+  // slow for every frame); a frame is the card, the glows, then the type.
+  if (!faceLayers || faceLayers.holder !== holder || faceLayers.fonts !== fonts) {
+    const base = document.createElement("canvas");
+    const text = document.createElement("canvas");
+    base.width = text.width = w;
+    base.height = text.height = h;
+    const baseCtx = base.getContext("2d");
+    const textCtx = text.getContext("2d");
+    if (!baseCtx || !textCtx) return canvas;
+    // Full bleed: the card geometry supplies the corners.
+    paintBusinessBadge(fonts, w, h, baseCtx, holder);
+    paintPanelText(fonts, textCtx);
+    faceLayers = { holder, fonts, base, text };
+  }
+  ctx.drawImage(faceLayers.base, 0, 0);
+  paintGlows(ctx, t);
+  ctx.drawImage(faceLayers.text, 0, 0);
   return canvas;
 }
+
+/** The face's still layers, for the name they were painted with. */
+let faceLayers: { holder: string; fonts: Fonts; base: HTMLCanvasElement; text: HTMLCanvasElement } | null = null;
+
+/** How often the drifting glows are reprinted, per second. They move a few
+ * pixels a second, so this is smooth, and it keeps texture uploads cheap. */
+const GLOW_FPS = 12;
 
 /**
  * The strap, with the wordmark repeating along it. Painted horizontally (no canvas
@@ -523,11 +609,27 @@ function pxPerWorld(z: number, heightPx: number) {
  * What the hero badge has to keep clear of, measured from the text itself so
  * a right edge is the last glyph rather than the block's full width: the
  * wordmark's top (in page pixels, not viewport) and the right edge of its
- * letters, and the headline's right edge. Cached per viewport size: they only move when the
- * vw-based type does.
+ * letters, the headline's right edge and bottom, and the right edge of what
+ * sits under the headline (the subline, the CTA and the name field). Page
+ * pixels for the vertical ones. Cached per viewport size: they only move when
+ * the vw-based type does.
  */
-type HeroBoxes = { key: string; markTop: number; markRight: number; headlineRight: number };
-let heroCache: HeroBoxes = { key: "", markTop: Infinity, markRight: 0, headlineRight: 0 };
+type HeroBoxes = {
+  key: string;
+  markTop: number;
+  markRight: number;
+  headlineRight: number;
+  headlineBottom: number;
+  bodyRight: number;
+};
+let heroCache: HeroBoxes = {
+  key: "",
+  markTop: Infinity,
+  markRight: 0,
+  headlineRight: 0,
+  headlineBottom: 0,
+  bodyRight: 0,
+};
 function textBox(selector: string, dropLast = false) {
   const el = document.querySelector(selector);
   if (!el) return null;
@@ -538,6 +640,7 @@ function textBox(selector: string, dropLast = false) {
   const range = document.createRange();
   let top = Infinity;
   let right = -Infinity;
+  let bottom = -Infinity;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (node.parentElement?.closest(".sr-only")) continue;
     range.selectNodeContents(node);
@@ -546,8 +649,9 @@ function textBox(selector: string, dropLast = false) {
     if (!r.width) continue;
     top = Math.min(top, r.top);
     right = Math.max(right, r.right);
+    bottom = Math.max(bottom, r.bottom);
   }
-  return right > -Infinity ? { top, right } : null;
+  return right > -Infinity ? { top, right, bottom } : null;
 }
 function heroBoxes(width: number, height: number): HeroBoxes | null {
   const key = `${width}x${height}`;
@@ -557,7 +661,16 @@ function heroBoxes(width: number, height: number): HeroBoxes | null {
   const mark = textBox(".hero-poster__mark", true);
   const headline = textBox(".hero-poster__headline");
   if (!mark || !headline) return null;
-  heroCache = { key, markTop: mark.top + scrollState.y, markRight: mark.right, headlineRight: headline.right };
+  const subline = textBox(".hero-poster__subline");
+  const actions = document.querySelector(".hero-poster__actions")?.getBoundingClientRect();
+  heroCache = {
+    key,
+    markTop: mark.top + scrollState.y,
+    markRight: mark.right,
+    headlineRight: headline.right,
+    headlineBottom: headline.bottom + scrollState.y,
+    bodyRight: Math.max(subline?.right ?? 0, actions?.right ?? 0),
+  };
   return heroCache;
 }
 
@@ -633,6 +746,8 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     face: Texture | null;
     version: number;
     at: number;
+    /** When the glows were last reprinted. */
+    glowAt: number;
     stamps: number;
     shown: boolean;
   }>({
@@ -640,6 +755,7 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     face: null,
     version: badgeState.version,
     at: 0,
+    glowAt: 0,
     stamps: badgeState.stamps,
     shown: false,
   });
@@ -767,10 +883,23 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     // left. Where the nav pins it further left (narrower screens), it would
     // sit behind the wordmark instead, so it shrinks — pushed back from the
     // camera — into the band between the top bar and the wordmark's top.
+    // Where even that band would put the card over the headline, it hangs
+    // lower: the band starts under the headline instead, the card has to
+    // clear only the subline and CTA beside it, and just the strap runs up
+    // past the headline's end.
     let z = 0;
     let centrePx = size.height / 2;
-    if (strapPx - (W / 2) * pxPerWorld(0, size.height) < boxes.markRight + 16) {
-      const top = 110;
+    const ppw0 = pxPerWorld(0, size.height);
+    let top = 110;
+    let clearRight = boxes.headlineRight;
+    if (
+      strapPx - (W / 2) * ppw0 < boxes.headlineRight + 24 &&
+      strapPx - (STRAP_W / 2) * ppw0 > boxes.headlineRight + 16
+    ) {
+      top = boxes.headlineBottom + 36;
+      clearRight = boxes.bodyRight;
+    }
+    if (strapPx - (W / 2) * ppw0 < boxes.markRight + 16 || top > 110) {
       const bottom = boxes.markTop - 24;
       z = Math.max(-4, CAMERA_Z - size.height / (2 * TAN_HALF_FOV * ((bottom - top) / H)));
       z = Math.min(0, z);
@@ -778,9 +907,9 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     }
     // Its own depth's pixels-per-unit.
     const ppw = pxPerWorld(z, size.height);
-    // Too narrow for the gap to hold it clear of the headline (small
+    // Too narrow for the gap to hold it clear of the type beside it (small
     // laptops, tablets): no badge rather than one over the type.
-    if (strapPx - (W / 2) * ppw < boxes.headlineRight + 24) {
+    if (strapPx - (W / 2) * ppw < clearRight + 24) {
       g.visible = false;
       setOver(false);
       setShown(false);
@@ -794,11 +923,18 @@ export function Badge({ reducedMotion, mobile = false }: { reducedMotion: boolea
     // as a new pass being issued.
     const pr = printed.current;
     if (pr.fonts && pr.face && pr.version !== badgeState.version && clock.elapsedTime - pr.at > 0.1) {
-      paintBadge(pr.fonts, badgeState.name, pr.face.image as HTMLCanvasElement);
+      paintBadge(pr.fonts, badgeState.name, pr.face.image as HTMLCanvasElement, t);
       pr.face.needsUpdate = true;
       pr.version = badgeState.version;
       pr.at = clock.elapsedTime;
       ph.pitchV += 0.12;
+    }
+    // The panel's glows drift, very slowly; reprinted a few times a second
+    // while the card is on screen. Still under reduced motion (t is 0).
+    if (pr.fonts && pr.face && t && clock.elapsedTime - pr.glowAt > 1 / GLOW_FPS) {
+      paintBadge(pr.fonts, badgeState.name, pr.face.image as HTMLCanvasElement, t);
+      pr.face.needsUpdate = true;
+      pr.glowAt = clock.elapsedTime;
     }
     if (pr.stamps !== badgeState.stamps) {
       pr.stamps = badgeState.stamps;

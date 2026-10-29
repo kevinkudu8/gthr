@@ -27,16 +27,6 @@ export function Services() {
             </h3>
             <div className="col-span-10 col-start-3 lg:col-span-6 lg:col-start-7">
               <p className="max-w-[48ch] text-sm leading-snug text-ink-1 lg:text-lg">{service.line}</p>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {service.tags.map((tag) => (
-                  <li
-                    key={tag}
-                    className="rounded-full border border-line px-3 py-1 font-mono text-[0.68rem] tracking-[0.06em] text-ink-2 uppercase"
-                  >
-                    {tag}
-                  </li>
-                ))}
-              </ul>
             </div>
           </Reveal>
         ))}

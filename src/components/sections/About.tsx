@@ -5,8 +5,7 @@ import { about } from "@/content/site";
 
 /**
  * "Who are we": label, the about paragraph with a photo slideshow to its
- * right (stacked below it on phones), a row of four stats, and a founder
- * line. Each stat sits in a frosted card after the client's reference —
+ * right (stacked below it on phones), and a row of four stats. Each stat sits in a frosted card after the client's reference —
  * its label top-left in the mono, the number large and centred, an index
  * bottom-left — on the page's own 12-column grid, four across (3 columns
  * each) on desktop and two by two below it.
@@ -66,13 +65,6 @@ export function About() {
         ))}
       </ul>
 
-      <Reveal
-        as="p"
-        delay={460}
-        className="col-span-12 mt-14 max-w-[40ch] px-2 text-sm leading-relaxed text-ink-2 lg:mt-20 lg:text-base"
-      >
-        {about.founders}
-      </Reveal>
     </section>
   );
 }

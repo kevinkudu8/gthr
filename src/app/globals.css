@@ -509,32 +509,27 @@
   }
 
   /* --- Mode toggle (chrome/ModeToggle.tsx) ---------------------------- */
-  /* A square icon button: the sun on the light (business) face, the moon on
-     the dark (party) face. Both glyphs are drawn and crossfade with a turn,
-     so the swap reads as one control changing state. The icon is green on
-     both faces — the party brand green on dark, and a deeper mint on the
-     paper, where the mint itself is 1.7:1 and would not hold up as a glyph
-     (this is ~3.9:1). */
+  /* A round icon button that shows where a press takes you: the moon on the
+     light (business) face, the sun on the dark (party) face. (It showed the
+     current state — the sun on light — and few visitors found dark mode.)
+     Both glyphs are drawn and crossfade with a turn, so the swap reads as one
+     control changing state. On party it is a quiet chip in the page's own
+     ground with the brand green glyph. */
   .mode-toggle {
     --mode-toggle-icon: var(--brand);
     position: relative;
     display: inline-grid;
     place-items: center;
-    width: 1.875rem;
-    height: 1.875rem;
+    /* Sizes here are 85% of the first round version (client: 15% smaller). */
+    width: 1.6rem;
+    height: 1.6rem;
     border: 1px solid var(--line);
-    border-radius: 0.55rem;
-    /* The page's own ground, so it reads as part of the bar, not a chip on
-       it. A white fill looked off against the warm paper. */
+    border-radius: 999px;
     background: var(--paper);
     color: var(--mode-toggle-icon);
     transition:
       border-color 0.3s var(--ease-66),
       background-color 0.3s var(--ease-66);
-  }
-
-  :root[data-mode="business"] .mode-toggle {
-    --mode-toggle-icon: #2f8a5c;
   }
 
   .mode-toggle:hover {
@@ -543,32 +538,113 @@
 
   .mode-toggle:focus-visible {
     outline: 2px solid var(--mode-toggle-icon);
-    outline-offset: 2px;
+    outline-offset: 3px;
   }
 
   @media (min-width: 64rem) {
     .mode-toggle {
-      width: 2rem;
-      height: 2rem;
+      width: 1.7rem;
+      height: 1.7rem;
+    }
+  }
+
+  /* On the light face it is there to be noticed, after the client's
+     liquid-glass reference: a white disc with a soft black moon, ringed by a
+     prismatic rim that slowly turns. (It was a dark glass disc; the client
+     kept the rim and wanted the button itself white and minimal.) The rim is a conic spectrum in two arcs
+     with dark gaps between them (so it reads as light catching an edge, not
+     as a rainbow donut), masked to a thin ring; ::after is the same ring
+     blurred, for the glow. Hover lifts it and brightens the glow. */
+  :root[data-mode="business"] .mode-toggle {
+    --mode-toggle-icon: var(--ink-1);
+    width: 1.8rem;
+    height: 1.8rem;
+    border-color: transparent;
+    background: var(--paper);
+  }
+
+  :root[data-mode="business"] .mode-toggle:hover {
+    border-color: transparent;
+    transform: scale(1.08);
+  }
+
+  :root[data-mode="business"] .mode-toggle:focus-visible {
+    outline-color: var(--ink-1);
+  }
+
+  :root[data-mode="business"] .mode-toggle::before,
+  :root[data-mode="business"] .mode-toggle::after {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      #ff5f6d 25deg,
+      #ffb347 48deg,
+      #f9f871 64deg,
+      #5ee38f 82deg,
+      #22d3ee 100deg,
+      #4f7bff 120deg,
+      #b05cff 140deg,
+      transparent 172deg,
+      transparent 192deg,
+      #22d3ee 214deg,
+      #8b5cf6 236deg,
+      #ff5fa2 258deg,
+      #ffb347 280deg,
+      transparent 318deg
+    );
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2.25px), #000 calc(100% - 1.5px));
+    animation: mode-toggle-rim 7s linear infinite;
+  }
+
+  :root[data-mode="business"] .mode-toggle::after {
+    inset: -3px;
+    filter: blur(3px);
+    opacity: 0.55;
+    mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 3px));
+    transition: opacity 0.3s var(--ease-66);
+  }
+
+  :root[data-mode="business"] .mode-toggle:hover::after {
+    opacity: 0.95;
+  }
+
+  @keyframes mode-toggle-rim {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (min-width: 64rem) {
+    :root[data-mode="business"] .mode-toggle {
+      width: 1.9rem;
+      height: 1.9rem;
     }
   }
 
   .mode-toggle__icon {
+    position: relative;
+    z-index: 1;
     grid-area: 1 / 1;
-    width: 0.95rem;
-    height: 0.95rem;
+    width: 0.8rem;
+    height: 0.8rem;
     transition:
       opacity 0.35s var(--ease-66),
       transform 0.5s var(--ease-66);
   }
 
-  .mode-toggle__icon--moon,
-  :root[data-mode="party"] .mode-toggle__icon--sun {
+  /* Light face: the moon (where a press goes); dark face: the sun. */
+  .mode-toggle__icon--sun,
+  :root[data-mode="party"] .mode-toggle__icon--moon {
     opacity: 0;
     transform: rotate(-90deg) scale(0.6);
   }
 
-  :root[data-mode="party"] .mode-toggle__icon--moon {
+  :root[data-mode="party"] .mode-toggle__icon--sun {
     opacity: 1;
     transform: none;
   }
@@ -835,11 +911,10 @@
 }
 
 /* What GTHR is, under the headline: body copy in the muted ink, sized to
-   sit a clear step under the headline and to take up some of the band
-   between the CTA and the wordmark. */
+   sit a clear step under the headline. One line (client request) wherever
+   it fits; it was held to 30ch and broke in two. Phones may still wrap it. */
 .hero-poster__subline {
   margin-top: 1.5rem;
-  max-width: 30ch;
   font-family: var(--font-system);
   font-size: clamp(1.05rem, 4.2vw, 1.25rem);
   line-height: 1.4;
@@ -1104,11 +1179,51 @@
 
   .hero-poster__subline {
     margin-top: 1.75rem;
+    white-space: nowrap;
     font-size: clamp(1.2rem, 1.55vw, 1.6rem);
   }
 
   .hero-poster__mark {
     font-size: 19vw;
+  }
+}
+
+
+/* ---------------------------------------------------------------
+   Business face, quieter (client request: "more minimal, less crammed",
+   same items and copy). From lg up the hero type steps down a size —
+   headline, subline and the big wordmark — and the sections below get
+   more room between and inside them. Unlayered and scoped to business,
+   so it beats the shared utilities and leaves the party face alone.
+   --------------------------------------------------------------- */
+@media (min-width: 64rem) {
+  :root[data-mode="business"] .hero-poster__headline {
+    font-size: clamp(2.3rem, 3.4vw, 3.8rem);
+  }
+
+  :root[data-mode="business"] .hero-poster__subline {
+    margin-top: 1.5rem;
+    font-size: clamp(1.05rem, 1.2vw, 1.3rem);
+  }
+
+  :root[data-mode="business"] .hero-poster__actions {
+    margin-top: 2.25rem;
+  }
+
+  :root[data-mode="business"] .hero-poster__mark {
+    font-size: 15vw;
+  }
+
+  :root[data-mode="business"] #about {
+    padding-block: 9rem;
+  }
+
+  :root[data-mode="business"] #services {
+    padding-block: 7rem 9rem;
+  }
+
+  :root[data-mode="business"] #services ol > li {
+    padding-block: 2.25rem;
   }
 }
 
@@ -1208,4 +1323,39 @@
    the section's utilities. */
 :root[data-mode="party"] #services {
   margin-top: -27svh;
+}
+
+/* ---------------------------------------------------------------
+   Light to dark (chrome/spill.ts): a snapshot of the light site
+   stays on top, masked by CloudBackdrop's spill (--spill-mask, a
+   new image every frame), over the live dark site — so the colour
+   field reads as spilling over the site, not over a blank page. The
+   snapshot's animation does nothing visible; it only sets how long
+   the transition holds (--spill-hold). Both layers drop the default
+   cross-fade and its additive blend.
+   --------------------------------------------------------------- */
+html[data-spilling]::view-transition-old(root),
+html[data-spilling]::view-transition-new(root) {
+  mix-blend-mode: normal;
+}
+
+html[data-spilling]::view-transition-new(root) {
+  animation: none;
+}
+
+html[data-spilling]::view-transition-old(root) {
+  z-index: 1;
+  mask-image: var(--spill-mask);
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  animation: spill-hold var(--spill-hold, 1.3s) linear both;
+}
+
+@keyframes spill-hold {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+  }
 }

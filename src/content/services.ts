@@ -1,48 +1,41 @@
 /**
- * Services rows: a title, one line, and three tags. Keep `number` zero-padded
- * so it lines up in tabular mono.
+ * Services rows: a title and a line. Keep `number` zero-padded so it lines
+ * up in tabular mono.
  *
- * DRAFT for client sign-off: the one-liners and tags replace the client's
- * paragraphs (in git history), cut down so the section scans. Fractional
- * leads with what it *is* — the term was the least understood of the five.
+ * All five lines are client copy. The three tags per row were removed at
+ * the client's request.
  */
 
 export type Service = {
   number: string;
   title: string;
   line: string;
-  tags: readonly [string, string, string];
 };
 
 export const services: Service[] = [
   {
     number: "01",
     title: "Fractional Event Management",
-    line: "An events lead on retainer, backed by a full studio — without the full-time hire.",
-    tags: ["Monthly retainer", "Full calendar", "Measured outcomes"],
+    line: "Ongoing, embedded support across your entire event roadmap. From strategy and sponsorship, to logistics and design — we focus on working with you and your team to achieve memorable outcomes based on measurable goals.",
   },
   {
     number: "02",
     title: "Event Design & Production",
-    line: "Events built around a goal, then produced end to end.",
-    tags: ["Product launches", "Investor events", "Community"],
+    line: "Every event starts with a goal. From conferences & booth builds to coffee raves & branded food trucks — we shape the concept, set the tone and build from the ground up.",
   },
   {
     number: "03",
     title: "VIP Experiences",
-    line: "High-touch moments for the people who matter most.",
-    tags: ["Private dinners", "Hosted suites", "Backstage access"],
+    line: "High-touch moments for the investors, partners and customers who matter most. Private dinners to strengthen partnerships and elevate your brand.",
   },
   {
     number: "04",
     title: "Experiential & Field Activations",
-    line: "Brand moments that land in the room and online.",
-    tags: ["Pop-ups & booths", "Content capture", "IRL + online"],
+    line: "Creative and unique field activations that grow brand awareness. We work with you to create bespoke, interactive experiences that amplify your brand. Moments built to be experienced in person, and shared online.",
   },
   {
     number: "05",
-    title: "Strategy & Advisory",
-    line: "Define what success looks like, then plan how to get there.",
-    tags: ["Objectives", "Audience", "Format"],
+    title: "Event Marketing, Strategy & Advisory",
+    line: "Know why you’re hosting before you book the venue. We help you define the goal, target the right audience and choose the right format to align with your brand marketing roadmap.",
   },
 ];

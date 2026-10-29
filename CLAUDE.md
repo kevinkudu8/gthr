@@ -26,8 +26,29 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   the next frame. Add new sections' ids to `ANCHORS`.
 - **Two faces, one page.** A toggle in the top bar switches between `business`
   (the default) and `party`, presented to visitors as **light and dark mode**:
-  a small square icon button (`ModeToggle`) filled with the page's own
-  `--paper`, a sun on business and a moon on party,
+  a round icon button (`ModeToggle`) showing where a press goes — a moon on
+  business, a sun on party (it showed the current state and few visitors
+  found dark mode). On business it is built to be noticed, after the
+  client's liquid-glass reference: a white disc, soft black moon, and a
+  prismatic rim (conic spectrum in two arcs, masked to a ring, plus a blurred
+  copy for glow) turning every 7s; static under reduced motion. On party it
+  is a quiet round chip in `--paper` with the brand green sun.
+  (A portal transition from light to dark — a disc with the rim's spectrum
+  growing from the toggle — was tried and dropped at the client's request,
+  never committed.)
+  **Light → dark, the colour field spills in over the light site**: the
+  spill itself is CloudBackdrop's (random, blobby fronts from the screen
+  edges; see the backdrop notes). `chrome/spill.ts` runs the switch as a
+  View Transition so a snapshot of the light site stays on top, masked by
+  that same spill: while `scrollState.spillMask` is set, CloudBackdrop also
+  renders the shader in mask mode (`uMaskOnly`, quarter resolution) into an
+  off-screen target, reads it back and publishes it as `--spill-mask` every
+  frame. So the site, not a blank page, is what the colour covers, exactly
+  where the white would have been. No API / reduced motion: plain switch
+  (the background still spills, or under reduced motion just switches).
+  (Also tried and dropped: a whole-page View Transition swallowed by a
+  closing ellipse, and one where the dark site floods over a snapshot of the
+  light site through a per-frame canvas mask with soft, watery fronts.)
   both glyphs drawn and crossfaded in CSS off `data-mode`; its accessible name
   (`modeToggle` in `site.ts`) says what a press will do. It was a
   business/party segmented pill. Sections and copy are **nearly identical**
@@ -66,7 +87,10 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   Nav links are in-page anchors. Don't add routes or sections without asking.
 - **Copy lives in `src/content/`** (`site.ts`, `services.ts`). Components never
   hard-code user-facing strings. Client-supplied and verbatim: both statements,
-  the line under the contact form, `hero.line`, and everything in `about`.
+  the line under the contact form (`contact.reach`), `hero.line`, and
+  everything in `about`. The email is `hello@gthr.agency` (`site.email`, also
+  printed on the badge and the form's fallback recipient); gthr.com is not
+  GTHR's.
   The about paragraph opens on `about.lead`, "GTHR (Gather)", set in bold
   (client request); `Reveal lines` splits strings inside inline elements too,
   so marked-up copy still rises line by line.
@@ -75,16 +99,17 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   second statement is a full screen with its text centred). A margin rather
   than a shorter block, so `scrollState.statement` and the ticket's timing
   are unchanged.
-- **Services** (`services.ts`) are `{ number, title, line, tags[3] }`: one
-  line and three mono pill tags per row, replacing the client's paragraphs
-  (in git history) because the section read as wordy. The lines and tags are
-  a **draft awaiting client sign-off**. Fractional leads with what it *is*
-  ("an events lead on retainer…") — it was the least understood term. No
+- **Services** (`services.ts`) are `{ number, title, line }`: one line per
+  row, replacing the client's paragraphs (in git history) because the
+  section read as wordy. All five lines are client copy now (longer than the
+  old one-liners), and the last service is "Event Marketing, Strategy &
+  Advisory". The three
+  mono pill tags per row were removed at the client's request. No
   client logo strip until GTHR has clients of its own (past clients were
   previous companies'). Rows stay compact.
   (A photo per row was tried and removed — rows got tall and titles wrapped.)
 - **Socials:** X is `x.com/gthragency` (confirmed; the badge handle is
-  `@gthragency` to match). Telegram is still a placeholder.
+  `@gthragency` to match). Telegram is still a placeholder — and the badge's QR code points at it.
 - **Business tokens** live in one `:root[data-mode="business"]` block in
   `globals.css`. Everything already reads `--paper` / `--ink-rgb` / `--brand`,
   so the whole DOM reskins from those lines; `.glass` is the one thing that
@@ -165,13 +190,25 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   is smoked now, with a light rim for the edge) and the backdrop's grid
   hairlines (white on this face, black on business).
   No `dark:` variants and no separate theme toggle — the two faces *are* the
-  light/dark toggle. The toggle's icon is the one green glyph on the paper:
-  `#2f8a5c`, a deeper mint (~3.9:1), since the mint itself fails as a glyph.
+  light/dark toggle. (On business the toggle is the white disc with a
+  soft black moon, described above; it used to carry a deeper-mint `#2f8a5c`
+  glyph on the paper.)
   **Legibility rule:** the vignette holds the gutters darker, and anything
   dense over colour goes in a `.glass` card.
 - **Type:** Syne (variable, 800 for `.display`) and Martian Mono for nav, clock,
   numbers, eyebrows. Display type is viewport-sized (`text-[Nsvw]`), uppercase,
   `leading-[0.9]`.
+- **Business is quieter from `lg` up** (client: "more minimal, less
+  crammed", same items and copy): headline `clamp(2.3rem, 3.4vw, 3.8rem)`,
+  subline ~1.2vw, wordmark 15vw (was 19vw), About `padding-block: 9rem`,
+  Services 7rem/9rem with 2.25rem rows — one unlayered block in globals.css.
+  Matching the hero's side padding to "Who are we" (lg:px-24 xl:px-36) was
+  tried and reverted. The smaller type also lets the badge show down to
+  ~1280. Badge placement has a second fallback: if the band above the
+  wordmark would put the card over the headline, the band starts under the
+  headline and the card only has to clear the subline and CTA
+  (`headlineBottom`, `bodyRight` in `heroBoxes`), with the strap alone
+  passing the headline's end.
 - **Grid:** every section is `grid grid-cols-12 px-4 lg:px-14 py-18 lg:py-24`,
   except Hero, About and Services, which sit in from the sides at `lg:px-24
   xl:px-36` — at `px-14` their text, stat cards and rows ran too wide (the
@@ -221,6 +258,21 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     so it fades out with the switch to business. Business had it too, in the
     `--line` colour, until the client asked for it gone after the ground went
     white.
+    **Light → dark, the white ground is spilled over** rather than
+    crossfaded: per pixel, `light` (how much is still the light face) is
+    `uBusiness` normally, but after a switch to party it is a front sweeping
+    through each pixel's *order* — its distance from the nearest screen edge,
+    plus drifting fbm noise (`uSpillSeed`, random per switch) and minus the
+    field's own heat, so colour pours in from its shapes along ragged fronts.
+    `uSpill` runs on its own clock (`SPILL_S` 0.96 — 20% quicker than the first 1.2 — ease-out), not
+    `businessMix`, which the scene's sequencing is built on; the front spans
+    -0.32..1.48 (the orders actually reached — wider and nothing happened for
+    the first third, while the dark face's white type sat on white). Grain is
+    per pixel by `light` too. Dark → light drops `uSpillOn` and crossfades.
+    The glass word waits for it: `wordGate` is 0 until `WORD_AT` (0.8; 1 read
+    as late, 0.65 as early) of the spill's time — the screen is mostly covered by then — and 1 after, eased (`wordGateMix`, ~0.6s) and multiplied into
+    `partyPresence()`, so `gthr` grows in as the colour finishes filling
+    the screen (at the very end it read as late).
   - `HeroLetters` — the wordmark as one connected cursive word, lowercase
     `gthr` in Pacifico. `pacifico-gthr.typeface.json` holds the four glyphs
     **unioned into one outline** (glyph key `w`; rebuild with the scratch
@@ -333,8 +385,8 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     (`.hero-poster__mark-word--mid`), or it would butt against "be".
     Under the headline, **`poster.subline`** says what GTHR is ("An events
     and experiential marketing agency for web3 and tech."), which the
-    headline alone never did; muted, ~30ch, and it also takes up some of the
-    empty band between the CTA and the wordmark.
+    headline alone never did; muted, on one line from `lg` up (it was
+    held to ~30ch and broke in two; the client wanted one line).
     The marker is trimmed to cap height and baseline (`text-box: trim-both
     cap alphabetic`, inline-block) with equal `0.3em` padding, so the room
     above and below the words is equal in every browser; untrimmed, the
@@ -468,6 +520,12 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     type on paper), the `01\` pill (mint fill, black type), the access line,
     and `GTHR.` large. Under it the pass line, a grey name chip and an outlined
     agency chip, the Focus/Web columns, handle + reference, and the QR block.
+    **The panel's glows drift**, very slowly (a few px a second, loops of
+    80–120s, `GLOWS`): the face is composed from cached layers — the card
+    without glows (painted once per name, grain and all), the glows
+    (pre-blurred sprites placed by time), the panel type on top — and
+    reprinted at `GLOW_FPS` (12) while the card is on screen. Still under
+    reduced motion.
     All copy is `badge` in `site.ts`. The face is also its own `emissiveMap`
     at 0.3 so the stock lands near the page's paper rather than a lit grey.
     Textures are *baked* once. **The card's colours are the CSS tokens painted
@@ -525,8 +583,10 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     visitor types there themselves. The field only shows while the card is on screen: Badge sets
     `data-badge-shown` on `<html>`, and the field is held with `visibility`
     so the CTA never shifts.
-    The QR pattern is hashed from the cell index, not `Math.random()`, or it
-    would shimmer on every repaint.
+    The QR code is **real** (`qrcode-generator`, ECC L, 128px, solid
+    modules): scanned, it opens the Telegram link from `socials`, so it
+    follows that link. Checked by decoding screenshots of the rendered card
+    with Chrome's BarcodeDetector at 1x and 2x.
     (It used to travel through the statements block on scroll, with the
     statements clipped to a white twin wherever the strap crossed them. Both
     went when the block became party-only; they are in the history.)
@@ -561,7 +621,8 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   eyebrow, the client's about paragraph with a **photo slideshow** to its
   right (5 columns at `lg`, right-aligned, top-aligned with the paragraph
   and a little taller than it; always 3:2, stacked below it on phones), a row of four
-  **stats**, and a founder line — all client copy in `about` (`site.ts`).
+  **stats** — all client copy in `about` (`site.ts`). (A founder line under
+  the stats was removed at the client's request.)
   The slideshow is `ui/PhotoSlides`: the client's event photos (originals in
   `Design/`, web copies ≤2000px in `public/about/`, order and alt text in
   `about.photos`) stacked in one 3:2 box and crossfaded on a 4.25s timer, which

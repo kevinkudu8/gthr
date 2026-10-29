@@ -3,7 +3,17 @@
 import { ScreenQuad } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { Color, Vector3, Vector4, type ShaderMaterial } from "three";
+import {
+  Color,
+  Mesh,
+  OrthographicCamera,
+  PlaneGeometry,
+  Scene,
+  Vector3,
+  Vector4,
+  WebGLRenderTarget,
+  type ShaderMaterial,
+} from "three";
 import { scrollState } from "./scrollState";
 
 const vertexShader = /* glsl */ `
@@ -24,6 +34,14 @@ const fragmentShader = /* glsl */ `
   uniform float uCalm;
   uniform float uEnd;
   uniform float uBusiness;
+  // The light-to-dark spill: progress 0..1, 1 while the last switch was one
+  // (0 means plain crossfade on uBusiness), and a per-switch random offset.
+  uniform float uSpill;
+  uniform float uSpillOn;
+  uniform vec2 uSpillSeed;
+  // 1: draw only the spill (how much is still light, as grey) -- the mask
+  // pass for chrome/spill.ts. 0: the ground itself.
+  uniform float uMaskOnly;
   uniform vec3 uPaper;
   uniform vec3 uBusinessPaper;
   uniform float uGrid;
@@ -43,6 +61,29 @@ const fragmentShader = /* glsl */ `
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+  }
+
+  // Smooth value noise and a few octaves of it, for the spill's fronts.
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+
+  float fbm(vec2 p) {
+    float v = 0.0;
+    float amp = 0.5;
+    for (int o = 0; o < 4; o++) {
+      v += amp * vnoise(p);
+      p = p * 2.03 + 17.1;
+      amp *= 0.5;
+    }
+    return v;
   }
 
   // The reference artwork's width, in units of its height.
@@ -179,7 +220,29 @@ const fragmentShader = /* glsl */ `
     // section intensity only trims it rather than fading it back to flat.
     // The vignette still darkens the gutters, which is what keeps the chrome
     // and the hairline grid legible over the warm band.
-    float strength = (0.88 + 0.12 * uIntensity) * mix(0.80, 1.0, vig) * (1.0 - uBusiness);
+    /* How much of this pixel is still the light face. Normally that is
+       uBusiness everywhere (a crossfade). Going light to dark it is the
+       spill: the colour field eats the white from the screen edges along
+       random, blobby fronts. Each pixel has an order in which it turns --
+       its distance from the nearest edge, pushed about by slow drifting
+       noise (reseeded every switch) and brought forward where the field
+       itself runs hot, so colour pours in from its own shapes -- and a front
+       sweeps through those orders as uSpill runs 0 to 1, with a narrow
+       feather. */
+    vec2 sq = sv * vec2(aspect, 1.0);
+    float edgeDist = min(min(sq.x, aspect - sq.x), min(sq.y, 1.0 - sq.y));
+    float wobble = fbm(sq * 2.2 + uSpillSeed + vec2(uTime * 0.12, -uTime * 0.09));
+    float order = edgeDist * 1.6 + (wobble - 0.5) * 0.9 + (1.0 - clamp(heat, 0.0, 1.0)) * 0.35;
+    // Spans the orders actually reached (about -0.3 at the edges to 1.45).
+    float front = mix(-0.32, 1.48, uSpill);
+    float spilled = smoothstep(front - 0.05, front + 0.05, order);
+    float light = mix(uBusiness, spilled, uSpillOn);
+    if (uMaskOnly > 0.5) {
+      gl_FragColor = vec4(vec3(light), 1.0);
+      return;
+    }
+
+    float strength = (0.88 + 0.12 * uIntensity) * mix(0.80, 1.0, vig) * (1.0 - light);
     /* Business: one flat white, the whole way down. There used to be
        a green gradient behind the hero here (businessRoom) that uRoom faded
        into this colour as the page scrolled on; the face is black-and-paper
@@ -189,7 +252,7 @@ const fragmentShader = /* glsl */ `
 
        No backticks in here: this whole shader is a template literal, and one
        in a comment ends it silently -- the quad just stops drawing. */
-    vec3 paper = mix(uPaper, uBusinessPaper, uBusiness);
+    vec3 paper = mix(uPaper, uBusinessPaper, light);
     // Opaque output: blended toward paper here rather than via alpha, so the
     // quad stays in the opaque pass and is drawn *under* the letters.
     vec3 col2 = mix(paper, col, strength);
@@ -243,7 +306,9 @@ const fragmentShader = /* glsl */ `
        version was tried at the client's request and reverted — it looked
        better moving.) */
     float g = hash(floor(gl_FragCoord.xy / max(1.0, uDpr * 0.5)) + fract(uTime) * 91.7);
-    col2 += (g - 0.5) * uGrain;
+    // Only where the dark face is: none on the white, none on the spill's
+    // unconsumed patches.
+    col2 += (g - 0.5) * uGrain * (1.0 - light);
 
     gl_FragColor = vec4(col2, 1.0);
   }
@@ -291,6 +356,43 @@ const hex = (s: string) =>
     parseInt(s.slice(4, 6), 16) / 255,
   );
 
+/** The off-screen pass that draws the spill as a mask, and where it is read back to. */
+type MaskPass = {
+  target: WebGLRenderTarget;
+  scene: Scene;
+  camera: OrthographicCamera;
+  quad: Mesh;
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D | null;
+  pixels: Uint8Array;
+  image: ImageData | null;
+};
+
+function makeMaskPass(): MaskPass {
+  const scene = new Scene();
+  // The vertex shader writes clip space directly, so any camera will do and a
+  // 2x2 plane covers the target.
+  const quad = new Mesh(new PlaneGeometry(2, 2));
+  quad.frustumCulled = false;
+  scene.add(quad);
+  const canvas = document.createElement("canvas");
+  return {
+    target: new WebGLRenderTarget(2, 2, { depthBuffer: false }),
+    scene,
+    camera: new OrthographicCamera(),
+    quad,
+    canvas,
+    ctx: canvas.getContext("2d"),
+    pixels: new Uint8Array(16),
+    image: null,
+  };
+}
+
+/** How long the light-to-dark spill takes to swallow the white, seconds. */
+const SPILL_S = 0.96;
+/** How far through the spill (0..1 of its time) the glass word starts in. */
+const WORD_AT = 0.8;
+
 /** How fast the ground travels against the page: below 1 it sits behind it. */
 const PARALLAX = 0.75;
 
@@ -300,6 +402,10 @@ const PARALLAX = 0.75;
  */
 export function CloudBackdrop() {
   const material = useRef<ShaderMaterial>(null);
+  /** The face the spill last saw as the target, whether one is running, and when it began. */
+  const spill = useRef({ target: scrollState.business, on: false, start: 0 });
+  /** The spill mask's off-screen pass, made on first use (see useFrame). */
+  const maskPass = useRef<MaskPass | null>(null);
   const { gl, size } = useThree();
   /**
    * The heat trail, a ring of points dropped behind the moving pointer:
@@ -321,6 +427,10 @@ export function CloudBackdrop() {
       uCalm: { value: 0 },
       uEnd: { value: 0 },
       uBusiness: { value: 0 },
+      uSpill: { value: 0 },
+      uSpillOn: { value: 0 },
+      uSpillSeed: { value: [0, 0] },
+      uMaskOnly: { value: 0 },
       uGrid: { value: 1 },
       uDpr: { value: 1 },
       uGrain: { value: 0 },
@@ -373,13 +483,83 @@ export function CloudBackdrop() {
     // Subtle, a touch under the original 0.075. 0.11 and 0.09 read as TV
     // static; an ordered (Bayer) dither was tried with it and removed — its
     // 4x4 pattern showed as fine lines on the smooth gradients.
-    m.uniforms.uGrain.value = 0.06 * (1 - scrollState.businessMix);
+    // Scaled per pixel in the shader, by how much of it is still light.
+    m.uniforms.uGrain.value = 0.06;
     m.uniforms.uTime.value = reducedMotion ? 12 : clock.elapsedTime;
     m.uniforms.uIntensity.value = backdrop;
     m.uniforms.uCalm.value = scrollState.calm;
     m.uniforms.uEnd.value = scrollState.end;
     m.uniforms.uScroll.value = (scrollState.y / Math.max(1, scrollState.vh)) * PARALLAX;
     m.uniforms.uBusiness.value = scrollState.businessMix;
+
+    // The spill, light to dark only: started when the target face flips to
+    // party, run on its own clock (not businessMix, whose ease the rest of
+    // the scene's sequencing is built on), with a fresh random seed so no two
+    // spills are alike. Going back to light drops it, and the ground
+    // crossfades as before. Not under reduced motion.
+    const sp = spill.current;
+    if (scrollState.business !== sp.target) {
+      const toDark = sp.target === 1 && scrollState.business === 0;
+      sp.target = scrollState.business;
+      sp.on = toDark && !reducedMotion;
+      sp.start = clock.elapsedTime;
+      if (sp.on) {
+        m.uniforms.uSpillSeed.value = [Math.random() * 40, Math.random() * 40];
+        // The glass word waits for the colour to fill the screen.
+        scrollState.wordGate = scrollState.wordGateMix = 0;
+      }
+    }
+    const k = Math.min(1, (clock.elapsedTime - sp.start) / SPILL_S);
+    // Released while the last patches are still closing (by 0.8 of the
+    // time the ease-out has covered ~96% of the way), so the word arrives
+    // with the end of the spill rather than after it. (At the very end it
+    // read as late; at 0.65 a touch early.)
+    scrollState.wordGate = sp.on && k < WORD_AT ? 0 : 1;
+    // Ease out: most of the screen goes at once — the dark face's white type
+    // is already up, and the edges, where it sits, go first — and the last
+    // patches of white close more gently in the middle.
+    m.uniforms.uSpill.value = 1 - (1 - k) ** 2;
+    m.uniforms.uSpillOn.value = sp.on ? 1 : 0;
+
+    // While chrome/spill.ts holds the light site's snapshot over the page,
+    // hand it the spill as a mask: the same shader in mask mode, at a quarter
+    // of the screen's size, read back and passed to CSS as a data URL. The
+    // snapshot then shows exactly where the white would, so the colour field
+    // reads as covering the site rather than a blank page.
+    if (scrollState.spillMask && sp.on) {
+      const mk = maskPass.current ?? (maskPass.current = makeMaskPass());
+      const w = Math.max(2, Math.round(size.width / 4));
+      const h = Math.max(2, Math.round(size.height / 4));
+      if (mk.target.width !== w || mk.target.height !== h) {
+        mk.target.setSize(w, h);
+        mk.canvas.width = w;
+        mk.canvas.height = h;
+        mk.pixels = new Uint8Array(w * h * 4);
+        mk.image = mk.ctx?.createImageData(w, h) ?? null;
+      }
+      mk.quad.material = m;
+      const resolution = m.uniforms.uResolution.value;
+      m.uniforms.uResolution.value = [w, h];
+      m.uniforms.uMaskOnly.value = 1;
+      gl.setRenderTarget(mk.target);
+      gl.render(mk.scene, mk.camera);
+      gl.setRenderTarget(null);
+      m.uniforms.uMaskOnly.value = 0;
+      m.uniforms.uResolution.value = resolution;
+      gl.readRenderTargetPixels(mk.target, 0, 0, w, h, mk.pixels);
+      if (mk.ctx && mk.image) {
+        // GL rows run bottom-up; the mask is the grey, as alpha.
+        for (let y = 0; y < h; y++) {
+          const from = (h - 1 - y) * w * 4;
+          const to = y * w * 4;
+          for (let x = 0; x < w; x++) {
+            mk.image.data[to + x * 4 + 3] = mk.pixels[from + x * 4];
+          }
+        }
+        mk.ctx.putImageData(mk.image, 0, 0);
+        document.documentElement.style.setProperty("--spill-mask", `url(${mk.canvas.toDataURL()})`);
+      }
+    }
 
     // The heat trail: a new point each time the pointer has moved a little,
     // hotter the faster it went — a thin line, close-spaced so it reads as

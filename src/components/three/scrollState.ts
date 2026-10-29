@@ -62,6 +62,20 @@ export const scrollState = {
   business: 1,
   /** `business`, eased — everything in the scene crossfades on this. */
   businessMix: 1,
+  /**
+   * True while chrome/spill.ts holds a snapshot of the light site over the
+   * page: CloudBackdrop then also publishes its spill as a CSS mask
+   * (`--spill-mask`), so the snapshot goes exactly where the colour arrives.
+   */
+  spillMask: false,
+  /**
+   * Holds the party face's glass word back while the light-to-dark spill is
+   * still filling the screen: target 0 during a spill, 1 otherwise (set by
+   * CloudBackdrop), eased into `wordGateMix` by Scene, and folded into
+   * `partyPresence()` so the word grows in once the colour has arrived.
+   */
+  wordGate: 1,
+  wordGateMix: 1,
   reducedMotion: false,
 };
 
@@ -88,7 +102,7 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
  */
 export function partyPresence() {
   const t = clamp01(scrollState.businessMix / 0.55);
-  return 1 - t * t * (3 - 2 * t);
+  return (1 - t * t * (3 - 2 * t)) * scrollState.wordGateMix;
 }
 const elements = new Map<string, HTMLElement>();
 

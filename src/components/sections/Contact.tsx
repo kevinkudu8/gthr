@@ -31,22 +31,20 @@ export function Contact() {
           delay={240}
           className="mt-12 text-center font-mono text-sm leading-relaxed text-ink-2"
         >
-          {contact.orEmail.before}{" "}
+          {contact.reach.before}{" "}
           <a href={`mailto:${contact.email}`} className="text-ink-1 underline underline-offset-4">
             {contact.email}
-          </a>{" "}
-          {contact.orEmail.after}
-          <br />
-          {contact.urgent.before}{" "}
+          </a>
+          {contact.reach.middle}{" "}
           <a
             href={telegram}
             target="_blank"
             rel="noopener noreferrer"
             className="text-ink-1 underline underline-offset-4"
           >
-            {contact.urgent.link}
+            {contact.reach.link}
           </a>
-          {contact.urgent.after}
+          {contact.reach.after}
         </Reveal>
       </div>
     </section>
