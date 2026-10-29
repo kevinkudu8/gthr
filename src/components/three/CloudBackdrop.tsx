@@ -96,9 +96,6 @@ const fragmentShader = /* glsl */ `
 
   // The reference artwork's width, in units of its height.
   const float REF_W = 1.736;
-  // The phone grid's one row, as a fraction of the screen's height: under
-  // the raised glass word, above the copy.
-  const float PHONE_ROW = 0.56;
   // Below the reference's own bottom edge the field is held constant in y...
   const float EXTEND = 0.95;
   // ...and the page folds back on itself (a vertical mirror) every FOLD.
@@ -300,16 +297,18 @@ const fragmentShader = /* glsl */ `
 
       float line = 0.0;
       float cross = 0.0;
-      /* Phones: one row instead of two (client: fewer lines across a
-         phone), set between the glass word and the copy under it, and the
-         whole grid fainter -- on a small screen it cut through both. */
+      /* Phones: two columns and two rows -- the gutter lines at the screen's
+         edges are dropped, the thirds kept (client: "2 horizontally and 2
+         vertically") -- and the whole grid fainter. (One row, between the
+         word and the copy, was tried and was the wrong lines to lose.) */
       bool phone = uPhoneGrid > 0.5;
       for (int k = 0; k < 4; k++) {
+        if (phone && (k == 0 || k == 3)) continue;
         float gx = gutter + (w - 2.0 * gutter) * float(k) / 3.0;
         float dx = abs(px.x - gx);
         line = max(line, 1.0 - smoothstep(0.0, 1.0, dx));
         for (int j = 1; j < 3; j++) {
-          float gy = phone ? (j == 1 ? h * PHONE_ROW : -100.0) : h * float(j) / 3.0;
+          float gy = h * float(j) / 3.0;
           float dy = abs(px.y - gy);
           float armV = step(dy, 5.5) * (1.0 - smoothstep(0.0, 1.0, dx));
           float armH = step(dx, 5.5) * (1.0 - smoothstep(0.0, 1.0, dy));
@@ -317,8 +316,7 @@ const fragmentShader = /* glsl */ `
         }
       }
       for (int j = 1; j < 3; j++) {
-        float gy = phone ? (j == 1 ? h * PHONE_ROW : -100.0) : h * float(j) / 3.0;
-        line = max(line, 1.0 - smoothstep(0.0, 1.0, abs(px.y - gy)));
+        line = max(line, 1.0 - smoothstep(0.0, 1.0, abs(px.y - h * float(j) / 3.0)));
       }
 
       /* Party only: white hairlines at a low alpha (the face is dark, black
@@ -427,11 +425,13 @@ const SPILL_S = 0.72;
 const WORD_AT = 0.6;
 
 /**
- * How far up the field is lifted on a phone held upright, in screen heights
- * (0.15, 0.25 and 0.35 tried; past ~0.25 the bottom, behind the hero copy,
- * runs dark).
+ * How far up the field is lifted on a phone held upright, in screen heights.
+ * 0.2 first; then 0.38, with the glass word raised (HeroLetters'
+ * PHONE_RAISE) and the client wanting the colour behind it rather than the
+ * reference's black top — 0.38 with the word at 0.08 sets it on the band,
+ * the copy under it on the darker ground.
  */
-const PORTRAIT_LIFT = 0.2;
+const PORTRAIT_LIFT = 0.38;
 
 /** How fast the ground travels against the page: below 1 it sits behind it. */
 const PARALLAX = 0.75;

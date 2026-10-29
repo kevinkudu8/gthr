@@ -49,7 +49,7 @@ const easeOutBack = (t: number) => {
 type Props = { reducedMotion: boolean; mobile: boolean };
 
 /** How far up the word sits on phones, in viewport heights from centre. */
-const PHONE_RAISE = 0.13;
+const PHONE_RAISE = 0.08;
 /** The glass's tint on phones, darker than desktop's #c2ccda. */
 const PHONE_GLASS = "#7f8996";
 
@@ -207,7 +207,8 @@ export function HeroLetters({ reducedMotion, mobile }: Props) {
     const g = fontData.glyphs[WORD];
     const res = fontData.resolution;
     const widthEm = (g.x_max - g.x_min) / res;
-    const size = (viewport.width * (mobile ? 0.66 : 0.5)) / widthEm;
+    // Phones: most of the screen's width (0.66 read small once it was raised).
+    const size = (viewport.width * (mobile ? 0.82 : 0.5)) / widthEm;
     return {
       size,
       centerX: (-((g.x_min + g.x_max) / 2) * size) / res,

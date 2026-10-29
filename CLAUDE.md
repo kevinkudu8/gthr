@@ -248,9 +248,10 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     `uQuadCoords` = 1). Desktop keeps the old read (`uQuadCoords` 0): its
     buffer covers most of the screen, and the glass was tuned on it — the
     fix there shows more pink/blue through the g; not taken without asking.
-  * The field is lifted on portrait screens (`uLift`, `PORTRAIT_LIFT` 0.2
+  * The field is lifted on portrait screens (`uLift`, `PORTRAIT_LIFT` 0.38
     screen heights at phone aspect, scaled to 0 at square; client: the
-    gradient should fill more of a phone — its black top was ~40% of it).
+    gradient should fill more of a phone, and sit behind the glass word —
+    0.2 left the reference's black top behind the raised word).
   * Film grain 0.035 on phones (0.06 desktop): at 1.25x scaled up, each
     grain is several device pixels and crawled.
 - **Six services, one screen** (client: add "Content Capture & Media", and
@@ -263,16 +264,19 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 - **Phone badge stays on the CTA:** no reel-off on scroll; it scrolls with
   the page (`exitY = scrollState.y`, `leave` 0 on mobile).
 - **Party hero on phones** (client review of a real iPhone shot):
-  * The glass word is raised `PHONE_RAISE` (0.13 viewport heights) into the
-    upper half — it sat low, the g's tail on the copy, the top third empty.
+  * The glass word is 0.82 of the screen's width on phones (was 0.66) and
+    raised `PHONE_RAISE` (0.08 viewport heights; 0.13 put it over the
+    field's black top) — it sat low, the g's tail on the copy.
     (Applied in HeroLetters' useFrame, which sets the word's y every frame;
     the JSX `position` on that group is overwritten.)
   * Glass on phones: tint `PHONE_GLASS` #7f8996 (desktop #c2ccda) so it
     reads as dark glass over the bright band, 14 samples (10 left a
     sandpaper grain), party canvas DPR 1.5 (was 1.25).
   * Copy centred, the "01\ Events & experiences" pill hidden below lg.
-  * Grid on phones (`uPhoneGrid`): one row at `PHONE_ROW` 0.56 (between the
-    word and the copy) instead of two, and at 0.55 of desktop's strength.
+  * Grid on phones (`uPhoneGrid`): the two gutter columns at the screen's
+    edges dropped, the thirds and both rows kept ("2 horizontally and 2
+    vertically"), at 0.55 of desktop's strength. A single row was tried
+    first — the wrong lines to lose.
 - **Phone tilt on the glass word: built and taken out.** Device
   orientation turned the party word on phones; dropped by the client
   because iOS needs a permission prompt for it. In the history.

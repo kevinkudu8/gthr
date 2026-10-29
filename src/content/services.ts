@@ -26,7 +26,7 @@ export const services: Service[] = [
   {
     number: "03",
     title: "VIP Experiences",
-    line: "High-touch moments for the investors, partners and customers who matter most. Private dinners to strengthen partnerships and elevate your brand.",
+    line: "Exclusive high-touch moments for the investors, partners and customers who matter most. Invite-only occasions and carefully curated gatherings to strengthen partnerships and elevate your brand.",
   },
   {
     number: "04",
