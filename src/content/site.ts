@@ -12,7 +12,7 @@ export const site = {
   wordmarkSuffix: "©2026",
   description:
     "GTHR is an end-to-end creative collaborator for events — from pitch to post, embedded with your team at every step.",
-  url: "https://gthr.com",
+  url: "https://gthr.agency",
   email: "hello@gthr.agency",
 } as const;
 

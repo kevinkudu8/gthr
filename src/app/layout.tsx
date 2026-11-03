@@ -32,7 +32,8 @@ export const metadata: Metadata = {
   title: site.name,
   description: site.description,
   // Absolute URLs for the link preview are built from this, so it has to be
-  // where the site actually lives. It is NOT `site.url`: gthr.com is someone
+  // where the site actually lives (Vercel's production domain, gthr.agency once
+  // attached), not `site.url` — that was once gthr.com, which is someone
   // else's site. Vercel supplies the production domain to every build (a
   // custom domain, once one is attached); locally it falls back to the dev
   // server.

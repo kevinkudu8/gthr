@@ -19,13 +19,13 @@ export const services: Service[] = [
     number: "01",
     title: "Fractional Event Management",
     short: "Fractional",
-    line: "Ongoing, embedded support across your entire event roadmap. From strategy and sponsorship, to logistics and design — we focus on working with you and your team to achieve memorable outcomes based on measurable goals.",
+    line: "Ongoing, embedded support across your entire event roadmap. From strategy and sponsorship to logistics and design, we focus on working with you and your team to achieve memorable outcomes based on measurable goals.",
   },
   {
     number: "02",
     title: "Event Design & Production",
     short: "Design & production",
-    line: "Every event starts with a goal. From conferences & booth builds to coffee raves & branded food trucks — we shape the concept, set the tone and build from the ground up.",
+    line: "Every event starts with a goal. From conferences & booth builds to coffee raves & branded food trucks, we shape the concept, set the tone and build from the ground up.",
   },
   {
     number: "03",
@@ -49,6 +49,6 @@ export const services: Service[] = [
     number: "06",
     title: "Content Capture & Media",
     short: "Content & media",
-    line: "Amplify your brand beyond the IRL — reach the people in the room and the people who aren’t. We provide the content and the creators to turn your activation into viral moments that travel.",
+    line: "Amplify your brand beyond the IRL. Reach the people in the room and the people who aren’t. We provide the content and the creators to turn your activation into viral moments that travel.",
   },
 ];
