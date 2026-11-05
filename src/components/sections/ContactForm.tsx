@@ -25,7 +25,7 @@ export function ContactForm() {
   const nameTouched = useRef(false);
 
   // The name a visitor put on the hero's badge (BadgeNameField) carries into
-  // Name, so "Start a project" arrives with it filled in. Written to the
+  // Name, so "Work with us" arrives with it filled in. Written to the
   // uncontrolled input directly: the form posts FormData, so its fields stay
   // uncontrolled.
   useEffect(() => {

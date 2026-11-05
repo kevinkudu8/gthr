@@ -22,9 +22,11 @@ export function About() {
       className="grid w-full scroll-mt-16 grid-cols-12 px-4 py-18 lg:scroll-mt-24 lg:px-24 lg:py-24 xl:px-36"
       aria-labelledby="about-heading"
     >
-      <Reveal as="h2" id="about-heading" className="eyebrow col-span-12 mb-4 px-2">
+      {/* The section opens on the paragraph itself (client: the "Who are we"
+          label was removed); the heading stays for screen readers. */}
+      <h2 id="about-heading" className="sr-only">
         {about.eyebrow}
-      </Reveal>
+      </h2>
       <Reveal
         as="p"
         lines

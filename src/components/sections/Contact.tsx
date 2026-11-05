@@ -1,8 +1,7 @@
 import { Reveal } from "@/components/ui/Reveal";
-import { contact, socials } from "@/content/site";
+import { contact } from "@/content/site";
 import { ContactForm } from "./ContactForm";
 
-const telegram = socials.find((s) => s.id === "telegram")!.href;
 
 export function Contact() {
   return (
@@ -38,15 +37,6 @@ export function Contact() {
           {contact.reach.before}{" "}
           <a href={`mailto:${contact.email}`} className="text-ink-1 underline underline-offset-4">
             {contact.email}
-          </a>
-          {contact.reach.middle}{" "}
-          <a
-            href={telegram}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-ink-1 underline underline-offset-4"
-          >
-            {contact.reach.link}
           </a>
           {contact.reach.after}
         </Reveal>

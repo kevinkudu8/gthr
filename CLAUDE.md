@@ -88,7 +88,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 - **Copy lives in `src/content/`** (`site.ts`, `services.ts`). Components never
   hard-code user-facing strings. Client-supplied and verbatim: both statements,
   the line under the contact form (`contact.reach`), `hero.line`, and
-  everything in `about`. The email is `hello@gthr.agency` (`site.email`, also
+  everything in `about`. The email is `info@gthr.agency` (`site.email`, also
   printed on the badge and the form's fallback recipient); gthr.com is not
   GTHR's.
   The about paragraph opens on `about.lead`, "GTHR (Gather)", set in bold
@@ -690,7 +690,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
     **Below `lg` (phones, tablets) it hangs from the CTA** (`phonePlacement`;
     it used to be hidden there, and the client asked for it): every hero line
     runs near full width, so a strap up the screen would cross the type.
-    Centred under "Start a project", sized to the gap between the button and
+    Centred under the CTA ("Work with us"), sized to the gap between the button and
     the wordmark (never above full size; hidden below ~90px wide, i.e. phones
     held sideways), with the strap running up behind the button — solid mint,
     so it hides it — and fading out there through an `alphaMap` ramp placed

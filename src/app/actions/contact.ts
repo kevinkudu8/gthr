@@ -47,7 +47,12 @@ export async function sendInquiry(
     },
     body: JSON.stringify({
       from: process.env.CONTACT_FROM ?? "GTHR <onboarding@resend.dev>",
-      to: [process.env.CONTACT_TO ?? site.email],
+      // CONTACT_TO may list several addresses, comma-separated, so every
+      // inquiry lands in each inbox (e.g. both founders).
+      to: (process.env.CONTACT_TO ?? site.email)
+        .split(",")
+        .map((address) => address.trim())
+        .filter(Boolean),
       reply_to: email,
       subject: `Inquiry from ${name}${company ? ` (${company})` : ""}`,
       text: [

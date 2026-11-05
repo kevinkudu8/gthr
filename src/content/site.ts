@@ -13,7 +13,7 @@ export const site = {
   description:
     "GTHR is an end-to-end creative collaborator for events — from pitch to post, embedded with your team at every step.",
   url: "https://gthr.agency",
-  email: "hello@gthr.agency",
+  email: "info@gthr.agency",
 } as const;
 
 /** Bottom-right links. X is confirmed; the Telegram handle is still a PLACEHOLDER. */
@@ -65,7 +65,7 @@ export const poster = {
   label: "Events & experiences",
   text: "Experiences built to scale, designed to be remembered",
   /** Scrolls to the contact section. */
-  cta: { label: "Start a project", href: "#contact" },
+  cta: { label: "Work with us", href: "#contact" },
   /**
    * The field beside the CTA that prints the visitor's own name on the
    * hero's badge (sections/BadgeNameField.tsx). The label is for screen
@@ -221,13 +221,11 @@ export const contact = {
   sending: "Sending…",
   sent: "Got it. We'll be in touch.",
   /**
-   * The line under the form: "Or email hello@gthr.agency. Urgent? DM us on
-   * Telegram." The email and "Telegram" are links.
+   * The line under the form: "Or email info@gthr.agency." The email is a
+   * link. (The "Urgent? DM us on Telegram." half was dropped.)
    */
   reach: {
     before: "Or email",
-    middle: ". Urgent? DM us on",
-    link: "Telegram",
     after: ".",
   },
 } as const;
