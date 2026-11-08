@@ -61,7 +61,7 @@ export function BrandGrid() {
     if (!onScreen || reducedMotion || queue.current.length === 0) return;
     const id = window.setInterval(() => {
       if (document.hidden) return;
-      const index = ORDER[step.current % ORDER.length] % SLOTS;
+      const index = ORDER[step.current % ORDER.length];
       step.current += 1;
       // The queue is a ref, so it is changed here, outside the state updater
       // (which React may run twice).

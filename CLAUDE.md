@@ -75,8 +75,8 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   in `layout.tsx` stamps the attribute before paint, so `<html>` carries
   `suppressHydrationWarning` on purpose.
 - **One page.** Sections in order: Hero → Who are we `#about` → Statement
-  (sticky) → Statement (scrolls over it) → Services `#services` → Brands
-  `#brands` → Contact `#contact`. **The statements block (`#statements`) is party-only**: on
+  (sticky) → Statement (scrolls over it) → Services `#services` → Contact
+  `#contact` (with the brands wall beside the form). **The statements block (`#statements`) is party-only**: on
   business it is `display: none`, because its line became that face's hero
   headline and its badge moved into the hero. The intro section (paragraph + image) was removed at the
   client's request. **Except at the very end:** `scrollState.end` (0 until
@@ -105,14 +105,16 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   old one-liners), and the last service is "Event Marketing, Strategy &
   Advisory". The three
   mono pill tags per row were removed at the client's request. Rows stay compact.
-- **Brands** (`Brands.tsx`, `BrandGrid.tsx`, copy and list in `brands` in
-  `site.ts`), between Services and Contact, after the client's "Heritage"
-  reference, made **minimal and consolidated** at the client's request: a
-  compact 3x3 wall of one-colour logos (max ~36rem, cells 2.6:1) and,
-  beside it past a hairline, "Brands our team has worked with" small and
-  muted (`ink-2`), the pair centred in a 56rem column; the line comes first
-  on phones. A first version spread the wall over 8 columns with the line
-  large at the far right; it read as too much. The wording is deliberate: these are
+- **Brands wall** (`BrandGrid.tsx`, copy and list in `brands` in
+  `site.ts`), **inside Contact, side by side with the form** (client: one
+  section, not two). After the client's "Heritage" reference: a compact 3x3
+  wall of one-colour logos under "Brands our team has worked with", small
+  and muted (`ink-2`). From xl the wall is the left 5 columns and the form
+  the right 7, past a hairline; below xl they stack with the form first,
+  because "Work with us" and the nav land on `#contact`. History: it was
+  its own `#brands` section between Services and Contact (first spread
+  wide, then made compact); a centred form with one row of five logos under
+  it was previewed against the split and not taken. The wording is deliberate: these are
   the team's past brands from previous companies, not GTHR's clients. The
   logos are SVGs in `public/logos/`, cleaned (no scripts, metadata or
   external links) and trimmed to their ink, drawn as CSS masks over
@@ -827,7 +829,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   the prefixed one, which Chrome ignores — so every `.glass` had no blur in
   Chrome, and the party field's grain and grid lines showed straight through
   the stat cards and contact card. The build adds the prefix for Safari.
-- **Contact:** the card is the stock clear `.glass` on both faces (a darker
+- **Contact** (with the brands wall, above): the card is the stock clear `.glass` on both faces (a darker
   smoked `.contact-glass` was tried and reverted — the client prefers the
   clear liquid glass); on party the labels, field borders and placeholders
   are a step brighter (unlayered, to beat utilities).
@@ -849,7 +851,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 src/app/            layout.tsx (fonts, chrome, canvas), page.tsx (section order), globals.css (tokens, reveal + grid CSS)
 src/components/
   chrome/           TopBar, BottomBar, Clock, Socials, SmoothScroll, ModeToggle, SideScrollbar, PixelCursor
-  sections/         Hero, HeroCta, WordSheen, Statement, StickyFade, Services, Brands, BrandGrid, About, Contact, ContactForm
+  sections/         Hero, HeroCta, WordSheen, Statement, StickyFade, Services, BrandGrid, About, Contact, ContactForm
   three/            SceneCanvas → Scene (Canvas + tracker), CloudBackdrop (+ the grid),
                     HeroLetters, Badge, Ticket,
                     canvasPaint, Lighting, noise, scrollState

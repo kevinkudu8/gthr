@@ -196,7 +196,7 @@ export const ticket = {
 } as const;
 
 /**
- * Brands section, between Services and Contact: the team's past work (at
+ * The brands wall, beside the contact form: the team's past work (at
  * previous companies), so the line says "our team", not "our clients".
  * Logos are one-colour SVGs in public/logos, trimmed to their ink, used as
  * masks so each face colours them. `aspect` is width / height of that file

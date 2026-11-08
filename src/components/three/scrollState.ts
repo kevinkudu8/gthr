@@ -87,10 +87,8 @@ const SECTIONS: { id: string; intensity: number; warm: number; thermal: number; 
   // The showpiece: brighter than the reading sections, the ticket is pale
   // enough to stand off colour.
   { id: "statements", intensity: 0.6, warm: 0.6, thermal: 0.55, calm: 0.45 },
-  // Near-black: the client wanted services and contact quiet, and the brands
-  // wall between them stays on the same ground.
+  // Near-black: the client wanted these two quiet.
   { id: "services", intensity: 0.28, warm: 0.6, thermal: 0, calm: 2 },
-  { id: "brands", intensity: 0.28, warm: 0.6, thermal: 0, calm: 2 },
   { id: "contact", intensity: 0.75, warm: 1, thermal: 0, calm: 2 },
 ];
 

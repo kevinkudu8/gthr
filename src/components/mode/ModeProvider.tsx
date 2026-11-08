@@ -51,7 +51,7 @@ if (typeof window !== "undefined") {
  * is; after the new face has laid out, scroll so that same point of that same
  * section is under the middle again.
  */
-const ANCHORS = ["hero", "about", "statements", "services", "brands", "contact"];
+const ANCHORS = ["hero", "about", "statements", "services", "contact"];
 type Anchor = { id: string; progress: number };
 let pendingAnchor: Anchor | null = null;
 

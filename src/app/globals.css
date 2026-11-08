@@ -1768,7 +1768,7 @@ html[data-spilling]::view-transition-old(root) {
   }
 }
 
-/* Brands wall (Brands.tsx / BrandGrid.tsx): one-colour logos drawn as masks
+/* Brands wall (BrandGrid.tsx, in Contact): one-colour logos drawn as masks
    over the ink, so each face colours them — white on party, soft black on
    business. The incoming and outgoing logo share a cell (grid-area 1 / 1)
    and crossfade with a little lift and blur. */
