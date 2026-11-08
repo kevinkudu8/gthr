@@ -195,6 +195,35 @@ export const ticket = {
   },
 } as const;
 
+/**
+ * Brands section, between Services and Contact: the team's past work (at
+ * previous companies), so the line says "our team", not "our clients".
+ * Logos are one-colour SVGs in public/logos, trimmed to their ink, used as
+ * masks so each face colours them. `aspect` is width / height of that file
+ * and sizes the logo so wide and tall marks carry about the same weight;
+ * `scale` nudges the ones that still read heavy or light. Nine show at a
+ * time and the rest rotate in.
+ */
+export const brands = {
+  heading: "Brands our team has worked with",
+  logos: [
+    { name: "Robinhood", src: "/logos/robinhood.svg", aspect: 5.1 },
+    { name: "BBC", src: "/logos/bbc.svg", aspect: 3.51, scale: 0.82 },
+    { name: "Circle", src: "/logos/circle.svg", aspect: 3.89 },
+    { name: "Hermès", src: "/logos/hermes.svg", aspect: 1.73 },
+    { name: "PayPal", src: "/logos/paypal.svg", aspect: 2.98, scale: 0.9 },
+    { name: "Warner Bros. Entertainment", src: "/logos/warner-bros.svg", aspect: 0.96, scale: 0.92 },
+    { name: "Crypto.com", src: "/logos/crypto-com.svg", aspect: 5.06 },
+    { name: "Dazed Media", src: "/logos/dazed.svg", aspect: 4.17, scale: 0.8 },
+    { name: "ETHGlobal", src: "/logos/ethglobal.svg", aspect: 4.76 },
+    { name: "Filecoin", src: "/logos/filecoin.svg", aspect: 3.48 },
+    { name: "Protocol Labs", src: "/logos/protocol-labs.svg", aspect: 6.26 },
+    { name: "Akash", src: "/logos/akash.svg", aspect: 4.8, scale: 0.85 },
+    { name: "Citrea", src: "/logos/citrea.svg", aspect: 3.98, scale: 0.88 },
+    { name: "ETHDenver", src: "/logos/ethdenver.svg", aspect: 3.25 },
+  ],
+} as const;
+
 /** Contact section copy. Headline and messages are DRAFTS. */
 export const contact = {
   eyebrow: "Contact",

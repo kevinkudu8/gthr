@@ -75,8 +75,8 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   in `layout.tsx` stamps the attribute before paint, so `<html>` carries
   `suppressHydrationWarning` on purpose.
 - **One page.** Sections in order: Hero → Who are we `#about` → Statement
-  (sticky) → Statement (scrolls over it) → Services `#services` → Contact
-  `#contact`. **The statements block (`#statements`) is party-only**: on
+  (sticky) → Statement (scrolls over it) → Services `#services` → Brands
+  `#brands` → Contact `#contact`. **The statements block (`#statements`) is party-only**: on
   business it is `display: none`, because its line became that face's hero
   headline and its badge moved into the hero. The intro section (paragraph + image) was removed at the
   client's request. **Except at the very end:** `scrollState.end` (0 until
@@ -104,9 +104,25 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   section read as wordy. All five lines are client copy now (longer than the
   old one-liners), and the last service is "Event Marketing, Strategy &
   Advisory". The three
-  mono pill tags per row were removed at the client's request. No
-  client logo strip until GTHR has clients of its own (past clients were
-  previous companies'). Rows stay compact.
+  mono pill tags per row were removed at the client's request. Rows stay compact.
+- **Brands** (`Brands.tsx`, `BrandGrid.tsx`, copy and list in `brands` in
+  `site.ts`), between Services and Contact, after the client's "Heritage"
+  reference, made **minimal and consolidated** at the client's request: a
+  compact 3x3 wall of one-colour logos (max ~36rem, cells 2.6:1) and,
+  beside it past a hairline, "Brands our team has worked with" small and
+  muted (`ink-2`), the pair centred in a 56rem column; the line comes first
+  on phones. A first version spread the wall over 8 columns with the line
+  large at the far right; it read as too much. The wording is deliberate: these are
+  the team's past brands from previous companies, not GTHR's clients. The
+  logos are SVGs in `public/logos/`, cleaned (no scripts, metadata or
+  external links) and trimmed to their ink, drawn as CSS masks over
+  `--ink-rgb` so each face colours them; sized from `aspect` (width grows
+  with its square root) with a per-logo `scale` for heavy marks. Nine show
+  at once; every 1.8s one slot (scattered order) swaps in the logo that has
+  waited longest, crossfading with a small lift and blur. Paused off screen
+  and in hidden tabs, still under reduced motion. Sources: Wikimedia,
+  company sites and brand kits; ETHDenver is their wordmark without the
+  "Hackathon + Workshops" line.
   (A photo per row was tried and removed — rows got tall and titles wrapped.)
 - **Socials:** X is `x.com/gthragency` (confirmed; the badge handle is
   `@gthragency` to match). Telegram is still a placeholder — and the badge's QR code points at it.
@@ -833,7 +849,7 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
 src/app/            layout.tsx (fonts, chrome, canvas), page.tsx (section order), globals.css (tokens, reveal + grid CSS)
 src/components/
   chrome/           TopBar, BottomBar, Clock, Socials, SmoothScroll, ModeToggle, SideScrollbar, PixelCursor
-  sections/         Hero, HeroCta, WordSheen, Statement, StickyFade, Services, About, Contact, ContactForm
+  sections/         Hero, HeroCta, WordSheen, Statement, StickyFade, Services, Brands, BrandGrid, About, Contact, ContactForm
   three/            SceneCanvas → Scene (Canvas + tracker), CloudBackdrop (+ the grid),
                     HeroLetters, Badge, Ticket,
                     canvasPaint, Lighting, noise, scrollState

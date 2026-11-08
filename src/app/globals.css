@@ -1767,3 +1767,54 @@ html[data-spilling]::view-transition-old(root) {
     margin-inline: auto;
   }
 }
+
+/* Brands wall (Brands.tsx / BrandGrid.tsx): one-colour logos drawn as masks
+   over the ink, so each face colours them — white on party, soft black on
+   business. The incoming and outgoing logo share a cell (grid-area 1 / 1)
+   and crossfade with a little lift and blur. */
+.brand-cell {
+  aspect-ratio: 2.6 / 1;
+}
+.brand-logo {
+  grid-area: 1 / 1;
+  max-height: 62%;
+  background-color: rgba(var(--ink-rgb), 0.62);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+:root[data-mode="business"] .brand-logo {
+  background-color: rgba(var(--ink-rgb), 0.78);
+}
+/* Party: a faint pool of light behind the wall, after the client's reference. */
+.brand-grid {
+  position: relative;
+}
+:root[data-mode="party"] .brand-grid::before {
+  content: "";
+  position: absolute;
+  inset: -12% -6%;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.05), transparent);
+  pointer-events: none;
+}
+.brand-logo--in {
+  animation: brand-in 900ms cubic-bezier(0.2, 0.7, 0.2, 1) 250ms both;
+}
+.brand-logo--out {
+  animation: brand-out 650ms ease-in both;
+}
+@keyframes brand-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(8px);
+  }
+}
+@keyframes brand-out {
+  to {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(-8px);
+  }
+}
