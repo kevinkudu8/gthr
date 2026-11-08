@@ -817,9 +817,11 @@ https://haoqi.design/ (a solo portfolio); the copy, name, and fonts are ours.
   are a step brighter (unlayered, to beat utilities).
   Centered form (two-column filled fields after the client's
   reference: name/email, company (optional)/location, then the message; black
-  pill submit) → `app/actions/contact.ts` server action → Resend
-  REST. Needs `RESEND_API_KEY` (see `.env.example`); without it the form says
-  so and points to the email. Telegram and X sit bottom-right
+  pill submit) → `lib/contact.ts`, posted **from the browser** to
+  Web3Forms (free plan rejects server-side submissions, which is why it is
+  not a server action; it replaced Resend). Inquiries go to info@gthr.agency,
+  the address the access key belongs to; the key is public by design and
+  sits in that file. A hidden `botcheck` checkbox is the honeypot. Telegram and X sit bottom-right
   (`Socials.tsx`; X is real, the Telegram handle in `site.ts` is a placeholder), and the Telegram
   link is reused in the contact copy.
 - Text on the left gutter needs an 8px inset (`px-2` / `outline-box` padding)
@@ -836,7 +838,7 @@ src/components/
                     HeroLetters, Badge, Ticket,
                     canvasPaint, Lighting, noise, scrollState
   ui/               Reveal, CountUp, PhotoSlides
-src/app/actions/    contact.ts — server action for the form
+src/lib/            contact.ts — sends the form to Web3Forms (client side)
 src/hooks/          usePrefersReducedMotion, useMediaQuery
 src/content/        site.ts, services.ts — all copy
 ```

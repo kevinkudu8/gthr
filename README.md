@@ -44,8 +44,8 @@ npm run lint
   `*.typeface.json`: `pacifico-gthr` (cursive `gthr`) and `gthr-business`
   (`GTHR`, Inter with a pixel `G` in Silkscreen). Regenerate with the
   fontTools + shapely scripts if a wordmark changes.
-- The contact form sends through Resend. Copy `.env.example` to `.env.local`
-  and set `RESEND_API_KEY` (plus `CONTACT_TO` / `CONTACT_FROM`). Without a key
-  the form tells visitors to email instead.
+- The contact form sends from the browser to Web3Forms (`src/lib/contact.ts`);
+  inquiries arrive at info@gthr.agency. The access key is public by design and
+  lives in that file, so no environment variables are needed.
 - VIP Experiences description, the contact headline, and the hero line are drafts.
 - `AGENTS.md` is written by `next dev` — leave it.

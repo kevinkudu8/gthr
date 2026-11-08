@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { badgeState, subscribeBadgeName } from "@/components/three/badgeState";
-import { sendInquiry, type ContactState } from "@/app/actions/contact";
+import { sendInquiry, type ContactState } from "@/lib/contact";
 import { contact } from "@/content/site";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
@@ -106,6 +106,16 @@ export function ContactForm() {
           className={`${field} resize-none`}
         />
       </label>
+
+      {/* Honeypot for bots (Web3Forms botcheck): off-screen and skipped by keyboard and screen readers. */}
+      <input
+        type="checkbox"
+        name="botcheck"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="hidden"
+      />
 
       {state.status === "error" && state.message ? (
         <p role="alert" className="font-mono text-sm text-accent-ink col-span-2">
